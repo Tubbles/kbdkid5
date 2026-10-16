@@ -12,7 +12,7 @@ The design, with every dimension, is in [DESIGN.md](DESIGN.md). The part choices
     docker run --rm -v "$PWD":/work -w /work freecad-headless \
         freecadcmd scripts/export_pcb.py --pass pcb.stl [right] [pull_in=0.2]
 
-CI first checks the layout with `python3 scripts/check_layout.py` (outline, keys, drills, the parts in the tray, the sockets against the tray, the joint), then uploads both halves as the `pcb-stl` artifact: `kbdkid5_Pcb_Left.stl` and `kbdkid5_Pcb_Right.stl` (the word `right`). The right one has the outline and the drills mirrored across the outline's center line, but not the switch footprints, since a switch cannot be mirrored: each sits as on the left half, at the mirrored key center.
+CI first checks the layout with `python3 scripts/check_layout.py` (outline, keys, drills, the parts in the tray, the sockets against the tray on both halves, the joint), then uploads both halves as the `pcb-stl` artifact: `kbdkid5_Pcb_Left.stl` and `kbdkid5_Pcb_Right.stl` (the word `right`). The right one has the outline and the drills mirrored across the outline's center line, but not the switch footprints, since a switch cannot be mirrored: each sits as on the left half, at the mirrored key center.
 
 ## 3D printed switch plate
 
@@ -38,3 +38,12 @@ CI uploads both halves, plain and covered, as the `plate-stl` artifact: `kbdkid5
         freecadcmd scripts/export_slit_test.py --pass strip.stl [pull_in=0.2]
 
 CI uploads both halves of the fused mock and the strip as the `mock-stl` artifact: `kbdkid5_Mock_Left.stl`, `kbdkid5_Mock_Right.stl` and `kbdkid5_Slit_Test.stl`. The right half's outline and plate are mirrored like the other right parts, but not its switch footprints, since a switch cannot be mirrored: each sits as on the left half, at the mirrored key center.
+
+## 3D printed tray
+
+`scripts/export_tray.py` exports a half's tray: walls, floor and the ledge the PCB rests on, standoffs bored for M2 heat-set inserts at the mounting drills, the cuts that clear the switches' hotswap sockets, and the joint along the slanted edge. The joint has four slots for 8 x 3 mm magnets, open at the top and toward the inside, each magnet glued against the thin skin at the joint face, and two flat-topped teardrop holes for 4 x 16 mm steel dowel pins: a snug fit on the left half, so a pin pressed in by hand stays put and stops there, and a slip fit with a lead-in on the right. Every fit is modelled 0.2 mm per side larger than it should print, for the print's swelling: 4.4 mm for the snug fit's 4.0 mm, 4.5 mm for the slip fit's 4.1 mm. The joint face's bottom edge is chamfered against elephant foot. A parking hole in the thumb key's east wall holds a pin while the halves are used apart. The mounts for the nice!nano, power switch, reset button and battery are not in it yet. The export checks the tray against DESIGN.md's figures and, joined with the other half, that the pin holes line up and nothing overlaps. The tray is written floor on the bed.
+
+    docker run --rm -v "$PWD":/work -w /work freecad-headless \
+        freecadcmd scripts/export_tray.py --pass tray.stl [right] [pin_hole_diameter=<mm>]
+
+`pin_hole_diameter` overrides the half's pin hole fit as modelled, for a test print. CI uploads both halves as the `tray-stl` artifact: `kbdkid5_Tray_Left.stl` and `kbdkid5_Tray_Right.stl`. The right tray is mirrored across the outline's center line like the other right parts, but cut for the right half's sockets, which sit as on the left half at the mirrored key centers.

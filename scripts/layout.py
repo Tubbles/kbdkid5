@@ -35,8 +35,15 @@ A switch cannot be mirrored, so neither can what its footprint places
 (its pins and holes, its socket): on the right half a key's footprint
 sits at the mirrored key center with the left half's rotation, as
 kbdkid4's right half (its board turned over) has it seen from above.
-Call the footprint functions with mirror_for_right_half(key_center)
-for that.
+DESIGN.md makes that a constraint on the PCB design. Call the
+footprint functions with mirror_for_right_half(key_center) for that.
+
+The right half's tray is built like the left one, in the left half's
+frame, and mirrored at the end, so what it is cut for comes in that
+frame: socket_polygons_on_half() and the socket rule functions with
+right=True give the right half's sockets mirrored back across the
+mirror line, which is the footprint's mirror image at the left half's
+key center, not the left half's socket.
 """
 
 import math
@@ -228,6 +235,33 @@ def socket_polygons(key_center):
 
 def socket_tab_tip(key_center):
     return footprint_point(key_center, HOTSWAP_SOCKET_TAB_TIP_MM)
+
+
+def mirrored_back_polygon(polygon):
+    """A right half polygon mirrored back into the left half's frame,
+    counter-clockwise again (mirroring reverses the order)."""
+    return tuple(reversed([mirror_for_right_half(point) for point in polygon]))
+
+
+def socket_polygons_on_half(key, right=False):
+    """A key's socket polygons on the given half, in the left half's
+    frame (see the module docstring), counter-clockwise."""
+    center = KEY_CENTERS_MM[key]
+    if not right:
+        return socket_polygons(center)
+    return tuple(
+        mirrored_back_polygon(polygon)
+        for polygon in socket_polygons(mirror_for_right_half(center))
+    )
+
+
+def socket_tab_tip_on_half(key, right=False):
+    """A key's socket tab tip on the given half, in the left half's
+    frame."""
+    center = KEY_CENTERS_MM[key]
+    if not right:
+        return socket_tab_tip(center)
+    return mirror_for_right_half(socket_tab_tip(mirror_for_right_half(center)))
 
 
 # The diodes sit on the top side under the plate (DESIGN.md, "Keys").
@@ -623,10 +657,11 @@ LEDGE_CUTAWAYS = (
 # kbdkid4 used the straight stretches between the corner rounds. Along
 # an edge is measured from its start vertex, across it outward
 # (outline_edge_frame()). The layout names the sockets each rule
-# applies to and the functions below work out the cuts by the rule.
-# check_layout.py checks that the sockets then keep the rules'
-# clearances from the ledge, the wall and the standoffs, so a socket
-# left out fails there.
+# applies to, for each half, and the functions below work out the cuts
+# by the rule, the right half's in the left half's frame. check_layout.py
+# checks that the sockets then keep the rules' clearances from the
+# ledge, the wall and the standoffs on both halves, so a socket left out
+# fails there.
 #
 # Ledge cuts run through the ledge's full width: from
 # LEDGE_CUT_OVERSHOOT_MM inside its inner face, where kbdkid4's cutters
@@ -648,6 +683,9 @@ LEDGE_NOTCH_WIDTH_MM = 3.0
 LEDGE_NOTCH_DEPTH_MM = 3.0
 LEDGE_NOTCH_CLEARANCE_MM = 0.5
 SOCKET_TAB_NOTCH_KEYS = ("S100", "S101", "S102", "S103")  # column 0, along the west edge
+# On the right half the thumb's tab, along the thumb's outer edge (the
+# east edge in the left half's frame).
+RIGHT_SOCKET_TAB_NOTCH_KEYS = ("S163",)
 
 # Ledge reliefs: wherever a socket polygon comes within
 # LEDGE_RELIEF_CLEARANCE_MM of the ledge's inner face along an outline
@@ -675,6 +713,9 @@ SOCKET_LEDGE_RELIEF_KEYS = (
     "S153",
     "S163",
 )
+# On the right half the bottom row's lobes, and the thumb's tab (inside
+# its notch).
+RIGHT_SOCKET_LEDGE_RELIEF_KEYS = ("S103", "S113", "S123", "S133", "S143", "S153", "S163")
 
 # Standoff flats: wherever a socket polygon comes within
 # STANDOFF_RELIEF_CLEARANCE_MM of a standoff in plan, the standoff gets
@@ -691,6 +732,21 @@ SOCKET_STANDOFF_FLATS = (  # (standoff center, key)
     ((76.041, 43.260), "S141"),
     ((94.774, 60.404), "S150"),
 )
+# No right half socket comes within the clearance of a standoff.
+RIGHT_SOCKET_STANDOFF_FLATS = ()
+
+
+def socket_tab_notch_keys(right=False):
+    return RIGHT_SOCKET_TAB_NOTCH_KEYS if right else SOCKET_TAB_NOTCH_KEYS
+
+
+def socket_ledge_relief_keys(right=False):
+    return RIGHT_SOCKET_LEDGE_RELIEF_KEYS if right else SOCKET_LEDGE_RELIEF_KEYS
+
+
+def socket_standoff_flat_declarations(right=False):
+    """(standoff center, key) of the given half's flats."""
+    return RIGHT_SOCKET_STANDOFF_FLATS if right else SOCKET_STANDOFF_FLATS
 
 
 @dataclass(frozen=True)
@@ -731,12 +787,12 @@ def ledge_cut_across_range():
     return (-(ledge_reach() + LEDGE_CUT_OVERSHOOT_MM), TRAY_GAP_MM)
 
 
-def socket_tab_tip_on_edge(key):
-    """(edge index, along, past the edge) of a key's tab tip against the
-    outline edge nearest it, or None when that edge's nearest point is
-    one of its ends: the tip is beside a corner, not alongside an
-    edge."""
-    tip = socket_tab_tip(KEY_CENTERS_MM[key])
+def socket_tab_tip_on_edge(key, right=False):
+    """(edge index, along, past the edge) of a key's tab tip on the
+    given half against the outline edge nearest it, or None when that
+    edge's nearest point is one of its ends: the tip is beside a corner,
+    not alongside an edge."""
+    tip = socket_tab_tip_on_half(key, right)
     index = nearest_outline_edge_index(tip)
     along, past_edge = outline_edge_coordinates(tip, index)
     if not 0.0 < along < outline_edge_length(index):
@@ -744,10 +800,10 @@ def socket_tab_tip_on_edge(key):
     return index, along, past_edge
 
 
-def socket_tab_cuts(key):
+def socket_tab_cuts(key, right=False):
     """The notch and the pocket (TrayCut) the tab rule cuts for a key's
-    socket: either, both or neither."""
-    on_edge = socket_tab_tip_on_edge(key)
+    socket on the given half: either, both or neither."""
+    on_edge = socket_tab_tip_on_edge(key, right)
     if on_edge is None:
         return ()
     index, along, past_edge = on_edge
@@ -795,25 +851,26 @@ def ledge_relief(label, polygon, index):
     return (TrayCut(label, index, (low, high), ledge_cut_across_range(), z_range),)
 
 
-def socket_ledge_reliefs(key):
-    """The reliefs the rule cuts for a key's socket, one per socket
-    polygon and outline edge it lies alongside."""
+def socket_ledge_reliefs(key, right=False):
+    """The reliefs the rule cuts for a key's socket on the given half,
+    one per socket polygon and outline edge it lies alongside."""
     return tuple(
         relief
-        for polygon in socket_polygons(KEY_CENTERS_MM[key])
+        for polygon in socket_polygons_on_half(key, right)
         for index in range(len(OUTLINE_VERTICES_MM))
         if index != SLANT_EDGE_INDEX
         for relief in ledge_relief(f"{key} socket relief", polygon, index)
     )
 
 
-def socket_standoff_flats(standoff_center, key):
-    """The flats the rule cuts into a standoff for a key's socket, one
-    per socket polygon within STANDOFF_RELIEF_CLEARANCE_MM of it."""
+def socket_standoff_flats(standoff_center, key, right=False):
+    """The flats the rule cuts into a standoff for a key's socket on the
+    given half, one per socket polygon within
+    STANDOFF_RELIEF_CLEARANCE_MM of it."""
     reach_below_pcb = HOTSWAP_SOCKET_REACH_MM + STANDOFF_RELIEF_CLEARANCE_MM
     z_range = (max(PCB_UNDERSIDE_Z_MM - reach_below_pcb, 0.0), STANDOFF_HEIGHT_MM)
     flats = []
-    for polygon in socket_polygons(KEY_CENTERS_MM[key]):
+    for polygon in socket_polygons_on_half(key, right):
         distance, nearest = nearest_polygon_point(standoff_center, polygon)
         plane_distance = distance - STANDOFF_RELIEF_CLEARANCE_MM
         if plane_distance >= STANDOFF_DIAMETER_MM / 2.0:
@@ -830,16 +887,59 @@ def socket_standoff_flats(standoff_center, key):
     return tuple(flats)
 
 
-def all_socket_tray_cuts():
-    """Every notch, pocket and relief the sockets get."""
-    tab_cuts = tuple(cut for key in SOCKET_TAB_NOTCH_KEYS for cut in socket_tab_cuts(key))
-    reliefs = tuple(cut for key in SOCKET_LEDGE_RELIEF_KEYS for cut in socket_ledge_reliefs(key))
+def all_socket_tray_cuts(right=False):
+    """Every notch, pocket and relief the given half's sockets get, the
+    tab cuts first."""
+    tab_cuts = tuple(
+        cut for key in socket_tab_notch_keys(right) for cut in socket_tab_cuts(key, right)
+    )
+    reliefs = tuple(
+        cut for key in socket_ledge_relief_keys(right) for cut in socket_ledge_reliefs(key, right)
+    )
     return tab_cuts + reliefs
 
 
-def all_socket_standoff_flats():
+def all_socket_standoff_flats(right=False):
     return tuple(
-        flat for center, key in SOCKET_STANDOFF_FLATS for flat in socket_standoff_flats(center, key)
+        flat
+        for center, key in socket_standoff_flat_declarations(right)
+        for flat in socket_standoff_flats(center, key, right)
+    )
+
+
+def ledge_cutaway_edge_index(cutaway):
+    """The north outline edge a ledge cut-away lies on: horizontal at
+    the cut-away's y, covering its x range, running west (the outline
+    runs counter-clockwise)."""
+    low_x, high_x = cutaway.x_range
+    for index in range(len(OUTLINE_VERTICES_MM)):
+        start, end = outline_edge_ends(index)
+        if (
+            abs(start[1] - cutaway.north_edge_y) < 1e-9
+            and abs(end[1] - cutaway.north_edge_y) < 1e-9
+            and end[0] <= low_x
+            and high_x <= start[0]
+        ):
+            return index
+    raise ValueError(
+        f"no north outline edge at y {cutaway.north_edge_y} covers the "
+        f"{cutaway.part}'s ledge cut-away over x {cutaway.x_range}"
+    )
+
+
+def ledge_cutaway_cut(cutaway):
+    """A ledge cut-away as a cut through the ledge's full width and
+    height. Its north edge runs west, so along it is the start's x less
+    x."""
+    index = ledge_cutaway_edge_index(cutaway)
+    start_x = OUTLINE_VERTICES_MM[index][0]
+    low_x, high_x = cutaway.x_range
+    return TrayCut(
+        f"{cutaway.part} cut-away",
+        index,
+        (start_x - high_x, start_x - low_x),
+        ledge_cut_across_range(),
+        (0.0, PCB_UNDERSIDE_Z_MM),
     )
 
 
@@ -869,35 +969,107 @@ JOINT_FACE_OUTWARD_MM = TRAY_GAP_MM + TRAY_WALL_MM
 JOINT_BLOCK_THICKNESS_MM = 4.0
 JOINT_BLOCK_TOP_Z_MM = PCB_UNDERSIDE_Z_MM
 
-# Magnets: four supermagnete S-08-03-N (8 x 3) standing on edge in
-# slots open at the block's top, 8.2 along the slant and 3.1 across it,
-# from z -0.7 up, leaving a 0.5 skin at the face, between the pins at
-# the given centers along the slant.
+# The joint face's bottom edge is chamfered, so elephant foot (the first
+# layers squashed out past the face) cannot keep the faces apart.
+JOINT_FACE_BOTTOM_CHAMFER_MM = 0.4
+
+# Printed fits. A print swells PRINT_SWELLING_PER_SIDE_MM per side (the
+# PCB mock's pull_in), so a hole or slot comes out that much smaller per
+# side than modelled. Each fit is modelled as the part's nominal size
+# plus the swelling on both sides plus the fit's clearance, so that it
+# prints as the nominal size plus the clearance.
+PRINT_SWELLING_PER_SIDE_MM = 0.2
+SNUG_FIT_MM = 0.0  # holds a part pressed in by hand
+SLIP_FIT_MM = 0.1  # lets a part slide in, or leaves room for glue
+
+
+def printed_fit(nominal, fit):
+    return nominal + 2.0 * PRINT_SWELLING_PER_SIDE_MM + fit
+
+
+# Magnets: four supermagnete S-08-03-N (8 x 3) standing on edge, each
+# glued against a 0.5 skin at the face, which takes its pull. Its slot
+# is a notch through the rest of the block, open at the top and toward
+# the cavity: the skin and a 3.0 magnet's printed fit across fill the
+# block's 4.0, which leaves no room for a wall on the slot's inner side.
+# The slots run from z -0.7 up (0.5 above the bed), between the pins at
+# the given centers along the slant: spread evenly between the bosses
+# when the slots were 8.2 long (3.14 from each boss and from each
+# other), now 2.99 from the bosses and 2.84 apart.
 MAGNET_DIAMETER_MM = 8.0
 MAGNET_THICKNESS_MM = 3.0
-MAGNET_SLOT_ALONG_MM = 8.2
-MAGNET_SLOT_ACROSS_MM = 3.1
+MAGNET_SLOT_ALONG_MM = printed_fit(MAGNET_DIAMETER_MM, SLIP_FIT_MM)
+MAGNET_SLOT_ACROSS_MM = printed_fit(MAGNET_THICKNESS_MM, SLIP_FIT_MM)
 MAGNET_SLOT_BOTTOM_Z_MM = -0.7
 MAGNET_SKIN_MM = 0.5
-MAGNET_ALONGS_MM = (15.6, 26.0, 36.5, 46.9)
+MAGNET_ALONGS_MM = (14.24, 25.58, 36.92, 48.26)
 
 # Above the block the wall's inner face is cut back to each slot, from
 # the block's top to the rim, over the slot's width along the slant: the
-# full wall, its inner face TRAY_GAP_MM out, would leave the slot open
-# only from its inner side to there, 2.8 across for the 3.0 magnet.
+# full wall, its inner face TRAY_GAP_MM out, would overhang the slot by
+# 0.3, so a magnet could not go straight down into its place against
+# the skin.
 MAGNET_WALL_CUTBACK_TOP_Z_MM = TRAY_RIM_Z_MM
 
 # Dowel pins: two hardened ISO 8734 4 x 16, normal to the face, at
-# z 3.4, at the given centers along the slant (DESIGN.md: slant y 25.0
-# and 71.2, 48.5 apart), 8 embedded in each half, each in a boss 7
-# across reaching 8.2 from the face into the tray.
+# z 3.4, at the given centers along the slant (DESIGN.md: slant y 21.7
+# and 74.5, 55.5 apart), 8 embedded in each half, each in a boss 7
+# across reaching from the face into the tray past its hole's bottom,
+# from the floor up to the PCB's underside like the block. The pins and
+# magnets sit at the same places along the slant on both halves, since
+# the halves mate face to face. The pins are as far apart as the joint
+# face allows: each boss ends where the outline's slant ends (the upper
+# one 0.006 short), which keeps it on the face's flat part between the
+# tray's corner rounds. At 55.5, where the upper pin first sat, its boss
+# overlapped the right half's S150 socket.
 DOWEL_PIN_DIAMETER_MM = 4.0
 DOWEL_PIN_LENGTH_MM = 16.0
 DOWEL_PIN_EMBEDDED_MM = 8.0
 DOWEL_PIN_Z_MM = 3.4
-DOWEL_PIN_ALONGS_MM = (7.0, 55.5)
+DOWEL_PIN_ALONGS_MM = (3.5, 59.0)
 DOWEL_BOSS_DIAMETER_MM = 7.0
-DOWEL_BOSS_REACH_MM = 8.2
+DOWEL_BOSS_TOP_Z_MM = PCB_UNDERSIDE_Z_MM
+
+# The pin holes are teardrops, their point up since they print
+# horizontal, with the point cut flat at the circle's top, so the pin
+# bears upward on a bridge instead of on the point's flanks. The left
+# half's hold a pin pressed in by hand (snug) and are its stop: as deep
+# as the embedded length once the bottom swells, with 1.2 of the boss
+# behind. The right half's let it slide (slip), 9.0 deep with 1.0
+# behind, so the channel through both halves is 17.2 as modelled (16.8
+# printed) for the 16 pin. The right half's mouths get a lead-in
+# chamfer, so the pin standing out of the left half finds them. No fit
+# has been printed yet.
+DOWEL_HOLE_SNUG_DIAMETER_MM = printed_fit(DOWEL_PIN_DIAMETER_MM, SNUG_FIT_MM)  # the left half's
+DOWEL_HOLE_SLIP_DIAMETER_MM = printed_fit(DOWEL_PIN_DIAMETER_MM, SLIP_FIT_MM)  # the right half's
+DOWEL_HOLE_SNUG_DEPTH_MM = DOWEL_PIN_EMBEDDED_MM + PRINT_SWELLING_PER_SIDE_MM
+DOWEL_HOLE_SLIP_DEPTH_MM = 9.0
+DOWEL_BOSS_SNUG_BEHIND_HOLE_MM = 1.2
+DOWEL_BOSS_SLIP_BEHIND_HOLE_MM = 1.0
+DOWEL_HOLE_SLIP_LEAD_IN_MM = 0.3
+
+# Plastic the tray keeps between any two of the joint's voids: the
+# dowel holes, the magnet slots and the parking hole.
+JOINT_LEAST_PLASTIC_BETWEEN_VOIDS_MM = 1.0
+
+
+def dowel_hole_diameter(right=False):
+    return DOWEL_HOLE_SLIP_DIAMETER_MM if right else DOWEL_HOLE_SNUG_DIAMETER_MM
+
+
+def dowel_hole_depth(right=False):
+    return DOWEL_HOLE_SLIP_DEPTH_MM if right else DOWEL_HOLE_SNUG_DEPTH_MM
+
+
+def dowel_hole_lead_in(right=False):
+    return DOWEL_HOLE_SLIP_LEAD_IN_MM if right else 0.0
+
+
+def dowel_boss_reach(right=False):
+    """How far the half's dowel bosses reach from the face into the
+    tray: the hole and the plastic behind it."""
+    behind = DOWEL_BOSS_SLIP_BEHIND_HOLE_MM if right else DOWEL_BOSS_SNUG_BEHIND_HOLE_MM
+    return dowel_hole_depth(right) + behind
 
 
 def magnet_slot_outward_range():
@@ -921,39 +1093,100 @@ def magnet_wall_cutback_outward():
 
 def magnet_slot_opening_outward_range(wall_inner_face_outward):
     """Across the slant, what is open above a slot from the block's top
-    to the rim: from the slot's inner side to the wall's inner face."""
+    to the rim, as far as the slot reaches inward: from the slot's inner
+    side to the wall's inner face."""
     inner_side, face_side = magnet_slot_outward_range()
     return (inner_side, min(face_side, wall_inner_face_outward))
 
 
-def dowel_boss_polygon(along):
+def dowel_boss_polygon(along, right=False):
     return slant_rectangle(
         along,
         DOWEL_BOSS_DIAMETER_MM,
-        (JOINT_FACE_OUTWARD_MM - DOWEL_BOSS_REACH_MM, JOINT_FACE_OUTWARD_MM),
+        (JOINT_FACE_OUTWARD_MM - dowel_boss_reach(right), JOINT_FACE_OUTWARD_MM),
     )
 
 
 def dowel_boss_z_range():
-    radius = DOWEL_BOSS_DIAMETER_MM / 2.0
-    return (DOWEL_PIN_Z_MM - radius, DOWEL_PIN_Z_MM + radius)
+    return (0.0, DOWEL_BOSS_TOP_Z_MM)
+
+
+def dowel_hole_polygon(along, right=False):
+    """A dowel hole in plan: its flat top stands right over the circle,
+    so it is the hole's diameter wide."""
+    return slant_rectangle(
+        along,
+        dowel_hole_diameter(right),
+        (JOINT_FACE_OUTWARD_MM - dowel_hole_depth(right), JOINT_FACE_OUTWARD_MM),
+    )
+
+
+def horizontal_hole_z_range(axis_z, diameter):
+    """A flat-topped teardrop hole reaches its radius above and below
+    its axis."""
+    return (axis_z - diameter / 2.0, axis_z + diameter / 2.0)
+
+
+def slant_line_crossing_y(along, y):
+    """The point with the given y on the line square to the slant at
+    `along`."""
+    on_slant_x, on_slant_y = slant_point(along, 0.0)
+    normal = slant_outward_normal()
+    outward = (y - on_slant_y) / normal[1]
+    return (on_slant_x + outward * normal[0], y)
+
+
+def slant_line_crossing_x(along, x):
+    """The point with the given x on the line square to the slant at
+    `along`."""
+    on_slant_x, on_slant_y = slant_point(along, 0.0)
+    normal = slant_outward_normal()
+    outward = (x - on_slant_x) / normal[0]
+    return (x, on_slant_y + outward * normal[1])
+
+
+def upper_boss_fill_polygon(right=False):
+    """The plastic filling the crevice that would open between the upper
+    dowel boss's north side, the north ledge's face and the block, out
+    to the boss's inner end: a triangle with one side on the boss's
+    north side, one on the ledge's face and one running north from the
+    boss's inner corner."""
+    north_side = max(DOWEL_PIN_ALONGS_MM) + DOWEL_BOSS_DIAMETER_MM / 2.0
+    ledge_face_y = SLANT_NORTH_END_MM[1] - ledge_reach()
+    inner_corner = slant_point(north_side, JOINT_FACE_OUTWARD_MM - dowel_boss_reach(right))
+    return (
+        inner_corner,
+        slant_line_crossing_y(north_side, ledge_face_y),
+        (inner_corner[0], ledge_face_y),
+    )
 
 
 # Pin parking: in split mode each half carries one pin in a teardrop
-# hole 4.2 across through the thumb key's short east wall (the outline's
-# east edge, x 132.398 up to the slant), running along -x at y 13.1 and
-# z 3.4, in a boss under the PCB. The pin goes in 14.5 and a
-# supermagnete S-04-02-N (4 x 2) at the hole's bottom holds it, so the
-# hole reaches 14.5 + 2.0 from the tray's outer face. DESIGN.md gives
-# the boss no size, so only the hole is placed here.
+# hole through the thumb key's short east wall (the outline's east
+# edge, x 132.398 up to the slant), running along -x at y 13.1 and
+# z 3.4, in a boss under the PCB, the pin's slip fit like the right
+# half's dowel holes. The pin goes in 14.5 and a supermagnete S-04-02-N
+# (4 x 2) glued at the hole's bottom holds it, so the hole reaches
+# 14.5 + 2.0 from the tray's outer face, its last 2.0 the magnet's seat,
+# whose glued fit comes to the hole's own diameter. The boss is 7 across
+# like the dowel bosses, reaches 1.5 behind the hole's bottom (the
+# dowel bosses' plastic around a pin) and stands from the floor to the
+# PCB's underside, which rests on it, so it keeps the ledge's clearance
+# from the sockets. North of it, up to the lower dowel boss, a fill
+# closes the crevice between the two. In plan both are given here up to
+# the outline's east edge: the ledge and the wall fill the rest.
 THUMB_EAST_EDGE_X_MM = SLANT_SOUTH_END_MM[0]  # the edge ends at the slant
-PARKING_HOLE_DIAMETER_MM = 4.2
+PARKING_HOLE_DIAMETER_MM = printed_fit(DOWEL_PIN_DIAMETER_MM, SLIP_FIT_MM)
 PARKING_HOLE_Y_MM = 13.1
 PARKING_HOLE_Z_MM = 3.4
 PARKING_PIN_INSERTION_MM = 14.5
 PARKING_MAGNET_DIAMETER_MM = 4.0
 PARKING_MAGNET_THICKNESS_MM = 2.0
+PARKING_MAGNET_SEAT_DIAMETER_MM = printed_fit(PARKING_MAGNET_DIAMETER_MM, SLIP_FIT_MM)
 PARKING_HOLE_DEPTH_MM = PARKING_PIN_INSERTION_MM + PARKING_MAGNET_THICKNESS_MM
+PARKING_BOSS_ACROSS_MM = DOWEL_BOSS_DIAMETER_MM
+PARKING_BOSS_BEHIND_HOLE_MM = 1.5
+PARKING_BOSS_TOP_Z_MM = PCB_UNDERSIDE_Z_MM
 
 
 def parking_hole_x_range():
@@ -964,13 +1197,44 @@ def parking_hole_x_range():
 
 
 def parking_hole_polygon():
-    """The parking hole in plan: its teardrop's point stands above it,
-    so it is the hole's diameter wide."""
+    """The parking hole in plan: its flat top stands right over the
+    circle, so it is the hole's diameter wide."""
     low_x, high_x = parking_hole_x_range()
     radius = PARKING_HOLE_DIAMETER_MM / 2.0
     low_y = PARKING_HOLE_Y_MM - radius
     high_y = PARKING_HOLE_Y_MM + radius
     return ((low_x, low_y), (high_x, low_y), (high_x, high_y), (low_x, high_y))
+
+
+def parking_boss_polygon():
+    """The parking hole's boss in plan, up to the outline's east edge."""
+    low_x = parking_hole_x_range()[0] - PARKING_BOSS_BEHIND_HOLE_MM
+    half_across = PARKING_BOSS_ACROSS_MM / 2.0
+    low_y = PARKING_HOLE_Y_MM - half_across
+    high_y = PARKING_HOLE_Y_MM + half_across
+    return (
+        (low_x, low_y),
+        (THUMB_EAST_EDGE_X_MM, low_y),
+        (THUMB_EAST_EDGE_X_MM, high_y),
+        (low_x, high_y),
+    )
+
+
+def parking_boss_fill_polygon():
+    """The parking boss's extension north to the lower dowel boss: the
+    triangle between the boss's north side, the outline's east edge and
+    the dowel boss's south side."""
+    boss_north_y = PARKING_HOLE_Y_MM + PARKING_BOSS_ACROSS_MM / 2.0
+    south_side = min(DOWEL_PIN_ALONGS_MM) - DOWEL_BOSS_DIAMETER_MM / 2.0
+    return (
+        slant_line_crossing_y(south_side, boss_north_y),
+        (THUMB_EAST_EDGE_X_MM, boss_north_y),
+        slant_line_crossing_x(south_side, THUMB_EAST_EDGE_X_MM),
+    )
+
+
+def parking_boss_z_range():
+    return (0.0, PARKING_BOSS_TOP_Z_MM)
 
 
 # Plane geometry on the outline, for the checks and the PCB mock's

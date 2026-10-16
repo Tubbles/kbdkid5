@@ -51,8 +51,9 @@ from plate_shape import ALIGNMENT_RESIDUAL_LIMIT_MM
 from tray_shape import MINIMUM_FILLET_RADIUS_MM, fillet_prism_corners
 
 # How far the printed part is expected to swell per side, in mm: the
-# outline moves inward and every hole grows outward by this much.
-DEFAULT_PULL_IN_MM = 0.2
+# outline moves inward and every hole grows outward by this much. The
+# tray's printed fits allow for the same swelling.
+DEFAULT_PULL_IN_MM = layout.PRINT_SWELLING_PER_SIDE_MM
 
 # Implementation tuning, rarely worth touching.
 CUT_EXTRA_MM = 1.0  # hole cutters overshoot both faces for a clean cut

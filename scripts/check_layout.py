@@ -12,6 +12,15 @@ layout.py holds the values the geometry is built from. The DESIGN_*
 constants below are DESIGN.md's figures that follow from them,
 transcribed independently, so a slip on either side fails here.
 
+Every check that involves the sockets or the dowel bosses and holes
+runs on both halves: the right half's sockets differ (layout.py's
+module docstring), so its tray gets its own cuts, and its dowel holes
+are a deeper slip fit in deeper bosses. The right half is checked in
+the left half's frame, its sockets mirrored back across the mirror
+line, against a tray whose outline, ledge, standoffs, magnet slots and
+parking hole are the left half's there. The other checks would only
+repeat the left half's numbers, so they run once.
+
 Distances are in plan. Two bodies are checked against each other only
 where their z ranges overlap, since one can pass over the other. The
 tray is modelled as layout.py's sharp-cornered polygons: the wall
@@ -50,7 +59,8 @@ OUTLINE_ON_CELLS_TOLERANCE_MM = 0.0015
 
 # This check's own threshold: a magnet drops into its slot from above,
 # through what the wall leaves open there, with at least the least
-# clearance DESIGN.md gives a slot (3.1 across for the 3.0 magnet).
+# clearance DESIGN.md gives a slot as printed (3.1 across for the 3.0
+# magnet).
 MAGNET_DROP_IN_CLEARANCE_MM = 0.1
 
 # DESIGN.md's figures, each compared within half its last digit.
@@ -103,11 +113,31 @@ DESIGN_STANDOFF_FLATS = (
     ("S150", (94.774, 60.404), 0.487, 0.787),
 )
 DESIGN_STANDOFF_FLAT_BOTTOM_Z_MM = 4.98
-DESIGN_MAGNET_SLOT_FROM_DOWEL_BOSSES_MM = 1.0
-DESIGN_MAGNET_SLOTS_APART_MM = 2.2
-DESIGN_DOWEL_PIN_SPACING_MM = 48.5
-DESIGN_DOWEL_PIN_SLANT_Y_MM = (25.0, 71.2)
+# The right half's sockets (DESIGN.md, "Tray"): the thumb's tab past the
+# thumb's outer edge, notched and pocketed like column 0's on the left
+# (the same pocket figures), the bottom row's reliefs, and no flats.
+DESIGN_RIGHT_TAB_NOTCH_KEYS = {"S163"}
+DESIGN_RIGHT_TAB_TIP_PAST_THUMB_EDGE_MM = 0.231
+DESIGN_RIGHT_LEDGE_RELIEF_KEYS = {"S103", "S113", "S123", "S133", "S143", "S153", "S163"}
+DESIGN_RIGHT_STANDOFF_FLATS = ()
+DESIGN_RIGHT_CLOSEST_SOCKET_TO_STANDOFF_MM = 1.391
+# Along the slant: boss, four slots, boss.
+DESIGN_BOSS_TO_SLOT_GAP_MM = 2.99
+DESIGN_SLOT_TO_SLOT_GAP_MM = 2.84
+DESIGN_DOWEL_PIN_SPACING_MM = 55.5
+DESIGN_DOWEL_PIN_Z_MM = 3.4
+# Per half, False the left one, True the right one: how close the
+# dowel bosses and their fills come to a socket (S150's on both), and
+# the least plastic between two of the joint's holes and slots (the
+# lower dowel hole and the parking hole on both).
+DESIGN_BOSSES_FROM_SOCKETS_MM = {False: 3.701, True: 1.144}
+DESIGN_LEAST_PLASTIC_BETWEEN_VOIDS_MM = {False: 2.09, True: 1.80}
+DESIGN_DOWEL_PIN_SLANT_Y_MM = (21.7, 74.5)
+# How far the lower boss's south end and the upper boss's north end lie
+# inside the outline slant's ends.
+DESIGN_DOWEL_BOSSES_INSIDE_SLANT_ENDS_MM = (0.0, 0.006)
 DESIGN_PARKING_PIN_PROUD_MM = 1.5
+DESIGN_PARKING_BOSS_FROM_SOCKETS_MM = 1.763  # on both halves, the thumb's
 DESIGN_MAGNET_SLOT_ABOVE_BED_MM = 0.5
 DESIGN_PIN_OFF_HOLE_MM = 0.05  # each blade from its 3.0 hole, along footprint x
 DESIGN_PULL_IN_MM = 0.2
@@ -424,12 +454,18 @@ def wall_z_range():
     return (layout.FLOOR_UNDERSIDE_Z_MM, layout.TRAY_RIM_Z_MM)
 
 
-def socket_footprints():
-    """(key name, convex polygon) for every socket polygon."""
+def half_label(right):
+    """What starts a check's line for the right half."""
+    return "right half: " if right else ""
+
+
+def socket_footprints(right=False):
+    """(key name, convex polygon) for every socket polygon on the given
+    half, in the left half's frame."""
     return [
         (name, polygon)
-        for name, center in layout.KEY_CENTERS_MM.items()
-        for polygon in layout.socket_polygons(center)
+        for name in layout.KEY_CENTERS_MM
+        for polygon in layout.socket_polygons_on_half(name, right)
     ]
 
 
@@ -448,39 +484,12 @@ def ring_pieces(outer_polygon, inner_polygon):
     ]
 
 
-def north_edge_index(cutaway):
-    """The north outline edge a ledge cut-away lies on: horizontal at
-    the cut-away's y, covering its x range, running west (the outline
-    runs counter-clockwise)."""
-    low_x, high_x = cutaway.x_range
-    for index, (start, end) in enumerate(edges(layout.OUTLINE_VERTICES_MM)):
-        if (
-            abs(start[1] - cutaway.north_edge_y) < TOLERANCE_MM
-            and abs(end[1] - cutaway.north_edge_y) < TOLERANCE_MM
-            and end[0] <= low_x
-            and high_x <= start[0]
-        ):
-            return index
-    raise CheckFailure(
-        f"no north outline edge at y {cutaway.north_edge_y} covers the "
-        f"{cutaway.part}'s ledge cut-away over x {cutaway.x_range}"
-    )
-
-
 def cutaway_cut(cutaway):
-    """A ledge cut-away as a cut through the ledge's full width and
-    height. Its north edge runs west, so along it is the start's x less
-    x."""
-    index = north_edge_index(cutaway)
-    start_x = layout.OUTLINE_VERTICES_MM[index][0]
-    low_x, high_x = cutaway.x_range
-    return layout.TrayCut(
-        f"{cutaway.part} cut-away",
-        index,
-        (start_x - high_x, start_x - low_x),
-        layout.ledge_cut_across_range(),
-        ledge_z_range(),
-    )
+    """A ledge cut-away as layout.py cuts it."""
+    try:
+        return layout.ledge_cutaway_cut(cutaway)
+    except ValueError as error:
+        raise CheckFailure(str(error))
 
 
 def cut_piece(label, polygon, z_range, cuts):
@@ -508,12 +517,12 @@ def cut_piece(label, polygon, z_range, cuts):
     return pieces
 
 
-def ledge_pieces():
-    """(label, convex polygon, z range) of the ledge and the joint block
-    as cut: DESIGN.md's cut-aways and the sockets' notches, pockets and
-    reliefs taken out."""
+def ledge_pieces(right=False):
+    """(label, convex polygon, z range) of the given half's ledge and
+    joint block as cut: DESIGN.md's cut-aways and the sockets' notches,
+    pockets and reliefs taken out."""
     cuts = [cutaway_cut(cutaway) for cutaway in layout.LEDGE_CUTAWAYS]
-    cuts.extend(layout.all_socket_tray_cuts())
+    cuts.extend(layout.all_socket_tray_cuts(right))
     rings = ring_pieces(layout.tray_cavity_polygon(), layout.ledge_inner_polygon())
     pieces = []
     for index, ring_piece in enumerate(rings):
@@ -525,10 +534,11 @@ def ledge_pieces():
     return pieces
 
 
-def wall_pieces():
-    """(label, convex polygon, z range) of the wall between the cavity
-    and the outer face, the sockets' tab pockets taken out of it."""
-    pockets = [cut for cut in layout.all_socket_tray_cuts() if cut.cuts_wall]
+def wall_pieces(right=False):
+    """(label, convex polygon, z range) of the given half's wall between
+    the cavity and the outer face, the sockets' tab pockets taken out of
+    it."""
+    pockets = [cut for cut in layout.all_socket_tray_cuts(right) if cut.cuts_wall]
     rings = ring_pieces(layout.tray_outer_polygon(), layout.tray_cavity_polygon())
     pieces = []
     for index, ring_piece in enumerate(rings):
@@ -537,10 +547,14 @@ def wall_pieces():
     return pieces
 
 
-def standoff_bands(center):
-    """(z range, flats) of a standoff's height bands, with the sockets'
-    flats cut into each band."""
-    flats = [flat for flat in layout.all_socket_standoff_flats() if flat.standoff_center == center]
+def standoff_bands(center, right=False):
+    """(z range, flats) of a standoff's height bands on the given half,
+    with the sockets' flats cut into each band."""
+    flats = [
+        flat
+        for flat in layout.all_socket_standoff_flats(right)
+        if flat.standoff_center == center
+    ]
     bounds = sorted(set(standoff_z_range()) | {z for flat in flats for z in flat.z_range})
     return [
         (
@@ -570,13 +584,13 @@ def standoff_clearance(center, flats, convex_polygon):
     return bound
 
 
-def socket_clearances(obstacles, minimum):
-    """(problems, tightest) of every socket polygon against (label,
-    convex polygon, z range) obstacles wherever their z ranges
-    overlap."""
+def socket_clearances(obstacles, minimum, right=False):
+    """(problems, tightest) of every socket polygon on the given half
+    against (label, convex polygon, z range) obstacles wherever their z
+    ranges overlap."""
     problems = []
     tightest = Tightest()
-    for name, socket in socket_footprints():
+    for name, socket in socket_footprints(right):
         for label, polygon, z_range in obstacles:
             if not ranges_overlap(z_range, socket_z_range()):
                 continue
@@ -1144,13 +1158,13 @@ def check_parts_apart():
     return f"apart:     parts and the PCB connector's clear zone clear of each other by {tightest}"
 
 
-def check_part_sockets():
+def check_part_sockets(right=False):
     problems = []
     tightest = Tightest()
     for envelope in layout.PART_ENVELOPES:
         if not ranges_overlap(envelope.z_range, socket_z_range()):
             continue
-        for name, polygon in socket_footprints():
+        for name, polygon in socket_footprints(right):
             clearance = convex_separation(box_polygon(envelope), polygon)
             where = f"{describe_envelope(envelope)} and {name}'s socket"
             tightest.update(clearance, where)
@@ -1163,17 +1177,17 @@ def check_part_sockets():
         if not ranges_overlap(envelope.z_range, socket_z_range())
     )
     return (
-        f"sockets:   parts reaching their height clear in plan by {tightest}; every other part "
-        f"stays {layout.SOCKET_BOTTOM_Z_MM - highest_other:.3f} below them"
+        f"sockets:   {half_label(right)}parts reaching their height clear in plan by {tightest}; "
+        f"every other part stays {layout.SOCKET_BOTTOM_Z_MM - highest_other:.3f} below them"
     )
 
 
-def check_battery():
+def check_battery(right=False):
     battery = box_polygon(layout.BATTERY)
     covering_keys = sorted(
         {
             name
-            for name, polygon in socket_footprints()
+            for name, polygon in socket_footprints(right)
             if convex_separation(battery, polygon) < -TOLERANCE_MM
         }
     )
@@ -1191,19 +1205,33 @@ def check_battery():
             f"{sorted(DESIGN_BATTERY_COLUMNS)}"
         )
     fail_on(problems, "the battery does not sit under the sockets as DESIGN.md states")
-    return f"battery:   under the sockets of {', '.join(covering_keys)}, {clearance_text}"
+    return (
+        f"battery:   {half_label(right)}under the sockets of {', '.join(covering_keys)}, "
+        f"{clearance_text}"
+    )
 
 
-def declared_set_problems():
-    """Where the sockets layout.py gives notches, reliefs and flats
-    differ from DESIGN.md's."""
+def design_socket_cut_keys(right):
+    """(tab notch keys, ledge relief keys, standoff flats as (key,
+    standoff)) of the given half, as DESIGN.md states them."""
+    if right:
+        flats = {(key, center) for key, center, _, _ in DESIGN_RIGHT_STANDOFF_FLATS}
+        return DESIGN_RIGHT_TAB_NOTCH_KEYS, DESIGN_RIGHT_LEDGE_RELIEF_KEYS, flats
+    flats = {(key, center) for key, center, _, _ in DESIGN_STANDOFF_FLATS}
+    return DESIGN_TAB_NOTCH_KEYS, DESIGN_LEDGE_RELIEF_KEYS, flats
+
+
+def declared_set_problems(right=False):
+    """Where the sockets layout.py gives notches, reliefs and flats on
+    the given half differ from DESIGN.md's."""
+    design_notches, design_reliefs, design_flats = design_socket_cut_keys(right)
     declared = (
-        ("tab notches", set(layout.SOCKET_TAB_NOTCH_KEYS), DESIGN_TAB_NOTCH_KEYS),
-        ("ledge reliefs", set(layout.SOCKET_LEDGE_RELIEF_KEYS), DESIGN_LEDGE_RELIEF_KEYS),
+        ("tab notches", set(layout.socket_tab_notch_keys(right)), design_notches),
+        ("ledge reliefs", set(layout.socket_ledge_relief_keys(right)), design_reliefs),
         (
             "standoff flats",
-            {(key, center) for center, key in layout.SOCKET_STANDOFF_FLATS},
-            {(key, center) for key, center, _, _ in DESIGN_STANDOFF_FLATS},
+            {(key, center) for center, key in layout.socket_standoff_flat_declarations(right)},
+            design_flats,
         ),
     )
     return [
@@ -1213,19 +1241,20 @@ def declared_set_problems():
     ]
 
 
-def uncut_declaration_problems():
-    """Sockets named for a cut that kbdkid4's rule does not make."""
+def uncut_declaration_problems(right=False):
+    """Sockets named for a cut that kbdkid4's rule does not make on the
+    given half."""
     problems = []
-    for key in layout.SOCKET_TAB_NOTCH_KEYS:
-        if not any(not cut.cuts_wall for cut in layout.socket_tab_cuts(key)):
+    for key in layout.socket_tab_notch_keys(right):
+        if not any(not cut.cuts_wall for cut in layout.socket_tab_cuts(key, right)):
             problems.append(f"{key}'s tab tip is not near enough the ledge for the rule's notch")
-    for key in layout.SOCKET_LEDGE_RELIEF_KEYS:
-        if not layout.socket_ledge_reliefs(key):
+    for key in layout.socket_ledge_relief_keys(right):
+        if not layout.socket_ledge_reliefs(key, right):
             problems.append(f"{key}'s socket is not near enough the ledge for the rule's relief")
-    for center, key in layout.SOCKET_STANDOFF_FLATS:
+    for center, key in layout.socket_standoff_flat_declarations(right):
         if center not in layout.MOUNTING_DRILL_CENTERS_MM:
             problems.append(f"{key}'s flat is on {center}, where there is no mounting drill")
-        elif not layout.socket_standoff_flats(center, key):
+        elif not layout.socket_standoff_flats(center, key, right):
             problems.append(
                 f"{key}'s socket is not near enough the standoff at {center} for a flat"
             )
@@ -1237,30 +1266,35 @@ def flat_plastic(flat):
     return flat.plane_distance - layout.STANDOFF_BORE_DIAMETER_MM / 2.0
 
 
-def thin_flat_problems():
+def thin_flat_problems(right=False):
     minimum = layout.STANDOFF_RELIEF_MINIMUM_WALL_MM
     return [
         f"the {flat.label} on the standoff at {flat.standoff_center} leaves "
         f"{flat_plastic(flat):.3f} around the bore, less than {minimum}"
-        for flat in layout.all_socket_standoff_flats()
+        for flat in layout.all_socket_standoff_flats(right)
         if flat_plastic(flat) < minimum - TOLERANCE_MM
     ]
 
 
-def tab_figures():
-    tips = [layout.socket_tab_tip_on_edge(key) for key in layout.SOCKET_TAB_NOTCH_KEYS]
+def tab_figures(right=False):
+    keys = layout.socket_tab_notch_keys(right)
+    tips = [layout.socket_tab_tip_on_edge(key, right) for key in keys]
     past_edge = [past for _index, _along, past in tips]
-    pockets = [
-        cut
-        for key in layout.SOCKET_TAB_NOTCH_KEYS
-        for cut in layout.socket_tab_cuts(key)
-        if cut.cuts_wall
-    ]
+    pockets = [cut for key in keys for cut in layout.socket_tab_cuts(key, right) if cut.cuts_wall]
     depths = [cut.across_range[1] - layout.TRAY_GAP_MM for cut in pockets]
-    return [
-        require_figure_for_all(
+    if right:
+        past_figure = require_figure_for_all(
+            "tab tip past the thumb's outer edge",
+            past_edge,
+            DESIGN_RIGHT_TAB_TIP_PAST_THUMB_EDGE_MM,
+            3,
+        )
+    else:
+        past_figure = require_figure_for_all(
             "tab tips past the west edge", past_edge, DESIGN_TAB_TIP_PAST_WEST_EDGE_MM, 3
-        ),
+        )
+    return [
+        past_figure,
         require_figure_for_all(
             "from the cavity wall",
             [layout.TRAY_GAP_MM - past for past in past_edge],
@@ -1287,16 +1321,19 @@ def south_ledge_face_y(x):
     raise CheckFailure(f"no south outline edge under x {x}")
 
 
-def relief_figures():
+def relief_figures(right=False):
     reliefs = [
-        cut for key in layout.SOCKET_LEDGE_RELIEF_KEYS for cut in layout.socket_ledge_reliefs(key)
+        cut
+        for key in layout.socket_ledge_relief_keys(right)
+        for cut in layout.socket_ledge_reliefs(key, right)
     ]
     bottom_row = [layout.column_key_name(column, 3) for column in range(6)]
     bottom_row.append(layout.THUMB_KEY_NAME)
     above_face = []
     for key in bottom_row:
         center = layout.KEY_CENTERS_MM[key]
-        lowest = min(y for polygon in layout.socket_polygons(center) for _, y in polygon)
+        polygons = layout.socket_polygons_on_half(key, right)
+        lowest = min(y for polygon in polygons for _, y in polygon)
         above_face.append(lowest - south_ledge_face_y(center[0]))
     return [
         require_figure_for_all(
@@ -1314,11 +1351,29 @@ def relief_figures():
     ]
 
 
-def flat_figures():
+def closest_socket_to_standoffs(right=False):
+    radius = layout.STANDOFF_DIAMETER_MM / 2.0
+    return min(
+        circle_separation(center, radius, polygon)
+        for center in layout.MOUNTING_DRILL_CENTERS_MM
+        for _name, polygon in socket_footprints(right)
+    )
+
+
+def flat_figures(right=False):
+    if right:
+        return [
+            require_figure(
+                "sockets from the standoffs, without flats",
+                closest_socket_to_standoffs(right),
+                DESIGN_RIGHT_CLOSEST_SOCKET_TO_STANDOFF_MM,
+                3,
+            )
+        ]
     radius = layout.STANDOFF_DIAMETER_MM / 2.0
     figures = []
     for key, center, stated_clearance, stated_plastic in DESIGN_STANDOFF_FLATS:
-        polygons = layout.socket_polygons(layout.KEY_CENTERS_MM[key])
+        polygons = layout.socket_polygons_on_half(key)
         clearance = min(circle_separation(center, radius, polygon) for polygon in polygons)
         plastic = min(flat_plastic(flat) for flat in layout.socket_standoff_flats(center, key))
         figures.append(
@@ -1332,42 +1387,50 @@ def flat_figures():
     return figures
 
 
-def check_socket_tray_rules():
-    """The sockets layout.py gives notches, reliefs and flats are
-    DESIGN.md's, kbdkid4's rule cuts each, no flat leaves the bore too
-    thin, and the cuts come out at DESIGN.md's figures."""
+def check_socket_tray_rules(right=False):
+    """The sockets layout.py gives notches, reliefs and flats on the
+    given half are DESIGN.md's, kbdkid4's rule cuts each, no flat leaves
+    the bore too thin, and the cuts come out at DESIGN.md's figures."""
     fail_on(
-        declared_set_problems() + uncut_declaration_problems() + thin_flat_problems(),
-        "the sockets' notches, reliefs or flats are off",
+        declared_set_problems(right)
+        + uncut_declaration_problems(right)
+        + thin_flat_problems(right),
+        f"{half_label(right)}the sockets' notches, reliefs or flats are off",
     )
-    figures = tab_figures() + relief_figures() + flat_figures()
-    fail_on(failed(figures), "the sockets' cuts off DESIGN.md's figures")
-    return "cuts:      " + joined(figures)
+    figures = tab_figures(right) + relief_figures(right) + flat_figures(right)
+    fail_on(failed(figures), f"{half_label(right)}the sockets' cuts off DESIGN.md's figures")
+    return "cuts:      " + half_label(right) + joined(figures)
 
 
-def check_socket_ledge():
+def check_socket_ledge(right=False):
     minimum = layout.LEDGE_RELIEF_CLEARANCE_MM
-    problems, tightest = socket_clearances(ledge_pieces(), minimum)
-    fail_on(problems, f"sockets closer than {minimum} to the ledge or the joint block, as cut")
-    return f"ledge:     sockets clear of the ledge and the joint block, as cut, by {tightest}"
+    problems, tightest = socket_clearances(ledge_pieces(right), minimum, right)
+    fail_on(
+        problems,
+        f"{half_label(right)}sockets closer than {minimum} to the ledge or the joint block, as cut",
+    )
+    return (
+        f"ledge:     {half_label(right)}sockets clear of the ledge and the joint block, as cut, "
+        f"by {tightest}"
+    )
 
 
-def check_socket_wall():
+def check_socket_wall(right=False):
     minimum = layout.LEDGE_NOTCH_CLEARANCE_MM
-    problems, tightest = socket_clearances(wall_pieces(), minimum)
-    fail_on(problems, f"sockets closer than {minimum} to the wall, as pocketed")
-    return f"wall:      sockets clear of the wall, as pocketed, by {tightest}"
+    problems, tightest = socket_clearances(wall_pieces(right), minimum, right)
+    fail_on(problems, f"{half_label(right)}sockets closer than {minimum} to the wall, as pocketed")
+    return f"wall:      {half_label(right)}sockets clear of the wall, as pocketed, by {tightest}"
 
 
-def check_socket_standoffs():
+def check_socket_standoffs(right=False):
     minimum = layout.STANDOFF_RELIEF_CLEARANCE_MM
     problems = []
     tightest = Tightest()
     for center in layout.MOUNTING_DRILL_CENTERS_MM:
-        for z_range, flats in standoff_bands(center):
+        for z_range, flats in standoff_bands(center, right):
             if not ranges_overlap(z_range, socket_z_range()):
                 continue
-            for name, socket in socket_footprints():
+            for name, socket in socket_footprints(right):
                 clearance = standoff_clearance(center, flats, socket)
                 standoff = describe_piece(f"standoff at {center}", z_range)
                 where = f"{name}'s socket and the {standoff}"
@@ -1376,14 +1439,19 @@ def check_socket_standoffs():
                 tightest.update(clearance, where)
                 if clearance < minimum - TOLERANCE_MM:
                     problems.append(f"{where}: {clearance:.3f}, less than {minimum}")
-    fail_on(problems, f"sockets closer than {minimum} to the standoffs, as flattened")
-    return f"posts:     sockets clear of the standoffs, as flattened, by {tightest}"
+    fail_on(
+        problems, f"{half_label(right)}sockets closer than {minimum} to the standoffs, as flattened"
+    )
+    return (
+        f"posts:     {half_label(right)}sockets clear of the standoffs, as flattened, by "
+        f"{tightest}"
+    )
 
 
-def joint_features():
-    """(label, plan polygon, z range) of the magnet slots and the dowel
-    bosses."""
-    return magnet_slots() + dowel_bosses()
+def joint_features(right=False):
+    """(label, plan polygon, z range) of the magnet slots and the half's
+    dowel bosses."""
+    return magnet_slots() + dowel_bosses(right)
 
 
 def magnet_slots():
@@ -1397,38 +1465,61 @@ def magnet_slots():
     ]
 
 
-def dowel_bosses():
+def dowel_bosses(right=False):
     return [
         (
             f"dowel boss at {along} along the slant",
-            layout.dowel_boss_polygon(along),
+            layout.dowel_boss_polygon(along, right),
             layout.dowel_boss_z_range(),
         )
         for along in layout.DOWEL_PIN_ALONGS_MM
     ]
 
 
-def tightest_of_pairs(pairs):
-    """The smallest plan clearance over pairs of joint features."""
-    tightest = Tightest()
-    for (first_label, first_polygon, _), (second_label, second_polygon, _) in pairs:
-        tightest.update(
-            convex_separation(first_polygon, second_polygon), f"{first_label} and {second_label}"
+def boss_fills(right=False):
+    """(label, plan polygon, z range) of the plastic filling the
+    crevices beside the bosses, up to the PCB's underside."""
+    z_range = (0.0, layout.PCB_UNDERSIDE_Z_MM)
+    return [
+        ("upper dowel boss's fill", layout.upper_boss_fill_polygon(right), z_range),
+        ("parking boss's fill", layout.parking_boss_fill_polygon(), z_range),
+    ]
+
+
+def joint_voids(right=False):
+    """(label, plan polygon, z range) of the half's holes and slots in
+    the joint and the thumb's wall."""
+    dowel_holes = [
+        (
+            f"dowel hole at {along} along the slant",
+            layout.dowel_hole_polygon(along, right),
+            layout.horizontal_hole_z_range(
+                layout.DOWEL_PIN_Z_MM, layout.dowel_hole_diameter(right)
+            ),
         )
-    return tightest
+        for along in layout.DOWEL_PIN_ALONGS_MM
+    ]
+    parking = (
+        "parking hole",
+        layout.parking_hole_polygon(),
+        layout.horizontal_hole_z_range(layout.PARKING_HOLE_Z_MM, layout.PARKING_HOLE_DIAMETER_MM),
+    )
+    return magnet_slots() + dowel_holes + [parking]
 
 
-def tightest_between(first_features, second_features):
-    return tightest_of_pairs(itertools.product(first_features, second_features))
-
-
-def tightest_within(features):
-    return tightest_of_pairs(itertools.combinations(features, 2))
+def dowel_boss_inside_slant_ends():
+    """(lower, upper): how far the lower boss's south end and the upper
+    boss's north end lie inside the outline slant's ends."""
+    half_width = layout.DOWEL_BOSS_DIAMETER_MM / 2.0
+    lower = min(layout.DOWEL_PIN_ALONGS_MM) - half_width
+    upper = layout.slant_length() - (max(layout.DOWEL_PIN_ALONGS_MM) + half_width)
+    return lower, upper
 
 
 def dowel_pin_figures():
     first_along, second_along = layout.DOWEL_PIN_ALONGS_MM
     slant_ys = [layout.slant_point(along, 0.0)[1] for along in (first_along, second_along)]
+    lower_inside, upper_inside = dowel_boss_inside_slant_ends()
     return [
         require_figure(
             "dowel pin spacing along the slant",
@@ -1439,9 +1530,22 @@ def dowel_pin_figures():
         require_figure("lower dowel pin's slant y", slant_ys[0], DESIGN_DOWEL_PIN_SLANT_Y_MM[0], 1),
         require_figure("upper dowel pin's slant y", slant_ys[1], DESIGN_DOWEL_PIN_SLANT_Y_MM[1], 1),
         require_figure(
-            "dowel pin height, midway between the bed and the PCB",
-            layout.DOWEL_PIN_Z_MM,
+            "lower boss inside the slant's south end",
+            lower_inside,
+            DESIGN_DOWEL_BOSSES_INSIDE_SLANT_ENDS_MM[0],
+            3,
+        ),
+        require_figure(
+            "upper boss inside its north end",
+            upper_inside,
+            DESIGN_DOWEL_BOSSES_INSIDE_SLANT_ENDS_MM[1],
+            3,
+        ),
+        require_figure("dowel pin height", layout.DOWEL_PIN_Z_MM, DESIGN_DOWEL_PIN_Z_MM, 1),
+        require_figure(
+            "midway between the bed and the PCB",
             (layout.FLOOR_UNDERSIDE_Z_MM + layout.PCB_UNDERSIDE_Z_MM) / 2.0,
+            DESIGN_DOWEL_PIN_Z_MM,
             1,
         ),
         require_figure(
@@ -1450,23 +1554,47 @@ def dowel_pin_figures():
             DESIGN_PARKING_PIN_PROUD_MM,
             1,
         ),
+        require_figure(
+            "print swelling per side",
+            layout.PRINT_SWELLING_PER_SIDE_MM,
+            DESIGN_PULL_IN_MM,
+            1,
+        ),
     ]
 
 
+def features_along_slant():
+    """(along, kind, plan polygon) of the dowel bosses and magnet slots,
+    in their order along the slant."""
+    slots = [
+        (along, "slot", layout.magnet_slot_polygon(along)) for along in layout.MAGNET_ALONGS_MM
+    ]
+    bosses = [
+        (along, "boss", layout.dowel_boss_polygon(along)) for along in layout.DOWEL_PIN_ALONGS_MM
+    ]
+    return sorted(slots + bosses)
+
+
+def joint_gaps():
+    """(boss to slot gaps, slot to slot gaps): the plan clearance
+    between each pair of neighbours along the slant among the dowel
+    bosses and magnet slots."""
+    features = features_along_slant()
+    to_bosses = []
+    between_slots = []
+    for (_, first_kind, first), (_, second_kind, second) in zip(features, features[1:]):
+        gap = convex_separation(first, second)
+        (between_slots if first_kind == second_kind else to_bosses).append(gap)
+    return to_bosses, between_slots
+
+
 def magnet_figures():
+    to_bosses, between_slots = joint_gaps()
     return [
-        require_figure(
-            "magnet slots from the dowel bosses",
-            tightest_between(magnet_slots(), dowel_bosses()).value,
-            DESIGN_MAGNET_SLOT_FROM_DOWEL_BOSSES_MM,
-            1,
+        require_figure_for_all(
+            "slots from the bosses along the slant", to_bosses, DESIGN_BOSS_TO_SLOT_GAP_MM, 2
         ),
-        require_figure(
-            "magnet slots apart",
-            tightest_within(magnet_slots()).value,
-            DESIGN_MAGNET_SLOTS_APART_MM,
-            1,
-        ),
+        require_figure_for_all("slots apart", between_slots, DESIGN_SLOT_TO_SLOT_GAP_MM, 2),
         require_figure(
             "magnet slot bottom above the bed",
             layout.MAGNET_SLOT_BOTTOM_Z_MM - layout.FLOOR_UNDERSIDE_Z_MM,
@@ -1477,35 +1605,52 @@ def magnet_figures():
 
 
 def check_joint_figures():
+    kinds = [kind for _, kind, _ in features_along_slant()]
+    if kinds[0] != "boss" or kinds[-1] != "boss":
+        raise CheckFailure(f"the magnets do not sit between the pins: {kinds} along the slant")
     figures = dowel_pin_figures() + magnet_figures()
     fail_on(failed(figures), "the joint off DESIGN.md's figures")
     return "joint:     " + joined(figures)
 
 
+def printed(modelled):
+    """A hole's or slot's size once the print has swollen into it."""
+    return modelled - 2.0 * layout.PRINT_SWELLING_PER_SIDE_MM
+
+
 def magnet_slot_opening_problems(opening_across, wall_left):
-    """Where a magnet would not drop into its slot: the slot or the
-    opening above it too tight for it with MAGNET_DROP_IN_CLEARANCE_MM,
+    """Where a magnet would not drop into its slot as printed: the slot
+    or the opening above it too tight for it with
+    MAGNET_DROP_IN_CLEARANCE_MM, the slot not open toward the cavity,
     or the cut-back through the wall."""
     clearance = MAGNET_DROP_IN_CLEARANCE_MM
     thickness = layout.MAGNET_THICKNESS_MM
     diameter = layout.MAGNET_DIAMETER_MM
     needed_across = thickness + clearance
     needed_along = diameter + clearance
+    across = printed(layout.MAGNET_SLOT_ACROSS_MM)
+    along = printed(layout.MAGNET_SLOT_ALONG_MM)
     problems = []
-    if layout.MAGNET_SLOT_ACROSS_MM < needed_across - TOLERANCE_MM:
+    if across < needed_across - TOLERANCE_MM:
         problems.append(
-            f"the slot is {layout.MAGNET_SLOT_ACROSS_MM} across, the {thickness} magnet needs "
-            f"{needed_across:.3f}"
+            f"the slot prints {across:.3f} across, the {thickness} magnet needs {needed_across:.3f}"
         )
-    if layout.MAGNET_SLOT_ALONG_MM < needed_along - TOLERANCE_MM:
+    if along < needed_along - TOLERANCE_MM:
         problems.append(
-            f"the slot is {layout.MAGNET_SLOT_ALONG_MM} along the slant, the {diameter} magnet "
-            f"needs {needed_along:.3f}"
+            f"the slot prints {along:.3f} along the slant, the {diameter} magnet needs "
+            f"{needed_along:.3f}"
         )
-    if opening_across < needed_across - TOLERANCE_MM:
+    if printed(opening_across) < needed_across - TOLERANCE_MM:
         problems.append(
-            f"the opening above each slot is {opening_across:.3f} across, the {thickness} magnet "
-            f"needs {needed_across:.3f}"
+            f"the opening above each slot prints {printed(opening_across):.3f} across, the "
+            f"{thickness} magnet needs {needed_across:.3f}"
+        )
+    inner_side = layout.magnet_slot_outward_range()[0]
+    block_inner_face = layout.JOINT_FACE_OUTWARD_MM - layout.JOINT_BLOCK_THICKNESS_MM
+    if inner_side > block_inner_face + TOLERANCE_MM:
+        problems.append(
+            f"the slot's inner side lies {inner_side - block_inner_face:.3f} out of the block's "
+            "inner face, which leaves a wall there"
         )
     if wall_left <= TOLERANCE_MM:
         problems.append(f"the cut-back leaves {wall_left:.3f} of wall at the face")
@@ -1513,9 +1658,10 @@ def magnet_slot_opening_problems(opening_across, wall_left):
 
 
 def check_magnet_slot_opening():
-    """Above the block the wall would cover the slot's outer side, so
-    its inner face is cut back to the slot: the slot and the opening
-    must take the magnet with MAGNET_DROP_IN_CLEARANCE_MM."""
+    """Each slot runs through the block to its inner face, and above the
+    block the wall would overhang its outer side, so the wall's inner
+    face is cut back to the slot: as printed, the slot and the opening
+    above it must take the magnet with MAGNET_DROP_IN_CLEARANCE_MM."""
     cutback = layout.magnet_wall_cutback_outward()
     low, high = layout.magnet_slot_opening_outward_range(cutback)
     low_uncut, high_uncut = layout.magnet_slot_opening_outward_range(layout.TRAY_GAP_MM)
@@ -1525,40 +1671,51 @@ def check_magnet_slot_opening():
         "the magnets cannot drop into their slots",
     )
     return (
-        f"slots:     {layout.MAGNET_SLOT_ACROSS_MM} x {layout.MAGNET_SLOT_ALONG_MM} for the "
-        f"{layout.MAGNET_THICKNESS_MM} x {layout.MAGNET_DIAMETER_MM} magnet, open above the "
-        f"block {high - low:.3f} across ({high_uncut - low_uncut:.3f} without the cut-back), "
-        f"the cut-back leaving {wall_left:.3f} of wall from z {layout.JOINT_BLOCK_TOP_Z_MM} to "
-        f"{layout.MAGNET_WALL_CUTBACK_TOP_Z_MM}"
+        f"slots:     {layout.MAGNET_SLOT_ACROSS_MM:.1f} x {layout.MAGNET_SLOT_ALONG_MM:.1f} "
+        f"modelled, {printed(layout.MAGNET_SLOT_ACROSS_MM):.1f} x "
+        f"{printed(layout.MAGNET_SLOT_ALONG_MM):.1f} printed, for the "
+        f"{layout.MAGNET_THICKNESS_MM} x {layout.MAGNET_DIAMETER_MM} magnet, open toward the "
+        f"cavity and above the block {high - low:.3f} across ({high_uncut - low_uncut:.3f} "
+        f"without the cut-back), the cut-back leaving {wall_left:.3f} of wall from z "
+        f"{layout.JOINT_BLOCK_TOP_Z_MM} to {layout.MAGNET_WALL_CUTBACK_TOP_Z_MM}"
     )
 
 
-def check_joint_inside():
+def check_joint_inside(right=False):
     outer = layout.tray_outer_polygon()
     problems = []
     tightest = Tightest()
-    for label, polygon, _z_range in joint_features():
+    for label, polygon, _z_range in joint_features(right) + boss_fills(right):
         margin = containment_margin(polygon, outer)
         tightest.update(margin, label)
         if margin < -TOLERANCE_MM:
             problems.append(f"the {label} pokes {-margin:.3f} past the tray's outer face")
-    fail_on(problems, "joint features outside the tray")
-    return f"joint:     magnet slots and dowel bosses inside the tray's outer face by {tightest}"
+    fail_on(problems, f"{half_label(right)}joint features outside the tray")
+    return (
+        f"joint:     {half_label(right)}magnet slots, dowel bosses and their fills inside the "
+        f"tray's outer face by {tightest}"
+    )
 
 
-def joint_tray_problems(label, polygon, z_range):
+def joint_tray_problems(label, polygon, z_range, right=False, sockets_too=True):
     """(problems, tightest from the sockets, tightest from the
-    standoffs) of one joint feature."""
+    standoffs) of one joint feature on the given half. Plastic standing
+    under the PCB keeps the ledge's clearance from the sockets, as the
+    ledge and the parking boss do. Without sockets_too (a slot, empty
+    space) only the standoffs count."""
+    minimum = layout.LEDGE_RELIEF_CLEARANCE_MM
     standoff_radius = layout.STANDOFF_DIAMETER_MM / 2.0
     problems = []
     from_sockets = Tightest()
     from_standoffs = Tightest()
-    if ranges_overlap(z_range, socket_z_range()):
-        for name, socket in socket_footprints():
+    if sockets_too and ranges_overlap(z_range, socket_z_range()):
+        for name, socket in socket_footprints(right):
             clearance = convex_separation(polygon, socket)
             from_sockets.update(clearance, f"{label} and {name}'s socket")
-            if clearance < -TOLERANCE_MM:
-                problems.append(f"the {label} overlaps {name}'s socket by {-clearance:.3f}")
+            if clearance < minimum - TOLERANCE_MM:
+                problems.append(
+                    f"the {label} comes {clearance:.3f} from {name}'s socket, less than {minimum}"
+                )
     if ranges_overlap(z_range, standoff_z_range()):
         for center in layout.MOUNTING_DRILL_CENTERS_MM:
             clearance = circle_separation(center, standoff_radius, polygon)
@@ -1570,40 +1727,108 @@ def joint_tray_problems(label, polygon, z_range):
     return problems, from_sockets, from_standoffs
 
 
-def check_joint_clearances():
-    features = joint_features()
-    problems = []
+def fill_problems(right):
+    """A fill that came out no triangle: the boss's inner corner at or
+    past the ledge's face, or the dowel boss's side past the parking
+    boss's."""
+    return [
+        f"the {label} is no triangle (area {layout.polygon_signed_area(polygon):.4f})"
+        for label, polygon, _z_range in boss_fills(right)
+        if layout.polygon_signed_area(polygon) <= TOLERANCE_MM
+    ]
+
+
+def check_joint_clearances(right=False):
+    problems = fill_problems(right)
     from_sockets = Tightest()
     from_standoffs = Tightest()
-    from_each_other = Tightest()
-    for label, polygon, z_range in features:
-        feature_problems, sockets, standoffs = joint_tray_problems(label, polygon, z_range)
+    plastic = dowel_bosses(right) + boss_fills(right)
+    features = [(feature, True) for feature in plastic] + [
+        (slot, False) for slot in magnet_slots()
+    ]
+    for (label, polygon, z_range), sockets_too in features:
+        feature_problems, sockets, standoffs = joint_tray_problems(
+            label, polygon, z_range, right, sockets_too
+        )
         problems.extend(feature_problems)
         from_sockets.update(sockets.value, sockets.where)
         from_standoffs.update(standoffs.value, standoffs.where)
-    for first, second in itertools.combinations(features, 2):
+    ok, text = require_figure(
+        "bosses from the sockets", from_sockets.value, DESIGN_BOSSES_FROM_SOCKETS_MM[right], 3
+    )
+    if not ok:
+        problems.append(text)
+    fail_on(
+        problems,
+        f"{half_label(right)}joint plastic too close to the sockets, or the joint in the "
+        "standoffs' way",
+    )
+    return (
+        f"joint:     {half_label(right)}{text} ({from_sockets.where}), clear of the "
+        f"standoffs by {from_standoffs}"
+    )
+
+
+def check_joint_voids(right=False):
+    """Every two of the joint's holes and slots keep
+    JOINT_LEAST_PLASTIC_BETWEEN_VOIDS_MM of plastic between them in plan
+    wherever their heights overlap."""
+    minimum = layout.JOINT_LEAST_PLASTIC_BETWEEN_VOIDS_MM
+    problems = []
+    tightest = Tightest()
+    for first, second in itertools.combinations(joint_voids(right), 2):
         first_label, first_polygon, first_z = first
         second_label, second_polygon, second_z = second
         if not ranges_overlap(first_z, second_z):
             continue
-        clearance = convex_separation(first_polygon, second_polygon)
+        plastic = convex_separation(first_polygon, second_polygon)
         where = f"{first_label} and {second_label}"
-        from_each_other.update(clearance, where)
-        if clearance < -TOLERANCE_MM:
-            problems.append(f"the {where} overlap by {-clearance:.3f}")
-    fail_on(problems, "joint features in each other's way, or the sockets' or standoffs'")
-    return (
-        f"joint:     clear of the sockets by {from_sockets}, of the standoffs by "
-        f"{from_standoffs}, of each other by {from_each_other}"
+        tightest.update(plastic, where)
+        if plastic < minimum - TOLERANCE_MM:
+            problems.append(f"the {where} leave {plastic:.3f} of plastic, less than {minimum}")
+    ok, text = require_figure(
+        "least plastic between the voids",
+        tightest.value,
+        DESIGN_LEAST_PLASTIC_BETWEEN_VOIDS_MM[right],
+        2,
     )
+    if not ok:
+        problems.append(text)
+    fail_on(problems, f"{half_label(right)}the joint's holes and slots too close")
+    return f"voids:     {half_label(right)}{text} ({tightest.where})"
 
 
-def check_parking_hole():
-    """The parking hole runs through the thumb's east wall, and since
-    DESIGN.md gives its boss no size, it is kept clear in plan of the
-    sockets (the thumb's above all), the standoffs (the one at (114.141,
-    19.765) above all) and the joint features (the lower dowel boss above
-    all) at any height."""
+def parking_boss_problems(right):
+    """(problems, figure text) of the parking hole's boss and its fill
+    against the sockets: they stand to the PCB's underside like the
+    ledge, so they keep the ledge's clearance from them."""
+    minimum = layout.LEDGE_RELIEF_CLEARANCE_MM
+    bodies = (
+        ("parking boss", layout.parking_boss_polygon()),
+        ("parking boss's fill", layout.parking_boss_fill_polygon()),
+    )
+    problems = []
+    tightest = Tightest()
+    for label, body in bodies:
+        for name, polygon in socket_footprints(right):
+            clearance = convex_separation(body, polygon)
+            tightest.update(clearance, f"the {label} and {name}'s socket")
+            if clearance < minimum - TOLERANCE_MM:
+                problems.append(f"the {label} comes {clearance:.3f} from {name}'s socket")
+    ok, text = require_figure(
+        "the boss from the sockets", tightest.value, DESIGN_PARKING_BOSS_FROM_SOCKETS_MM, 3
+    )
+    return problems + ([] if ok else [text]), f"{text}, {tightest.where}"
+
+
+def check_parking_hole(right=False):
+    """The parking hole runs through the thumb's east wall, its magnet's
+    seat no wider than the hole itself (one teardrop serves both). The
+    hole is kept clear in plan of the sockets (the thumb's above all)
+    and the standoffs (the one at (114.141, 19.765) above all) at any
+    height, and of the joint's other voids by check_joint_voids(). Its
+    boss may merge with the tray's other plastic, but keeps the ledge's
+    clearance from the sockets."""
     hole = layout.parking_hole_polygon()
     east_edge_low_y = 0.0
     east_edge_high_y = layout.SLANT_SOUTH_END_MM[1]
@@ -1616,8 +1841,13 @@ def check_parking_hole():
             f"the hole spans y {low_y:.3f} to {high_y:.3f}, past the thumb's east edge "
             f"(y {east_edge_low_y} to {east_edge_high_y})"
         )
+    if layout.PARKING_MAGNET_SEAT_DIAMETER_MM > layout.PARKING_HOLE_DIAMETER_MM + TOLERANCE_MM:
+        problems.append(
+            f"the magnet's seat ({layout.PARKING_MAGNET_SEAT_DIAMETER_MM:.2f}) is wider than the "
+            f"hole ({layout.PARKING_HOLE_DIAMETER_MM:.2f}), which is cut in one diameter"
+        )
     from_sockets = Tightest()
-    for name, polygon in socket_footprints():
+    for name, polygon in socket_footprints(right):
         from_sockets.update(convex_separation(hole, polygon), f"{name}'s socket")
     from_standoffs = Tightest()
     for center in layout.MOUNTING_DRILL_CENTERS_MM:
@@ -1625,18 +1855,26 @@ def check_parking_hole():
             circle_separation(center, layout.STANDOFF_DIAMETER_MM / 2.0, hole),
             f"the standoff at {center}",
         )
-    from_joint = Tightest()
-    for label, polygon, _z_range in joint_features():
-        from_joint.update(convex_separation(hole, polygon), f"the {label}")
-    for tightest in (from_sockets, from_standoffs, from_joint):
+    for tightest in (from_sockets, from_standoffs):
         if tightest.value < -TOLERANCE_MM:
             problems.append(f"the parking hole overlaps {tightest.where} by {-tightest.value:.3f}")
-    fail_on(problems, "the parking hole collides")
+    boss_problems, boss_text = parking_boss_problems(right)
+    fail_on(problems + boss_problems, f"{half_label(right)}the parking hole or its boss collides")
     return (
-        f"parking:   hole through the thumb's east wall ({wall_margin:.3f} from its ends), clear "
-        f"of the sockets by {from_sockets}, the standoffs by {from_standoffs}, the joint by "
-        f"{from_joint}"
+        f"parking:   {half_label(right)}hole {layout.PARKING_HOLE_DIAMETER_MM:.1f} across through "
+        f"the thumb's east wall ({wall_margin:.3f} from its ends), clear of the sockets by "
+        f"{from_sockets} and the standoffs by {from_standoffs}, {boss_text}"
     )
+
+
+def on_right_half(check):
+    """The check run on the right half, as a check of its own."""
+
+    def check_right_half():
+        return check(right=True)
+
+    check_right_half.__name__ = f"{check.__name__}_on_right_half"
+    return check_right_half
 
 
 CHECKS = (
@@ -1653,16 +1891,27 @@ CHECKS = (
     check_part_standoffs,
     check_parts_apart,
     check_part_sockets,
+    on_right_half(check_part_sockets),
     check_battery,
+    on_right_half(check_battery),
     check_socket_tray_rules,
+    on_right_half(check_socket_tray_rules),
     check_socket_ledge,
+    on_right_half(check_socket_ledge),
     check_socket_wall,
+    on_right_half(check_socket_wall),
     check_socket_standoffs,
+    on_right_half(check_socket_standoffs),
     check_joint_figures,
     check_joint_inside,
+    on_right_half(check_joint_inside),
     check_joint_clearances,
+    on_right_half(check_joint_clearances),
+    check_joint_voids,
+    on_right_half(check_joint_voids),
     check_magnet_slot_opening,
     check_parking_hole,
+    on_right_half(check_parking_hole),
 )
 
 
