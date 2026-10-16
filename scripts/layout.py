@@ -30,6 +30,13 @@ the slant while the tray reaches past the outline everywhere. The
 outline's center line rather than x = 0 keeps a right part on the same
 spot as its left one (the same bounding box, on the print bed and in a
 viewer), as kbdkid4's mirrored parts were.
+
+A switch cannot be mirrored, so neither can what its footprint places
+(its pins and holes, its socket): on the right half a key's footprint
+sits at the mirrored key center with the left half's rotation, as
+kbdkid4's right half (its board turned over) has it seen from above.
+Call the footprint functions with mirror_for_right_half(key_center)
+for that.
 """
 
 import math
@@ -109,6 +116,10 @@ CHOC_FOOTPRINT_HOLES_MM = (
 )
 
 
+# Of those, the holes the switch's two pins pass through.
+CHOC_FOOTPRINT_PIN_HOLE_CENTERS_MM = ((-3.75, 5.0), (-5.95, 0.0))
+
+
 def footprint_holes(key_center):
     """A key's footprint holes as (center, diameter) in board
     coordinates."""
@@ -116,6 +127,75 @@ def footprint_holes(key_center):
         (footprint_point(key_center, local_center), diameter)
         for local_center, diameter in CHOC_FOOTPRINT_HOLES_MM
     )
+
+
+def footprint_holes_without_pin_holes(key_center):
+    """A key's footprint holes but the two its pins pass through."""
+    return tuple(
+        (footprint_point(key_center, local_center), diameter)
+        for local_center, diameter in CHOC_FOOTPRINT_HOLES_MM
+        if local_center not in CHOC_FOOTPRINT_PIN_HOLE_CENTERS_MM
+    )
+
+
+# The switch's two contact pins, flat blades: measured on kbdkid4's
+# switch model (library/pkg/23d245ff-14f8-48ad-af68-56ebb3a76786/
+# b20b765a-8655-4947-a9b7-18864444346f.step, "PG1350", which the
+# package places with 3d_rotation 0 0 180), model figures, not a
+# caliper's. Each blade is CHOC_PIN_BLADE_THICKNESS_MM thick along
+# footprint x and CHOC_PIN_BLADE_WIDTH_MM wide along footprint y, the
+# same from the housing's underside (on the PCB) down to
+# CHOC_PIN_FULL_WIDTH_DEPTH_MM below it, then narrowing to the
+# thickness at its tip, CHOC_PIN_LENGTH_MM below the housing. The
+# footprint's pin holes sit 0.05 off the blades' centers along
+# footprint x, its solder pads on them.
+CHOC_PIN_CENTERS_MM = ((-3.8, 5.0), (-5.9, 0.0))
+CHOC_PIN_BLADE_THICKNESS_MM = 0.2
+CHOC_PIN_BLADE_WIDTH_MM = 0.8
+CHOC_PIN_FULL_WIDTH_DEPTH_MM = 2.65
+CHOC_PIN_LENGTH_MM = 3.0
+
+
+def footprint_rectangle(key_center, local_center, size_along_x, size_along_y):
+    """A rectangle around a footprint-local center, its sides along the
+    footprint's axes, in board coordinates, counter-clockwise."""
+    half_x = size_along_x / 2.0
+    half_y = size_along_y / 2.0
+    center_x, center_y = local_center
+    return footprint_polygon(
+        key_center,
+        (
+            (center_x - half_x, center_y - half_y),
+            (center_x + half_x, center_y - half_y),
+            (center_x + half_x, center_y + half_y),
+            (center_x - half_x, center_y + half_y),
+        ),
+    )
+
+
+def pin_slits(key_center, slit_length, slit_width):
+    """A key's two slits for the switch's pins, centered on the blades:
+    slit_length along each blade's width, slit_width across it."""
+    return tuple(
+        footprint_rectangle(key_center, pin_center, slit_width, slit_length)
+        for pin_center in CHOC_PIN_CENTERS_MM
+    )
+
+
+# The fused mock's default slits (DESIGN.md, "Plate and mocks"), for a
+# print that swells by pull_in per side: across the blade its thickness
+# plus pull_in per side, a nominal zero clearance as printed, and along
+# it its width plus pull_in per side plus SLIT_LENGTH_CLEARANCE_MM, so
+# only the slit's width grips the blade.
+SLIT_LENGTH_CLEARANCE_MM = 0.4
+
+
+def default_slit_width(pull_in):
+    return CHOC_PIN_BLADE_THICKNESS_MM + 2.0 * pull_in
+
+
+def default_slit_length(pull_in):
+    return CHOC_PIN_BLADE_WIDTH_MM + 2.0 * pull_in + SLIT_LENGTH_CLEARANCE_MM
 
 
 # The hotswap socket (Kailh CPG135001S001) under each key, in

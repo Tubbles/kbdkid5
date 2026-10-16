@@ -109,6 +109,10 @@ DESIGN_DOWEL_PIN_SPACING_MM = 48.5
 DESIGN_DOWEL_PIN_SLANT_Y_MM = (25.0, 71.2)
 DESIGN_PARKING_PIN_PROUD_MM = 1.5
 DESIGN_MAGNET_SLOT_ABOVE_BED_MM = 0.5
+DESIGN_PIN_OFF_HOLE_MM = 0.05  # each blade from its 3.0 hole, along footprint x
+DESIGN_PULL_IN_MM = 0.2
+DESIGN_DEFAULT_SLIT_MM = (0.6, 1.6)  # across the blade, along it
+DESIGN_SLIT_CLEARANCE_MM = (0.2, 0.4)  # per side as modelled: across the blade, along it
 
 
 class CheckFailure(Exception):
@@ -794,6 +798,88 @@ def check_keys_and_holes():
         f"keys:      {len(layout.KEY_CENTERS_MM)} centers inside the outline, tightest "
         f"{centers}; {hole_count} footprint holes, tightest edge {holes}"
     )
+
+
+def footprint_extents(key_center, polygon):
+    """((low, high) along footprint x, (low, high) along footprint y)
+    of a polygon around a key's footprint origin."""
+    origin = layout.footprint_point(key_center, (0.0, 0.0))
+    extents = []
+    for unit in ((1.0, 0.0), (0.0, 1.0)):
+        axis = vector_between(origin, layout.footprint_point(key_center, unit))
+        values = [dot(vector_between(origin, point), axis) for point in polygon]
+        extents.append((min(values), max(values)))
+    return extents
+
+
+def pin_hole_problems():
+    """Where a blade (the STEP model's) and its 3.0 hole (the package's)
+    are not a pair: not a 3.0 hole, or off along footprint y."""
+    problems = []
+    holes = dict(layout.CHOC_FOOTPRINT_HOLES_MM)
+    pairs = zip(layout.CHOC_PIN_CENTERS_MM, layout.CHOC_FOOTPRINT_PIN_HOLE_CENTERS_MM)
+    for pin, hole in pairs:
+        if holes.get(hole) != 3.0:
+            problems.append(f"the pin hole at {hole} is not one of the footprint's 3.0 holes")
+        if abs(pin[1] - hole[1]) > TOLERANCE_MM:
+            problems.append(f"the blade at {pin} is off its hole at {hole} along footprint y")
+    if len(layout.CHOC_PIN_CENTERS_MM) != len(layout.CHOC_FOOTPRINT_PIN_HOLE_CENTERS_MM):
+        problems.append("the blades and the pin holes differ in number")
+    return problems
+
+
+def blade_slit_margins():
+    """(slit sizes, blade margins) of every key's blades in their
+    default slits, each as (across the blade, along it): the blade's
+    thickness along footprint x, its slit's width likewise."""
+    width = layout.default_slit_width(DESIGN_PULL_IN_MM)
+    length = layout.default_slit_length(DESIGN_PULL_IN_MM)
+    sizes = []
+    margins = []
+    for center in layout.KEY_CENTERS_MM.values():
+        slits = layout.pin_slits(center, length, width)
+        for pin, slit in zip(layout.CHOC_PIN_CENTERS_MM, slits):
+            blade = layout.footprint_rectangle(
+                center, pin, layout.CHOC_PIN_BLADE_THICKNESS_MM, layout.CHOC_PIN_BLADE_WIDTH_MM
+            )
+            slit_extents = footprint_extents(center, slit)
+            blade_extents = footprint_extents(center, blade)
+            sizes.append(tuple(high - low for low, high in slit_extents))
+            margins.append(tuple(
+                min(blade_low - slit_low, slit_high - blade_high)
+                for (slit_low, slit_high), (blade_low, blade_high)
+                in zip(slit_extents, blade_extents)
+            ))
+    return sizes, margins
+
+
+def check_switch_pins():
+    fail_on(pin_hole_problems(), "the blades against the footprint's pin holes")
+    offsets = [
+        abs(pin[0] - hole[0])
+        for pin, hole in zip(layout.CHOC_PIN_CENTERS_MM, layout.CHOC_FOOTPRINT_PIN_HOLE_CENTERS_MM)
+    ]
+    sizes, margins = blade_slit_margins()
+    figures = [
+        require_figure_for_all("blades from their 3.0 holes", offsets, DESIGN_PIN_OFF_HOLE_MM, 2),
+        require_figure_for_all(
+            "default slits across", [size[0] for size in sizes], DESIGN_DEFAULT_SLIT_MM[0], 1
+        ),
+        require_figure_for_all(
+            "along", [size[1] for size in sizes], DESIGN_DEFAULT_SLIT_MM[1], 1
+        ),
+        require_figure_for_all(
+            "blade clearance per side across",
+            [margin[0] for margin in margins],
+            DESIGN_SLIT_CLEARANCE_MM[0],
+            1,
+        ),
+        require_figure_for_all(
+            "along", [margin[1] for margin in margins], DESIGN_SLIT_CLEARANCE_MM[1], 1
+        ),
+    ]
+    fail_on(failed(figures), "the blades or their slits off DESIGN.md's figures")
+    return f"pins:      {len(margins)} blades, " + joined(figures)
 
 
 def drill_switch_problems(drill, radius):
@@ -1558,6 +1644,7 @@ CHECKS = (
     check_outline_on_cells,
     check_slant,
     check_keys_and_holes,
+    check_switch_pins,
     check_mounting_drills,
     check_heights,
     check_part_figures,
