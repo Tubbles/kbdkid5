@@ -2,7 +2,7 @@
 
 kbdkid5 is the successor of [kbdkid4](https://github.com/Tubbles/kbdkid4): a wireless split keyboard (Kailh Choc v1 on hotswap sockets, 19.05 mm pitch, a nice!nano v2 and a LiPo per half, ZMK), with a 3D-printed tray and switch plate. Its two changes:
 
-1. **Nothing but the switch matrix on the PCB.** The PCB carries only the hotswap sockets, the diodes and one off-board connector. The nice!nano, the reset button, the power switch and the battery connector are wired with loose wires and mounted in the tray itself. The tray can then use the space under the PCB, and the half gets smaller and lower.
+1. **Nothing but the switch matrix on the PCB.** The PCB carries only the hotswap sockets, the diodes and one off-board connector. The nice!nano, the reset button, the power switch and the battery connector are wired with loose wires and mounted in the tray itself. The tray can then use the space under the PCB, and the half gets smaller.
 2. **A slanted inner edge to join the halves.** The tray, PCB and plate are cut straight from the thumb key's top right corner to the rightmost top row key's top right corner. The two halves join along that slant with magnets and steel dowel pins into one Alice-like board (each half turned 17.7 degrees, rows dipping toward the middle), firm enough to type on in the lap.
 
 The PCB itself is designed later (LibrePCB). Until then the geometry here is the ground truth, held in `scripts/layout.py`, and the PCB is a printed mock. Part choices and their sources are in [doc/components.md](doc/components.md).
@@ -50,13 +50,13 @@ Five 2.4 mm drills, M2 screws into heat-set inserts in tray standoffs, as on kbd
 |---|---|
 | Tray floor underside (the 1.0 rubber sole goes under it) | -1.2 |
 | Battery top (4.11 thick) | 4.11 |
-| Socket bottoms, 0.5 above the battery | 4.61 |
-| PCB underside, standoff and ledge tops | 6.63 |
-| PCB top (1.6) | 8.23 |
-| Plate top (2.2, resting on the PCB) | 10.43 |
-| Tray rim, 0.1 above the plate as on kbdkid4 | 10.53 |
+| Socket bottoms, 1.87 above the battery | 5.98 |
+| PCB underside, standoff and ledge tops | 8.0 |
+| PCB top (1.6) | 9.6 |
+| Plate top (2.2, resting on the PCB) | 11.8 |
+| Tray rim, 0.1 above the plate as on kbdkid4 | 11.9 |
 
-The standoff height is derived: battery 4.11 + clearance 0.5 + socket 2.02 = 6.63, against kbdkid4's 8.0. The tray is 11.73 tall (kbdkid4 13.1). Tray walls 0.8, gap to the PCB edge 0.4, floor 1.2, ledge 1.0 wide, standoffs 5.8 across with 3.2 bores, all as kbdkid4.
+The standoff height stays kbdkid4's 8.0 for this first iteration (the user's choice): room for padding and margin around the parts. The lowest it could go is battery 4.11 + clearance 0.5 + socket 2.02 = 6.63. The tray is 13.1 tall, like kbdkid4's. Tray walls 0.8, gap to the PCB edge 0.4, floor 1.2, ledge 1.0 wide, standoffs 5.8 across with 3.2 bores, all as kbdkid4.
 
 ## Parts in the tray
 
@@ -68,7 +68,7 @@ Envelopes below are bodies only. Wires need room behind every lead.
 - x 0.9 to 18.9 (0.3 from the west ledge's face), y 42.016 to 75.316. The USB-C shell (8.94 wide, 3.16 tall, z 0 to 3.16, flush with the board's underside) reaches 0.87 past the board's north end, so its mouth lies 0.5 behind the north wall's outer face, as on kbdkid4.
 - USB window: kbdkid4's 10.5 x 4.5 window (corners rounded 1.95, faces chamfered 0.2), centered on the shell (x 9.9, z 1.58), so its bottom edge cuts 0.67 into the floor. The north ledge is cut away over the nano's width.
 - Held down at the USB end by a bar over the shell's top (0.1 clear), just inside the north wall, no wider than the shell plus 0.5, so it stays off the B+ and B- pads at the end's corners, which carry wires.
-- Held down at the far end by a snap hook over the middle of the board's south edge: the last 5.8 of the board's top side carries no parts or pads across its middle 13.7. The hook's lip reaches 0.8 onto the board. The hook stands on a blade that flexes along y: a vertical blade on the bed, free of the floor on three sides by a slot, rooted at one end, at least 10 long so the bending strain stays under 2 % for PLA. The hook's top stays 0.3 under the S101 socket above it (z 4.31).
+- Held down at the far end by a snap hook over the middle of the board's south edge: the last 5.8 of the board's top side carries no parts or pads across its middle 13.7. The hook's lip reaches 0.8 onto the board. The hook stands on a blade that flexes along y: a vertical blade on the bed, free of the floor on three sides by a slot, rooted at one end, at least 10 long so the bending strain stays under 2 % for PLA. The hook's top stays 0.3 under the S101 socket above it (z 5.68).
 - Located sideways by the west ledge's face and low ribs (1.0 tall) along the east edge, which touch only the board's side face.
 - Shallow grooves (0.4 deep) in the floor under the two pin rows, B+ and B-, the P1.01/P1.02/P1.07 row and the shell's tab slots, so solder that runs through the plated holes cannot lift the board.
 
@@ -92,7 +92,7 @@ Envelopes below are bodies only. Wires need room behind every lead.
 ### Battery
 
 - 34.37 x 51.53 x 4.11 pouch, its lead (about 66 with a PH plug) leaving one corner.
-- x 22.0 to 56.37, y 5.9 to 57.43, lying under the sockets of columns 1 and 2 with 0.5 of clearance, its lead's corner at the northeast (turn the pouch over to put it there), about 32 from the connector's plug.
+- x 22.0 to 56.37, y 5.9 to 57.43, lying under the sockets of columns 1 and 2 with 1.87 of clearance, its lead's corner at the northeast (turn the pouch over to put it there), about 32 from the connector's plug.
 - Located by low L-shaped ribs at its corners (1.0 tall, 0.5 clear).
 
 ### PCB connector (kept clear)
@@ -103,9 +103,9 @@ The PCB's off-board connector is the PCB design's choice, recommended a JST SH S
 
 The slanted tray wall is the joint face. Joined, the two halves' outer slant faces touch, each half turned 17.74 degrees.
 
-- **Block:** below the PCB, the slanted wall is 4.0 thick (normal to the face) from the floor up to the ledge top (z 6.63), replacing the ledge there. The PCB rests on it.
-- **Magnets:** six supermagnete S-06-03-N (6 x 3, N45) per half, axis normal to the face, centered at z 2.7, in pockets 6.2 across opening into the tray and leaving a 0.5 skin at the face. They are spread evenly along the slant, at least 5 from its ends and clear of the pins. Glue them with alternating poles along the joint, the right half opposite to the left, so the halves pull together and center themselves. Two 0.5 skins leave a 1.0 gap between opposing magnets: about 3.6 N per pair after derating (doc/components.md), about 22 N in all. That only closes the joint. It cannot carry the bending of lap use.
-- **Dowel pins:** two hardened ISO 8734 4 x 24 pins, normal to the face, at z 2.7, at the slant's y 26 and y 58 (about 33.6 apart along it), 12 embedded in each half. They carry the bending and the shear. Each sits in a boss (7 across) reaching 12.2 from the outer face into the tray, clear of the sockets above (the upper one passes between S150's and S151's sockets, the lower one 1.4 from the standoff at (114.141, 19.765)). The holes are teardrops, since they print horizontal. The left half's are sized to glue the pins in, the right half's to slide on them.
+- **Block:** below the PCB, the slanted wall is 4.0 thick (normal to the face) from the floor up to the ledge top (z 8.0), replacing the ledge there. The PCB rests on it.
+- **Magnets:** five supermagnete S-08-03-N (8 x 3, N45) per half, axis normal to the face, standing on edge in slots open at the block's top (8.2 along the slant, 3.1 across, from z -0.7 up, leaving a 0.5 skin at the face and 0.5 above the bed), so each magnet drops in from above with no overhang to print and the PCB covers it. They are spread evenly along the slant, at least 5 from its ends and clear of the pins. Glue them with alternating poles along the joint, the right half opposite to the left, so the halves pull together and center themselves. Two 0.5 skins leave a 1.0 gap between opposing magnets: about 6.0 N per pair after derating (doc/components.md), about 30 N in all. That only closes the joint. It cannot carry the bending of lap use.
+- **Dowel pins:** two hardened ISO 8734 4 x 24 pins, normal to the face, at z 3.4 (midway between the bed and the PCB), at the slant's y 26 and y 58 (about 33.6 apart along it), 12 embedded in each half. They carry the bending and the shear. Each sits in a boss (7 across) reaching 12.2 from the outer face into the tray, clear of the sockets above (the upper one passes between S150's and S151's sockets, the lower one 1.4 from the standoff at (114.141, 19.765)). The holes are teardrops, since they print horizontal. The left half's are sized to glue the pins in, the right half's to slide on them.
 
 ## Plate and PCB mock
 
@@ -117,6 +117,6 @@ The slanted tray wall is the joint face. Joined, the two halves' outer slant fac
 - 2 SOFNG SS-12D00-G3 slide switches (LCSC C22355741).
 - 2 C&K PTS636 SL43 LFS tactile switches.
 - 2 JST B2B-PH-K-S headers, plus PHR-2 housings and SPH-002T-P0.5S contacts if a battery lead needs re-terminating.
-- 12 supermagnete S-06-03-N disc magnets.
+- 10 supermagnete S-08-03-N disc magnets.
 - 2 hardened ISO 8734 (or DIN 6325 m6) 4 x 24 dowel pins.
 - M2 heat-set inserts and screws as on kbdkid4.
