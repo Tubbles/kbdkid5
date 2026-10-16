@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pcb-mock:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the layout
+        run: python3 scripts/check_layout.py
+      - name: Build headless FreeCAD image
+        run: docker build -t freecad-headless -f scripts/freecad.Dockerfile scripts
+      - name: Export PCB mock STL
+        run: |
+          mkdir -p pcb
+          docker run --rm -v "$PWD":/work -w /work freecad-headless \
+            freecadcmd scripts/export_pcb.py --pass pcb/kbdkid5_Pcb_Left.stl
+          docker run --rm -v "$PWD":/work -w /work freecad-headless \
+            freecadcmd scripts/export_pcb.py --pass pcb/kbdkid5_Pcb_Right.stl right
+      - name: Upload PCB mock STL
+        uses: actions/upload-artifact@v4
+        with:
+          name: pcb-stl
+          path: pcb/
+          if-no-files-found: error
