@@ -150,6 +150,24 @@ def socket_tab_tip(key_center):
     return footprint_point(key_center, HOTSWAP_SOCKET_TAB_TIP_MM)
 
 
+# The diodes sit on the top side under the plate (DESIGN.md, "Keys").
+# kbdkid5 places none until its PCB is designed, but the plate's
+# covered variant needs one for the pit over its key's diode, so it
+# takes kbdkid4's place: in kbdkid4's boards/board_1.1/board.lp every
+# left-half diode D1xx sits 4.28 north of its key S1xx's center,
+# rotated 180 degrees on the top side, its body along x (D123 at
+# (47.149, 18.25) for S123 at (47.149, 13.97)).
+DIODE_OFFSET_FROM_KEY_MM = (0.0, 4.28)
+DIODE_ROTATION_DEGREES = 180.0
+
+
+def diode_center(key_center):
+    return (
+        key_center[0] + DIODE_OFFSET_FROM_KEY_MM[0],
+        key_center[1] + DIODE_OFFSET_FROM_KEY_MM[1],
+    )
+
+
 # The outline (DESIGN.md, "Outline"): kbdkid4's, with its
 # microcontroller corner replaced by the slant. DESIGN.md rounds the
 # vertices to 0.001 mm; kbdkid4's board.lp has, for example, 37.62375

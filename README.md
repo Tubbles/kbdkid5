@@ -13,3 +13,13 @@ The design, with every dimension, is in [DESIGN.md](DESIGN.md). The part choices
         freecadcmd scripts/export_pcb.py --pass pcb.stl [right] [pull_in=0.2]
 
 CI first checks the layout with `python3 scripts/check_layout.py` (outline, keys, drills, the parts in the tray, the sockets against the tray, the joint), then uploads both halves as the `pcb-stl` artifact: `kbdkid5_Pcb_Left.stl`, and `kbdkid5_Pcb_Right.stl` mirrored across the outline's center line (the word `right`). A bare board turned over would be its own mirror image, but a print is not: its bed side and its top side come out with different surfaces.
+
+## 3D printed switch plate
+
+`scripts/export_plate.py` exports the switch plate: kbdkid3's plate (one Choc cell per key) aligned onto the layout's keys, trimmed 0.4 mm at its outer edges to fit the tray, the switch-free corner by the slant covered up to 0.35 mm past the outline's slant, and 4.17 mm holes over the screw heads at the mounting drills. kbdkid4's print corrections apply: the hole pattern moves `pattern_shift` (default 0.25 mm) along x while the outline stays put, and `side_shave` (default 0.1 mm) comes off the west and east edges and the slanted edge. The word `covered` makes the plate for a half without the hard-to-reach key S123: its cutout is filled in and a pit in the underside clears its diode. The plate is written upside down, its top face on the bed.
+
+    docker run --rm -v "$PWD":/work -w /work freecad-headless \
+        freecadcmd scripts/export_plate.py --pass plate.stl [right] [covered] \
+        [pattern_shift=0.25] [side_shave=0.1] [hole_diameter=4.17]
+
+CI uploads both halves, plain and covered, as the `plate-stl` artifact: `kbdkid5_Plate_Left.stl`, `kbdkid5_Plate_Right.stl`, `kbdkid5_Plate_Left_Covered.stl` and `kbdkid5_Plate_Right_Covered.stl`. The right ones are mirrored across the outline's center line, like the PCB mock's.

@@ -1,7 +1,7 @@
 """Shared helpers for this repo's headless FreeCAD scripts.
 
-STL export with a check that the written mesh is closed, a sharp-corner
-outline offset, plus the scaffolding that makes freecadcmd usable as a
+STL export with a check that the written mesh is closed, an outline
+offset, plus the scaffolding that makes freecadcmd usable as a
 script interpreter. Unlike the export scripts this module has no entry
 point, so it is safe to import from probes and other scripts.
 
@@ -26,6 +26,11 @@ import Part
 MESH_LINEAR_DEFLECTION_MM = 0.05
 MESH_ANGULAR_DEFLECTION_DEGREES = 15.0
 
+# makeOffset2D's join types: corners extended to their intersection,
+# or rounded with arcs around the original corners.
+SHARP_JOIN = 2
+ROUND_JOIN = 0
+
 
 def script_arguments(argv):
     """Return the arguments meant for this script.
@@ -39,11 +44,12 @@ def script_arguments(argv):
     return argv[1:]
 
 
-def offset_outline(wire, distance):
-    """Offset a closed wire by `distance` with sharp corners (join type
-    2, corners extended to their intersection): positive is outward,
-    negative inward. makeOffset2D's own sign follows the wire's
-    orientation, so pick the candidate whose area moved the right way.
+def offset_outline(wire, distance, join=SHARP_JOIN):
+    """Offset a closed wire by `distance`, by default with sharp corners
+    (SHARP_JOIN, corners extended to their intersection), with
+    ROUND_JOIN rounded around them: positive is outward, negative
+    inward. makeOffset2D's own sign follows the wire's orientation, so
+    pick the candidate whose area moved the right way.
     """
     original_area = Part.Face(wire).Area
     wants_growth = distance > 0
@@ -52,9 +58,9 @@ def offset_outline(wire, distance):
         area = Part.Face(candidate_wire).Area
         return area > original_area if wants_growth else area < original_area
 
-    candidate = wire.makeOffset2D(distance, 2)
+    candidate = wire.makeOffset2D(distance, join)
     if not moved_correctly(candidate):
-        candidate = wire.makeOffset2D(-distance, 2)
+        candidate = wire.makeOffset2D(-distance, join)
     if not moved_correctly(candidate):
         raise SystemExit(f"error: offsetting the outline by {distance} mm failed")
     return candidate

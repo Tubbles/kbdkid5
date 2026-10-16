@@ -30,3 +30,21 @@ jobs:
           name: pcb-stl
           path: pcb/
           if-no-files-found: error
+      - name: Export switch plate STL
+        run: |
+          mkdir -p plate
+          docker run --rm -v "$PWD":/work -w /work freecad-headless \
+            freecadcmd scripts/export_plate.py --pass plate/kbdkid5_Plate_Left.stl
+          docker run --rm -v "$PWD":/work -w /work freecad-headless \
+            freecadcmd scripts/export_plate.py --pass plate/kbdkid5_Plate_Right.stl right
+          docker run --rm -v "$PWD":/work -w /work freecad-headless \
+            freecadcmd scripts/export_plate.py --pass plate/kbdkid5_Plate_Left_Covered.stl covered
+          docker run --rm -v "$PWD":/work -w /work freecad-headless \
+            freecadcmd scripts/export_plate.py --pass plate/kbdkid5_Plate_Right_Covered.stl \
+            right covered
+      - name: Upload switch plate STL
+        uses: actions/upload-artifact@v4
+        with:
+          name: plate-stl
+          path: plate/
+          if-no-files-found: error
