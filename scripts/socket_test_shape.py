@@ -7,6 +7,9 @@ A frame strip (POCKET or LIP) is a plate of the PCB's thickness, each
 cell with one key's footprint holes grown by pull_in like the PCB
 mock's, so the switch's pins reach the socket's contacts as through a
 PCB and the socket's two bosses sit in the 3.0 pin holes, as on a PCB.
+On the pocket strip those two holes are POCKET_STRIP_PIN_HOLE_DIAMETER_MM
+as modelled instead, so they leave the bosses free and the pocket alone
+locates the socket.
 Under each cell, pocket walls around the socket's plastic body
 (pocket_pieces(): its two lobes cut back to the body's ends and the
 fills at its inside corners, layout.py), open at the bottom, against
@@ -44,8 +47,9 @@ axis. The socket's room is counted from the risen ceiling, so the
 lips' retaining faces sit the socket's height plus the rise below the
 ceiling as modelled.
 
-POCKET: the pocket's fit steps across the cells (cell_pocket_fit()).
-Any pocket can be glued.
+POCKET: the pocket's fit steps across the cells (cell_pocket_fit()),
+the pin holes at POCKET_STRIP_PIN_HOLE_DIAMETER_MM. Any pocket can be
+glued.
 
 LIP: every pocket at the lip strip's fit (lip_fit, snug unless the
 export overrides it), with a lip under three of the socket's lobe faces
@@ -92,7 +96,10 @@ Cell k (from 1, west to east) has k notches in its south edge on every
 strip, as on the slit test strip, the frame strips' through the plate
 south of the pockets and the backing's in line with them. The lip
 strip also has one notch (LIP_STRIP_MARK_*) in the middle of its north
-edge, between cells 3 and 4, clear of the bosses and the switches.
+edge, between cells 3 and 4, clear of the bosses and the switches, and
+the pocket strip two of that size (POCKET_STRIP_MARK_XS_MM), between
+cells 2 and 3 and between cells 4 and 5, which tell it from the first
+pocket strip, which had none.
 
 A switch is the same on both halves, so is the frame: the footprint is
 the left half's (layout.footprint_holes() at FOOTPRINT_ROTATION_DEGREES).
@@ -125,12 +132,14 @@ FRAME_KINDS = (POCKET, LIP)
 CELL_COUNT = 6
 
 # The steps across the cells, cell 1's figure and the step: the pocket's
-# fit (cell 3 snug, cell 5 slip), the lips' reach past the walls' inner
-# faces as printed, and the pads' tops relative to the socket's bottom
-# (negative a gap, positive pressing). The reach's step is the even one
-# that takes cell 6 to the largest reach the fingers bend for within the
+# fit, the lips' reach past the walls' inner faces as printed, and the
+# pads' tops relative to the socket's bottom (negative a gap, positive
+# pressing). The pocket's fits are all tighter than snug: on the first
+# pocket strip, -0.10 to +0.15, every pocket but cells 3 and 5 printed
+# loose (doc/log/2026-10-17.md). The reach's step is the even one that
+# takes cell 6 to the largest reach the fingers bend for within the
 # hook's 2 % (lobe A's north finger, the shortest).
-FIRST_POCKET_FIT_MM = -0.10
+FIRST_POCKET_FIT_MM = -0.40
 POCKET_FIT_STEP_MM = 0.05
 FIRST_LIP_REACH_MM = 0.15
 LIP_REACH_STEP_MM = 0.04
@@ -139,6 +148,18 @@ PAD_OFFSET_STEP_MM = 0.05
 
 # The lip strip's pockets, unless the export's lip_fit overrides it.
 LIP_POCKET_FIT_MM = layout.SNUG_FIT_MM
+
+# The pocket strip's two pin holes (layout.CHOC_FOOTPRINT_PIN_HOLE_CENTERS_MM),
+# which the socket's 2.90 bosses sit in, as modelled whatever pull_in.
+# On the first pocket strip they were the footprint's 3.0 grown to 3.4,
+# and its pockets' result mixed the bosses' fit with the pocket's, so
+# these must leave the bosses free and let the pocket alone locate the
+# socket. 3.5 is the user's "something like 3.5 mm", within the 3.54 at
+# which the tab recess keeps RECESS_HOLE_CLEARANCE_MM (export) from the
+# hole. The lip strip keeps the footprint's holes for now: its fingers'
+# slots keep FINGER_SLOT_HOLE_WEB_MM from them only up to 3.44, and it
+# waits for the pocket strip's result through lip_fit anyway.
+POCKET_STRIP_PIN_HOLE_DIAMETER_MM = 3.5
 
 # The pocket walls, as thick as the tray's (two lines), and their
 # clearance as modelled from the holes of the switch's center post and
@@ -239,10 +260,10 @@ FINGER_SLOT_HOLE_WEB_MM = 0.25
 # The bosses: the tray's standoff diameter and insert bore, on every
 # boundary between cells and at both ends of the strip, north and south
 # of the key row (the north row 0.5 clear of the walls around the fill
-# at the body's north west corner in the loosest pocket, the south row
-# past the lip strip's fingers' slots, which fill the cells' south edge,
-# 0.5 clear of them). The bore's floor keeps the plate's top face whole,
-# three layers.
+# at the body's north west corner in a +0.15 pocket, the first pocket
+# strip's loosest, the south row past the lip strip's fingers' slots,
+# which fill the cells' south edge, 0.5 clear of them). The bore's floor
+# keeps the plate's top face whole, three layers.
 BOSS_DIAMETER_MM = layout.STANDOFF_DIAMETER_MM
 INSERT_BORE_DIAMETER_MM = layout.STANDOFF_BORE_DIAMETER_MM
 BOSS_NORTH_OF_KEY_ROW_MM = 3.1
@@ -262,13 +283,15 @@ PAD_CLEARANCE_TO_LIPS_MM = 0.1
 
 # The notches that number the cells, as on the slit test strip, through
 # each strip from its south edge, and the lip strip's mark in its north
-# edge.
+# edge. The pocket strip's two marks are the lip strip's size, at cell
+# boundaries like it, so each lies over a boss, 2.0 north of it.
 NOTCH_WIDTH_MM = 1.0
 NOTCH_DEPTH_MM = 0.8
 NOTCH_PITCH_MM = 2.0
 LIP_STRIP_MARK_WIDTH_MM = 3.0
 LIP_STRIP_MARK_DEPTH_MM = 1.5
 LIP_STRIP_MARK_X_MM = 3 * layout.KEY_PITCH_MM
+POCKET_STRIP_MARK_XS_MM = (2 * layout.KEY_PITCH_MM, 4 * layout.KEY_PITCH_MM)
 
 VOLUME_RELATIVE_TOLERANCE = pcb_shape.VOLUME_RELATIVE_TOLERANCE
 AREA_TOLERANCE_MM2 = 1e-9
@@ -866,21 +889,23 @@ def notch_rectangles():
     ]
 
 
-def lip_strip_mark_rectangle():
+def strip_mark_xs(kind):
+    """The x centers of a strip's marks in its north edge."""
+    return {LIP: (LIP_STRIP_MARK_X_MM,), POCKET: POCKET_STRIP_MARK_XS_MM}.get(kind, ())
+
+
+def mark_rectangle(x):
     _, (_, y_high) = plate_rectangle()
     half = LIP_STRIP_MARK_WIDTH_MM / 2.0
     return rectangle(
-        (LIP_STRIP_MARK_X_MM - half, LIP_STRIP_MARK_X_MM + half),
+        (x - half, x + half),
         (y_high - LIP_STRIP_MARK_DEPTH_MM, y_high),
     )
 
 
 def edge_cut_rectangles(kind):
-    """The notches, and the lip strip's mark."""
-    cuts = notch_rectangles()
-    if kind == LIP:
-        cuts.append(lip_strip_mark_rectangle())
-    return cuts
+    """The notches, and the strip's marks."""
+    return notch_rectangles() + [mark_rectangle(x) for x in strip_mark_xs(kind)]
 
 
 # Analytic volumes, from the plan geometry above alone.
@@ -890,11 +915,34 @@ def strip_finger_slots(kind, lip_fit=LIP_POCKET_FIT_MM):
     return [rectangle(*box) for box, _ in strip_finger_slot_boxes(kind, lip_fit)]
 
 
-def strip_holes(pull_in):
+def is_pin_hole(local_center):
+    return local_center in layout.CHOC_FOOTPRINT_PIN_HOLE_CENTERS_MM
+
+
+def hole_radius(kind, local_center, diameter, pull_in):
+    """A footprint hole's radius as modelled: grown by pull_in, but the
+    pocket strip's pin holes POCKET_STRIP_PIN_HOLE_DIAMETER_MM across."""
+    if kind == POCKET and is_pin_hole(local_center):
+        return POCKET_STRIP_PIN_HOLE_DIAMETER_MM / 2.0
+    return diameter / 2.0 + pull_in
+
+
+def cell_holes(kind, key_center, pull_in):
+    """A cell's footprint holes as (center, radius as modelled), in
+    layout.CHOC_FOOTPRINT_HOLES_MM's order."""
+    return [(center, hole_radius(kind, local_center, diameter, pull_in))
+            for (center, diameter), (local_center, _) in zip(
+                layout.footprint_holes(key_center), layout.CHOC_FOOTPRINT_HOLES_MM)]
+
+
+def hole_cutter(center, radius, thickness):
+    return pcb_shape.hole_cutter(center, 2.0 * radius, 0.0, thickness)
+
+
+def strip_holes(kind, pull_in):
     """Every cell's footprint holes as (center, radius) in the plate."""
-    return [(center, diameter / 2.0 + pull_in)
-            for index in range(CELL_COUNT)
-            for center, diameter in layout.footprint_holes(cell_key_center(index))]
+    return [hole for index in range(CELL_COUNT)
+            for hole in cell_holes(kind, cell_key_center(index), pull_in)]
 
 
 def strip_tab_slots():
@@ -926,7 +974,7 @@ def plate_slots_area(kind, pull_in, lip_fit=LIP_POCKET_FIT_MM):
                   "the fingers' slots on the bed and the edge cuts")
     shared = sum(
         covered_area(slots, lambda cutter: circle_box_area(center, radius, polygon_box(cutter)))
-        for center, radius in strip_holes(pull_in)
+        for center, radius in strip_holes(kind, pull_in)
     )
     return covered_area(slots, layout.polygon_signed_area) - shared
 
@@ -996,7 +1044,7 @@ def frame_mouth_area(kind, lip_fit=LIP_POCKET_FIT_MM):
 
 def frame_analytic_volume(kind, pull_in, insert_length, lip_fit=LIP_POCKET_FIT_MM):
     plate = layout.PCB_THICKNESS_MM
-    holes = sum(math.pi * radius**2 for _center, radius in strip_holes(pull_in))
+    holes = sum(math.pi * radius**2 for _center, radius in strip_holes(kind, pull_in))
     recesses = sum(layout.polygon_signed_area(slot) for slot in strip_tab_slots())
     walls = 0.0
     lips = 0.0
@@ -1010,7 +1058,7 @@ def frame_analytic_volume(kind, pull_in, insert_length, lip_fit=LIP_POCKET_FIT_M
     blocks = sum(box_area(box) for box in strip_root_blocks(kind, lip_fit)) * (
         lip_band_bottom_depth()
     )
-    chamfers = sum(slot_chamfer_volume(box, toward, strip_holes(pull_in))
+    chamfers = sum(slot_chamfer_volume(box, toward, strip_holes(kind, pull_in))
                    for box, toward in strip_finger_slot_boxes(kind, lip_fit))
     edge_cuts = sum(layout.polygon_signed_area(cut) for cut in edge_cut_rectangles(kind))
     boss_count = len(boss_centers())
@@ -1080,8 +1128,8 @@ def build_plate(kind, pull_in, lip_fit=LIP_POCKET_FIT_MM):
     for index in range(CELL_COUNT):
         key_center = cell_key_center(index)
         cutters.extend(
-            pcb_shape.hole_cutter(center, diameter, pull_in, thickness)
-            for center, diameter in layout.footprint_holes(key_center)
+            hole_cutter(center, radius, thickness)
+            for center, radius in cell_holes(kind, key_center, pull_in)
         )
         cutters.extend(
             plan_prism(tab_slot(key_center, tab), -CUT_EXTRA_MM, TAB_RECESS_DEPTH_MM)

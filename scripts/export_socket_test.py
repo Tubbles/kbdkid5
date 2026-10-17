@@ -5,9 +5,9 @@ in pockets on its underside, to try a keyboard wired by hand.
 The word chooses the strip (socket_test_shape.py builds them and its
 docstring has the design):
 
-  pocket   the pocket's fit steps across the cells, -0.10 to +0.15 in
-           0.05 steps (cell 3 snug, cell 5 slip); any pocket can be
-           glued
+  pocket   the pocket's fit steps across the cells, -0.40 to -0.15 in
+           0.05 steps, the two pin holes 3.5 across as modelled so the
+           pocket alone locates the socket; any pocket can be glued
   lip      every pocket snug (or at lip_fit), with lips at its mouth on
            fingers that the socket bends aside as it snaps past, their
            reach past the walls' inner faces as printed 0.15 to 0.35 in
@@ -18,7 +18,8 @@ docstring has the design):
            from -0.10 (a gap) to +0.15 (pressing) in 0.05 steps
 
 Cell k (from 1, west to east) has k notches in its south edge on every
-strip; the lip strip also has a notch in the middle of its north edge.
+strip; the lip strip also has a notch in the middle of its north edge,
+the pocket strip two, between cells 2 and 3 and between cells 4 and 5.
 The frame strips print upside down, the plate's top face on z = 0; the
 backing prints bottom down.
 
@@ -41,15 +42,16 @@ walls' depth, each lip's reach as printed, length and place, each
 finger's bending length and thickness from its faces, its strain as
 printed (failing above 2 %), its slots open and its room against its
 swing, its root plastic over the finger's whole height, the slots' and
-blades' bed chamfers, the tab slots' width, every bore on its boss at
-the insert's depth, the bosses', walls', fingers', blocks' and slots'
-clearances, the notches and the mark, and a closed mesh. The backing is
-checked for one valid solid of its analytic volume, each pad's height
-against the socket's bottom, the screw holes, and stacked under both
-frame strips: nothing overlapping, the backing touching only the
-bosses' ends (and the lip strip's walls', fingers' and blocks' ends),
-the pads inside the lips as printed, every bore over its screw hole,
-the tabs' wire rooms clear, and the battery clearance in the real tray.
+blades' bed chamfers, the tab slots' width, the pin holes' size, every
+bore on its boss at the insert's depth, the bosses', walls', fingers',
+blocks' and slots' clearances, the notches and the marks, and a closed
+mesh. The backing is checked for one valid solid of its analytic
+volume, each pad's height against the socket's bottom, the screw holes,
+and stacked under both frame strips: nothing overlapping, the backing
+touching only the bosses' ends (and the lip strip's walls', fingers'
+and blocks' ends), the pads inside the lips as printed, every bore over
+its screw hole, the tabs' wire rooms clear, and the battery clearance
+in the real tray.
 Every strip's mesh must have its lowest point on z = 0, the bed.
 """
 
@@ -71,9 +73,10 @@ from tray_shape import UP, plan_prism
 # DESIGN.md's figures ("Hand-wired frame test"), transcribed
 # independently of the constants the strips are built from, each
 # compared within half its last digit.
-DESIGN_POCKET_FITS_MM = (-0.10, -0.05, 0.00, 0.05, 0.10, 0.15)
-DESIGN_POCKET_PRINTED_X_MM = (9.45, 9.50, 9.55, 9.60, 9.65, 9.70)
-DESIGN_POCKET_PRINTED_Y_MM = (6.75, 6.80, 6.85, 6.90, 6.95, 7.00)
+DESIGN_POCKET_FITS_MM = (-0.40, -0.35, -0.30, -0.25, -0.20, -0.15)
+DESIGN_POCKET_PRINTED_X_MM = (9.15, 9.20, 9.25, 9.30, 9.35, 9.40)
+DESIGN_POCKET_PRINTED_Y_MM = (6.45, 6.50, 6.55, 6.60, 6.65, 6.70)
+DESIGN_POCKET_PIN_HOLE_DIAMETER_MM = 3.50
 DESIGN_LIP_POCKET_PRINTED_MM = (9.55, 6.85)
 DESIGN_LIP_REACHES_MM = (0.15, 0.19, 0.23, 0.27, 0.31, 0.35)
 DESIGN_LIP_LENGTH_MM = 1.00
@@ -131,6 +134,7 @@ usage: freecadcmd scripts/export_socket_test.py --pass <strip.stl> pocket|lip|ba
   lip            the lip strip, its lips' reach stepping across the cells
   backing        the backing strip, its pads' height stepping across the cells
   pull_in        swelling allowance per side, mm: the footprint holes grow by it
+                 (all but the pocket strip's pin holes, 3.5 as modelled)
   insert_length  the heat-set inserts' length, mm, which sets the bores' depth:
                  at most (and by default) the longest the bosses hold,
                  {shape.longest_insert_length():.3f}
@@ -220,16 +224,17 @@ def socket_extents(key_center):
 
 
 def wall_face_plane(frame_faces, key_center, axis_index, socket_face, outward):
-    """The plane of the pocket walls' inner faces nearest outside a
-    socket face, from the faces below the ceiling within the cell (past
-    the body's west end a fill's walls lie farther out)."""
+    """The plane of the pocket walls' inner faces nearest outside or on
+    a socket face (a pocket at the -0.40 fit is modelled on the body),
+    from the faces below the ceiling within the cell (past the body's
+    west end a fill's walls lie farther out)."""
     planes = set()
     for face in frame_faces[axis_index]:
         center = face.CenterOfMass
         if center.z >= 0.0 or abs(center.x - key_center[0]) > layout.KEY_PITCH_MM / 2.0:
             continue
         offset = (face_coordinate(face, axis_index) - socket_face) * outward
-        if MEASURE_TOLERANCE_MM < offset <= WINDOW_MM:
+        if -MEASURE_TOLERANCE_MM <= offset <= WINDOW_MM:
             planes.add(round(face_coordinate(face, axis_index), 6))
     if not planes:
         raise SystemExit(f"error: found no wall plane outside the socket face at "
@@ -679,6 +684,29 @@ def check_bores(frame, insert_length):
           f"{floor:.3f}; the longest insert they hold {shape.longest_insert_length():.3f}")
 
 
+def check_pin_holes(kind, frame, pull_in):
+    """The two holes the socket's bosses sit in, in every cell, through
+    the plate at the strip's size."""
+    local = layout.CHOC_FOOTPRINT_PIN_HOLE_CENTERS_MM[0]
+    radius = shape.hole_radius(kind, local, dict(layout.CHOC_FOOTPRINT_HOLES_MM)[local], pull_in)
+    found = bore_faces(frame, radius)
+    expected = {(round(x, 6), round(y, 6))
+                for index in range(shape.CELL_COUNT)
+                for x, y in (layout.footprint_point(shape.cell_key_center(index), center)
+                             for center in layout.CHOC_FOOTPRINT_PIN_HOLE_CENTERS_MM)}
+    through = all(abs(low) < MEASURE_TOLERANCE_MM
+                  and abs(high - layout.PCB_THICKNESS_MM) < MEASURE_TOLERANCE_MM
+                  for low, high in found.values())
+    if set(found) != expected or not through:
+        raise SystemExit(f"error: found {len(found)} pin holes {2.0 * radius:.3f} across, not "
+                         f"one through the plate at each of the {len(expected)} pin hole centers")
+    if kind == shape.POCKET:
+        require_design("the pocket strip's pin holes", 2.0 * radius,
+                       DESIGN_POCKET_PIN_HOLE_DIAMETER_MM)
+    printed = 2.0 * (radius - layout.PRINT_SWELLING_PER_SIDE_MM)
+    print(f"pin holes:  {len(found)}, {2.0 * radius:.3f} across modelled, {printed:.3f} printed")
+
+
 def switch_part_columns(key_center):
     """The switch's center post and side pegs below the plate, their
     holes' nominal size plus the walls' swelling."""
@@ -795,9 +823,10 @@ def check_finger_clearances(kind, pull_in, lip_fit, frame, bodies, columns, slot
     walls, blades, blocks, lips, bosses = bodies
     if not blades:
         return []
-    other_holes = [pcb_shape.hole_cutter(center, diameter, pull_in, layout.PCB_THICKNESS_MM)
+    other_holes = [shape.hole_cutter(center, radius, layout.PCB_THICKNESS_MM)
                    for index in range(shape.CELL_COUNT)
-                   for center, diameter in layout.footprint_holes(shape.cell_key_center(index))[1:]]
+                   for center, radius in shape.cell_holes(kind, shape.cell_key_center(index),
+                                                          pull_in)[1:]]
     slot_prisms = finger_slot_prisms(kind, lip_fit)
     web = least_distance(slot_prisms, other_holes)
     require_clearance("the fingers' slots from the footprint holes but the center post's", web,
@@ -849,8 +878,8 @@ def check_frame_clearances(kind, pull_in, lip_fit, frame):
         gaps.extend(plan_prism(gap, -depth, 0.0) for gap in shape.switch_wall_gaps(key_center))
         recesses.extend(plan_prism(shape.tab_slot(key_center, tab), 0.0, shape.TAB_RECESS_DEPTH_MM)
                         for tab in shape.socket_tab_specs())
-        holes.extend(pcb_shape.hole_cutter(center, diameter, pull_in, layout.PCB_THICKNESS_MM)
-                     for center, diameter in layout.footprint_holes(key_center))
+        holes.extend(shape.hole_cutter(center, radius, layout.PCB_THICKNESS_MM)
+                     for center, radius in shape.cell_holes(kind, key_center, pull_in))
     recess_web = require_clearance("the tabs' recesses from the footprint holes",
                                    least_distance(recesses, holes), RECESS_HOLE_CLEARANCE_MM)
     print(f"recesses:   {recess_web:.3f} from the footprint holes as modelled, "
@@ -881,12 +910,15 @@ def check_notches(strip, z):
                 raise SystemExit(f"error: cell {index + 1} has the wrong notches")
 
 
-def check_mark(kind, frame):
+def check_marks(kind, frame):
+    """Every frame strip's marks open on its own strip only."""
     _, (_, y_high) = shape.plate_rectangle()
-    point = App.Vector(shape.LIP_STRIP_MARK_X_MM, y_high - shape.LIP_STRIP_MARK_DEPTH_MM / 2.0,
-                       layout.PCB_THICKNESS_MM / 2.0)
-    if frame.isInside(point, MEASURE_TOLERANCE_MM, True) == (kind == shape.LIP):
-        raise SystemExit("error: the lip strip's mark is wrong")
+    for mark_kind in shape.FRAME_KINDS:
+        for x in shape.strip_mark_xs(mark_kind):
+            point = App.Vector(x, y_high - shape.LIP_STRIP_MARK_DEPTH_MM / 2.0,
+                               layout.PCB_THICKNESS_MM / 2.0)
+            if frame.isInside(point, MEASURE_TOLERANCE_MM, True) == (kind == mark_kind):
+                raise SystemExit(f"error: the {mark_kind} strip's mark at x {x:.2f} is wrong")
 
 
 def export_frame(arguments):
@@ -906,12 +938,13 @@ def export_frame(arguments):
         check_lips(frame, lip_fit)
         check_fingers(frame, frame_faces, lip_fit)
     check_tab_slots(kind, frame, lip_fit)
+    check_pin_holes(kind, frame, arguments.pull_in)
     check_bores(frame, arguments.insert_length)
     check_frame_clearances(kind, arguments.pull_in, lip_fit, frame)
     check_notches(frame, layout.PCB_THICKNESS_MM / 2.0)
-    check_mark(kind, frame)
-    print(f"notches:    cell k has k in the south edge"
-          f"{'; the mark in the north edge' if kind == shape.LIP else ''}")
+    check_marks(kind, frame)
+    marks = ", ".join(f"{x:.2f}" for x in shape.strip_mark_xs(kind))
+    print(f"notches:    cell k has k in the south edge; marks in the north edge at x {marks}")
     return shape.turned_for_printing(frame)
 
 
