@@ -16,10 +16,14 @@ docstring has the design):
            heat-set inserts in the frame's bosses, a pad under each
            socket lobe whose top relative to the socket's bottom steps
            from -0.10 (a gap) to +0.15 (pressing) in 0.05 steps
+  holes    every pocket loose (+0.15), the two pin holes stepping 3.5 to
+           3.0 across as modelled in 0.1 steps, so only they hold the
+           socket
 
 Cell k (from 1, west to east) has k notches in its south edge on every
 strip; the lip strip also has a notch in the middle of its north edge,
-the pocket strip two, between cells 2 and 3 and between cells 4 and 5.
+the pocket strip two, between cells 2 and 3 and between cells 4 and 5,
+the hole strip three, between cells 1 and 2, 3 and 4, and 5 and 6.
 The frame strips print upside down, the plate's top face on z = 0; the
 backing prints bottom down.
 
@@ -27,7 +31,7 @@ Runs headless under FreeCAD's console interpreter (see
 freecad_common.py for the freecadcmd quirks that shape the
 invocation):
 
-    freecadcmd scripts/export_socket_test.py --pass <strip.stl> pocket|lip|backing
+    freecadcmd scripts/export_socket_test.py --pass <strip.stl> pocket|lip|backing|holes
         [pull_in=0.2] [insert_length=<mm>] [lip_fit=<mm>]
 
 lip_fit sets the lip strip's pocket fit (snug, 0, by default), for the

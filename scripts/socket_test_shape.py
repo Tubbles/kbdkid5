@@ -3,13 +3,13 @@ printed in place of the PCB that holds Kailh Choc hotswap sockets in
 pockets on its underside, for a keyboard wired by hand, in three
 stackable strips of CELL_COUNT cells at the key pitch.
 
-A frame strip (POCKET or LIP) is a plate of the PCB's thickness, each
+A frame strip (POCKET, LIP or HOLES) is a plate of the PCB's thickness, each
 cell with one key's footprint holes grown by pull_in like the PCB
 mock's, so the switch's pins reach the socket's contacts as through a
 PCB and the socket's two bosses sit in the 3.0 pin holes, as on a PCB.
 On the pocket strip those two holes are POCKET_STRIP_PIN_HOLE_DIAMETER_MM
 as modelled instead, so they leave the bosses free and the pocket alone
-locates the socket.
+locates the socket, and on the hole strip they step across the cells.
 Under each cell, pocket walls around the socket's plastic body
 (pocket_pieces(): its two lobes cut back to the body's ends and the
 fills at its inside corners, layout.py), open at the bottom, against
@@ -51,6 +51,10 @@ POCKET: the pocket's fit steps across the cells (cell_pocket_fit()),
 the pin holes at POCKET_STRIP_PIN_HOLE_DIAMETER_MM. Any pocket can be
 glued.
 
+HOLES: every pocket at HOLE_STRIP_POCKET_FIT_MM, loose, and the pin
+holes stepping down from the pocket strip's across the cells
+(cell_pin_hole_diameter()), so only the holes can hold the socket.
+
 LIP: every pocket at the lip strip's fit (lip_fit, snug unless the
 export overrides it), with a lip under three of the socket's lobe faces
 (FINGERS) catching the socket's bottom face, a right triangle
@@ -76,7 +80,7 @@ on the bed chamfered like the tray's snap hook's. The lip strip's walls,
 fingers and blocks reach down to the lips' band bottom, where the
 largest lead-in meets its finger.
 
-Both frame strips carry the same bosses, at every cell boundary and at
+The frame strips carry the same bosses, at every cell boundary and at
 both ends of the strip, BOSS_NORTH_OF_KEY_ROW_MM north and
 BOSS_SOUTH_OF_KEY_ROW_MM south of the key row, the tray's standoffs'
 diameter, bored for the tray's M2 heat-set inserts. They end at the lip
@@ -99,7 +103,9 @@ strip also has one notch (LIP_STRIP_MARK_*) in the middle of its north
 edge, between cells 3 and 4, clear of the bosses and the switches, and
 the pocket strip two of that size (POCKET_STRIP_MARK_XS_MM), between
 cells 2 and 3 and between cells 4 and 5, which tell it from the first
-pocket strip, which had none.
+pocket strip, which had none. The hole strip has three
+(HOLE_STRIP_MARK_XS_MM), between cells 1 and 2, 3 and 4 (where the lip
+strip has its one) and 5 and 6.
 
 A switch is the same on both halves, so is the frame: the footprint is
 the left half's (layout.footprint_holes() at FOOTPRINT_ROTATION_DEGREES).
