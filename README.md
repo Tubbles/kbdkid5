@@ -47,7 +47,7 @@ To try the pocket strip, push a socket into each pocket by hand from the open (w
 
 To try the hole strip, push a socket in so its two posts enter the holes. The pocket is loose on purpose and will not hold anything. The best cell is the tightest whose posts still go fully in by hand and sit flat, and whose socket stays in when the strip is turned over and tapped. Report the best cell, or "all loose" or "all tight".
 
-CI uploads both halves of the fused mock and the strips as the `kbdkid5-mock-stl-<short commit hash>` artifact: `kbdkid5_Mock_Left.stl`, `kbdkid5_Mock_Right.stl`, `kbdkid5_Slit_Test.stl`, `kbdkid5_Slit_Test_Wide.stl`, `kbdkid5_Socket_Test_Pocket.stl`, `kbdkid5_Socket_Test_Lip.stl`, `kbdkid5_Socket_Test_Backing.stl` and `kbdkid5_Socket_Test_Holes.stl`. The right half's outline and plate are mirrored like the other right parts, but not its switch footprints, since a switch cannot be mirrored: each sits as on the left half, at the mirrored key center.
+CI uploads both halves of the fused mock and the slit strips as the `kbdkid5-mock-stl-<short commit hash>` artifact: `kbdkid5_Mock_Left.stl`, `kbdkid5_Mock_Right.stl`, `kbdkid5_Slit_Test.stl` and `kbdkid5_Slit_Test_Wide.stl`. The socket strips have their own job and artifact, `kbdkid5-socket-stl-<short commit hash>`: `kbdkid5_Socket_Test_Pocket.stl`, `kbdkid5_Socket_Test_Holes.stl`, `kbdkid5_Socket_Test_Lip.stl` and `kbdkid5_Socket_Test_Backing.stl`, ready a few minutes after a push. The right half's outline and plate are mirrored like the other right parts, but not its switch footprints, since a switch cannot be mirrored: each sits as on the left half, at the mirrored key center.
 
 ## 3D printed tray
 
