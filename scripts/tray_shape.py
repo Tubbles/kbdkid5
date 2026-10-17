@@ -26,18 +26,19 @@ standoffs' flats. Every cut but the pockets is clipped to the cavity so
 it never reaches the wall, and a cut that finds nothing left to remove
 (a tab's relief inside its notch) is skipped. Then the parts' mounts
 (work item 004), layout.py's boxes in its order: the nice!nano's
-hold-down bar on its posts, its snap hook and its east ribs, the power
-switch's cradle, the reset button's back wall, the battery header's
-pocket and the battery's corner ribs, then the USB shell's channel and
-the USB window, the lever slot and the reset pin hole through the north
-wall and the nice!nano's solder grooves, the hook's slots and the pry
-recess in the floor, with the slots' and the blade's bed edges
-chamfered. Last the magnet slots, open toward the cavity, with the
-wall cut back over them, the flat-topped teardrop pin holes (the
-half's fit and depth, the right half's with a lead-in at the mouth),
-the flat-topped teardrop parking hole and the chamfer along the joint
-face's bottom edge. Each step checks its volume and probes what it
-made.
+hold-down bar on its posts, its screw clamp's boss and stop (work item
+009) and its east ribs, the power switch's cradle, the reset button's
+back wall, the battery header's pocket and the battery's corner ribs,
+then the USB shell's channel and the USB window, the lever slot and the
+reset pin hole through the north wall, the nice!nano's solder grooves
+and the pry recess in the floor and the clamp boss's insert bore. Then
+the magnet slots, open toward the cavity, with the wall cut back over
+them, the flat-topped teardrop pin holes (the half's fit and depth, the
+right half's with a lead-in at the mouth), the flat-topped teardrop
+parking hole and the chamfer along the joint face's bottom edge. Each
+step checks its volume and probes what it made. Last the floor is
+checked closed: its underside is the void-free footprint's, so no void
+reaches it (work item 009).
 
 The right half is built in the left half's frame, cut for its own
 sockets (layout.py's module docstring), and mirrored across the
@@ -301,6 +302,7 @@ class Tray:
     skipped_cuts: list  # labels of the cuts that found nothing left to remove
     fits: layout.MountFits  # the mounts' fits the tray was built with
     mounts: list  # (label, added volume) of the mounts' bodies
+    bed_area: float  # the floor's underside, closed
 
 
 def layout_polygon_wire(polygon, z):
@@ -799,11 +801,10 @@ def cut_parking_hole(tray):
     )
 
 
-def chamfer_joint_face_bottom(tray, corner_radius):
-    """Chamfer the joint face's bottom edge at 45 degrees, along the
-    slant and a corner radius past each of its ends, where the chamfer
-    runs out on the corner rounds: cut the wedge beyond the chamfer's
-    plane, extruded along the slant."""
+def joint_chamfer_wedge(corner_radius):
+    """The wedge beyond the joint face's bottom chamfer's plane, along
+    the slant and a corner radius past each of its ends, where the
+    chamfer runs out on the corner rounds."""
     size = layout.JOINT_FACE_BOTTOM_CHAMFER_MM
     face = layout.JOINT_FACE_OUTWARD_MM
     bed = FLOOR_UNDERSIDE_Z_MM
@@ -815,10 +816,21 @@ def chamfer_joint_face_bottom(tray, corner_radius):
         slant_probe(start, face + CUT_EXTRA_MM, bed + size + CUT_EXTRA_MM),
     ]
     direction_x, direction_y = layout.slant_direction()
-    wedge = Part.Face(Part.makePolygon(corners + [corners[0]])).extrude(
+    return Part.Face(Part.makePolygon(corners + [corners[0]])).extrude(
         App.Vector(direction_x, direction_y, 0.0) * length
     )
-    result = tray.cut(wedge)
+
+
+def chamfer_joint_face_bottom(tray, corner_radius):
+    """Chamfer the joint face's bottom edge at 45 degrees, along the
+    slant and a corner radius past each of its ends, where the chamfer
+    runs out on the corner rounds: cut the wedge beyond the chamfer's
+    plane, extruded along the slant."""
+    size = layout.JOINT_FACE_BOTTOM_CHAMFER_MM
+    face = layout.JOINT_FACE_OUTWARD_MM
+    bed = FLOOR_UNDERSIDE_Z_MM
+    length = layout.slant_length() + 2.0 * corner_radius
+    result = tray.cut(joint_chamfer_wedge(corner_radius))
     require_one_valid_solid(result, "the joint face's bottom chamfer")
     removed = tray.Volume - result.Volume
     per_length = size**2 / 2.0
@@ -838,12 +850,60 @@ def chamfer_joint_face_bottom(tray, corner_radius):
     return result
 
 
+# The floor stays closed (work item 009): no void the tray cuts may
+# reach the floor's underside, which lies on the bed. The underside is
+# checked against the void-free footprint, the outside's bottom face
+# less the joint face's bottom chamfer, so a hole anywhere in it, or a
+# notch at its edge, shows as footprint the underside lacks.
+BED_OPENING_TOLERANCE_MM2 = 1e-4
+
+
+def bed_faces(shape):
+    """The shape's planar faces lying on the floor's underside."""
+    return [
+        face for face in shape.Faces
+        if isinstance(face.Surface, Part.Plane)
+        and abs(face.BoundBox.ZMin - FLOOR_UNDERSIDE_Z_MM) < INSIDE_TOLERANCE_MM
+        and abs(face.BoundBox.ZMax - FLOOR_UNDERSIDE_Z_MM) < INSIDE_TOLERANCE_MM
+    ]
+
+
+def void_free_footprint(corner_radius):
+    """The floor's underside as it is with no void: the outside's bottom
+    face less the joint face's bottom chamfer."""
+    outside = outer_prism(FLOOR_UNDERSIDE_Z_MM + 1.0, corner_radius)
+    bottom = Part.makeCompound(bed_faces(outside))
+    return bottom.cut(joint_chamfer_wedge(corner_radius))
+
+
+def check_floor_closed(tray, corner_radius):
+    """Fail when any void reaches the floor's underside: the footprint
+    the underside lacks must be none. Returns the underside's area."""
+    footprint = void_free_footprint(corner_radius)
+    underside = Part.makeCompound(bed_faces(tray))
+    openings = [face for face in footprint.cut(underside).Faces
+                if face.Area > BED_OPENING_TOLERANCE_MM2]
+    if openings:
+        where = ", ".join(
+            f"{face.Area:.3f} mm2 at x {face.BoundBox.XMin:.3f} to {face.BoundBox.XMax:.3f}, "
+            f"y {face.BoundBox.YMin:.3f} to {face.BoundBox.YMax:.3f}"
+            for face in openings
+        )
+        raise SystemExit(f"error: {len(openings)} voids reach the floor's underside: {where}")
+    area = sum(face.Area for face in bed_faces(tray))
+    if abs(area - footprint.Area) > BED_OPENING_TOLERANCE_MM2:
+        raise SystemExit(f"error: the floor's underside is {area:.4f} mm2, the void-free "
+                         f"footprint {footprint.Area:.4f} mm2")
+    return area
+
+
 # The parts' mounts (work item 004): layout.py gives every body and void
 # as a MountBox. The bodies are fused one by one after the standoffs'
 # flats, so the cradle can fill the ledge cut-away's margins, then the
 # voids are cut. Each is checked against a volume worked out from the
-# layout alone where the tray around it is known (the hook on the open
-# floor, the voids in the wall and the floor), and probed.
+# layout alone where the tray around it is known (the clamp's boss and
+# stop on the open floor, the voids in the wall and the floor), and
+# probed.
 
 
 def box_prism(box, extra_below=0.0, extra_above=0.0):
@@ -896,72 +956,38 @@ def fuse_mount_body(tray, label, body):
     return result, added
 
 
-def nano_hook_lip_solid(fits):
-    """The lip's triangle (layout.nano_hook_lip_profile()) across its x
-    range."""
-    low_x, high_x = layout.nano_hook_lip_x_range()
-    points = [App.Vector(low_x, y, z) for y, z in layout.nano_hook_lip_profile(fits)]
-    face = Part.Face(Part.makePolygon(points + [points[0]]))
-    return face.extrude(App.Vector(high_x - low_x, 0.0, 0.0))
-
-
-def mount_body_solid(box, fits):
-    """The solid a mount body's box stands for: the hook's lip is its
-    triangle, every other body its box."""
-    if box.label == layout.nano_hook_lip_box(fits).label:
-        return nano_hook_lip_solid(fits)
-    return box_prism(box)
-
-
-def nano_hook_added_volumes(fits):
-    """{label: volume} the blade and the lip add on the open floor: the
-    blade above the floor's top, the lip all of its triangle, whose base
-    on the blade's face is twice its reach and whose height is its
-    reach."""
-    blade = layout.nano_hook_blade_box(fits)
-    lip = layout.nano_hook_lip_box(fits)
-    blade_top = layout.MountBox(
-        blade.label, blade.part, blade.x_range, blade.y_range, (0.0, blade.z_range[1])
-    )
-    reach = lip.y_range[1] - lip.y_range[0]
-    return {
-        blade.label: box_volume(blade_top),
-        lip.label: reach**2 * (lip.x_range[1] - lip.x_range[0]),
-    }
-
-
-def check_nano_hook(tray, fits):
-    """The blade stands this tall and no taller, and its lip reaches onto
-    the board and passes over the board's south edge clear of it."""
-    blade = layout.nano_hook_blade_box(fits)
-    (face, low), (tip, tip_z), _ = layout.nano_hook_lip_profile(fits)
-    lip_x = sum(layout.nano_hook_lip_x_range()) / 2.0
-    edge = layout.nano_south_end_y(fits)
-    edge_z = low + (edge - face)
-    top = blade.z_range[1]
-    for point, want_solid, what in (
-        (box_point(blade, z=top - 0.05), True, "this tall"),
-        (box_point(blade, z=top + 0.05), False, "no taller"),
-        (App.Vector(lip_x, tip - 0.05, tip_z), True, "reaching onto the board"),
-        (App.Vector(lip_x, tip + 0.05, tip_z), False, "reaching no further"),
-        (App.Vector(lip_x, edge, edge_z + 0.05), True, "over the board's edge"),
-        (App.Vector(lip_x, edge, edge_z - 0.05), False, "clear of the board's edge"),
-    ):
-        if is_solid_at(tray, point) != want_solid:
-            raise SystemExit(f"error: the hook's blade or lip is not {what}")
+def check_nano_clamp(tray, fits):
+    """The clamp's boss and stop stand this tall and no taller, and the
+    stop's north face is where the board's south end stops."""
+    boss, stop = layout.nano_clamp_boxes(fits)
+    stop_y = stop.y_range[1]
+    for box, what in ((boss, "boss"), (stop, "stop")):
+        top = box.z_range[1]
+        for point, want_solid, how in (
+            (box_point(box, 0.1, 0.5, top - 0.05), True, "this tall"),
+            (box_point(box, 0.1, 0.5, top + 0.05), False, "no taller"),
+        ):
+            if is_solid_at(tray, point) != want_solid:
+                raise SystemExit(f"error: the clamp's {what} is not {how}")
+    middle_x = sum(stop.x_range) / 2.0
+    for y, want_solid, how in ((stop_y - 0.05, True, "ending at the stop"),
+                               (stop_y + 0.05, False, "open in front of the stop")):
+        if is_solid_at(tray, App.Vector(middle_x, y, stop.z_range[1] / 2.0)) != want_solid:
+            raise SystemExit(f"error: the clamp's stop is not {how}")
 
 
 def add_mounts(tray, fits):
     """Fuse every mount body layout.py gives, in its order. Returns
-    (tray, (label, added volume) of each)."""
-    exact = nano_hook_added_volumes(fits)
+    (tray, (label, added volume) of each). The clamp's boss and stop
+    stand on the open floor, so each adds its whole box."""
+    exact = {box.label: box_volume(box) for box in layout.nano_clamp_boxes(fits)}
     added_volumes = []
     for box in layout.mount_bodies(fits):
-        tray, added = fuse_mount_body(tray, box.label, mount_body_solid(box, fits))
+        tray, added = fuse_mount_body(tray, box.label, box_prism(box))
         if box.label in exact:
             require_volume(f"the {box.label}", added, exact[box.label], 1e-6)
         added_volumes.append((box.label, added))
-    check_nano_hook(tray, fits)
+    check_nano_clamp(tray, fits)
     return tray, added_volumes
 
 
@@ -1247,24 +1273,45 @@ def cut_reset_pin_hole(tray):
 
 
 def cut_floor_void(tray, box, earlier):
-    """Cut a groove, a slot or a recess in the floor, its cutter run on
-    into the open cavity above the floor's top, and below the bed for a
-    slot through the floor. It removes its box less what the earlier
-    voids took from it, and leaves the floor under a groove or a
-    recess."""
-    through = box.z_range[0] <= FLOOR_UNDERSIDE_Z_MM
-    cutter = box_prism(box, CUT_EXTRA_MM if through else 0.0, 0.5)
+    """Cut a groove or a recess in the floor, its cutter run on into the
+    open cavity above the floor's top. It removes its box less what the
+    earlier voids took from it, and leaves the floor under it."""
+    cutter = box_prism(box, 0.0, 0.5)
     result = tray.cut(cutter)
     require_one_valid_solid(result, f"the {box.label}")
     taken = sum(box_overlap_volume(box, other) for other in earlier)
     require_volume(f"the {box.label}", tray.Volume - result.Volume, box_volume(box) - taken, 1e-6)
     bottom = box.z_range[0]
-    probes = [(box_point(box, z=bottom + 0.05), False, "open to its bottom")]
-    if not through:
-        probes.append((box_point(box, z=bottom - 0.05), True, "this shallow"))
-    for point, want_solid, what in probes:
+    for point, want_solid, what in (
+        (box_point(box, z=bottom + 0.05), False, "open to its bottom"),
+        (box_point(box, z=bottom - 0.05), True, "this shallow"),
+    ):
         if is_solid_at(result, point) != want_solid:
             raise SystemExit(f"error: the {box.label} is not {what}")
+    return result
+
+
+def cut_nano_clamp_bore(tray, fits):
+    """Bore the clamp's boss for its insert from its top down to the
+    floor's top, like a standoff, its cutter run on above the top: it
+    removes the bore's cylinder from the boss and leaves the floor and
+    the boss's wall around it."""
+    boss = layout.nano_clamp_boxes(fits)[0]
+    x, y = layout.nano_clamp_screw_center(fits)
+    radius = layout.NANO_CLAMP_BORE_DIAMETER_MM / 2.0
+    top = boss.z_range[1]
+    cutter = Part.makeCylinder(radius, top + CUT_EXTRA_MM, App.Vector(x, y, 0.0), UP)
+    result = tray.cut(cutter)
+    what = "the clamp's insert bore"
+    require_one_valid_solid(result, what)
+    require_volume(what, tray.Volume - result.Volume, math.pi * radius**2 * top, 1e-6)
+    for point, want_solid, how in (
+        (App.Vector(x, y, top / 2.0), False, "open"),
+        (App.Vector(x, y, -0.05), True, "closed under it"),
+        (App.Vector(x + radius + 0.05, y, top / 2.0), True, "this wide"),
+    ):
+        if is_solid_at(result, point) != want_solid:
+            raise SystemExit(f"error: {what} is not {how}")
     return result
 
 
@@ -1275,111 +1322,11 @@ def rectangle_wire(x_range, y_range, z):
     )
 
 
-def check_bed_chamfer(shape, edges, size, what):
-    """Probe a 45 degree chamfer of `size` along bed edges, each given as
-    (a point on the edge, the unit vector along the bed from the face
-    into the material): open in its triangle, solid just past its ends
-    along the bed and up the face."""
-    bed = UP * FLOOR_UNDERSIDE_Z_MM
-    for edge, into in edges:
-        for along, height, want_solid, how in (
-            (size / 4.0, size / 4.0, False, "open at the edge"),
-            (size + 0.05, 0.05, True, "this short on the bed"),
-            (0.05, size + 0.05, True, "this short up the face"),
-        ):
-            point = edge.add(bed).add(into * along).add(UP * height)
-            if is_solid_at(shape, point) != want_solid:
-                raise SystemExit(f"error: {what} is not {how}")
-
-
-def chamfer_nano_hook_slots(tray, fits):
-    """Chamfer the floor's bed edges on the hook's slots' south, north and
-    east sides: a ruled loft from the slots' outline grown by the chamfer
-    and a little more just under the bed to the outline itself at the
-    chamfer's height, less the blade, which it leaves whole. The floor
-    is solid around the slots there, so the cut removes the chamfer's
-    triangle along each side and where two sides meet."""
-    (low_x, high_x), (low_y, high_y) = layout.nano_hook_slots_outline(fits)
-    size = layout.NANO_HOOK_SLOT_BED_CHAMFER_MM
-    bed = FLOOR_UNDERSIDE_Z_MM
-    overshoot = 0.05
-    grown = size + overshoot
-    loft = Part.makeLoft([
-        rectangle_wire((low_x, high_x + grown), (low_y - grown, high_y + grown), bed - overshoot),
-        rectangle_wire((low_x, high_x), (low_y, high_y), bed + size),
-    ], True, True)
-    cutter = loft.cut(box_prism(layout.nano_hook_blade_box(fits), CUT_EXTRA_MM))
-    result = tray.cut(cutter)
-    what = "the hook slots' bed chamfer"
-    require_one_valid_solid(result, what)
-    along_x, along_y = high_x - low_x, high_y - low_y
-    expected = along_x * size**2 + along_y * size**2 / 2.0 + 2.0 * size**3 / 3.0
-    require_volume(what, tray.Volume - result.Volume, expected, 1e-6)
-    middle_x, middle_y = (low_x + high_x) / 2.0, (low_y + high_y) / 2.0
-    check_bed_chamfer(result, (
-        (App.Vector(middle_x, low_y, 0.0), App.Vector(0.0, -1.0, 0.0)),
-        (App.Vector(middle_x, high_y, 0.0), App.Vector(0.0, 1.0, 0.0)),
-        (App.Vector(high_x, middle_y, 0.0), App.Vector(1.0, 0.0, 0.0)),
-    ), size, what)
-    return result
-
-
-def chamfer_nano_hook_blade(tray, fits):
-    """Chamfer the blade's bed edges on its south and north faces and at
-    its free end: cut its bottom, run on into the open slots around it,
-    less a ruled loft from its footprint shrunk by the chamfer and a
-    little more on those three sides just under the bed to the footprint
-    itself at the chamfer's height."""
-    blade = layout.nano_hook_blade_box(fits)
-    (root, end), (south, north) = blade.x_range, blade.y_range
-    size = layout.NANO_HOOK_BLADE_BED_CHAMFER_MM
-    bed = FLOOR_UNDERSIDE_Z_MM
-    overshoot = 0.05
-    shrunk = size + overshoot
-    kept = Part.makeLoft([
-        rectangle_wire((root, end - shrunk), (south + shrunk, north - shrunk), bed - overshoot),
-        rectangle_wire((root, end), (south, north), bed + size),
-    ], True, True)
-    bottom = layout.MountBox(blade.label, blade.part, (root, end + overshoot),
-                             (south - overshoot, north + overshoot), (bed - overshoot, bed + size))
-    result = tray.cut(box_prism(bottom).cut(kept))
-    what = "the hook blade's bed chamfer"
-    require_one_valid_solid(result, what)
-    along_x, along_y = end - root, north - south
-    expected = along_x * size**2 + along_y * size**2 / 2.0 - 2.0 * size**3 / 3.0
-    require_volume(what, tray.Volume - result.Volume, expected, 1e-6)
-    middle_x, middle_y = (root + end) / 2.0, (south + north) / 2.0
-    check_bed_chamfer(result, (
-        (App.Vector(middle_x, south, 0.0), App.Vector(0.0, 1.0, 0.0)),
-        (App.Vector(middle_x, north, 0.0), App.Vector(0.0, -1.0, 0.0)),
-        (App.Vector(end, middle_y, 0.0), App.Vector(-1.0, 0.0, 0.0)),
-    ), size, what)
-    return result
-
-
-def check_nano_hook_free(tray, fits):
-    """In the floor's plane the blade is plastic with the slots open
-    right beside it on its south and north and at its free end, so it
-    hangs on at its root alone (the tray is still one solid)."""
-    blade = layout.nano_hook_blade_box(fits)
-    in_floor = FLOOR_UNDERSIDE_Z_MM / 2.0
-    beside = 0.02
-    middle = box_point(blade, z=in_floor)
-    for point, want_solid, what in (
-        (middle, True, "plastic"),
-        (App.Vector(middle.x, blade.y_range[0] - beside, in_floor), False, "free on its south"),
-        (App.Vector(middle.x, blade.y_range[1] + beside, in_floor), False, "free on its north"),
-        (App.Vector(blade.x_range[1] + beside, middle.y, in_floor), False, "free at its end"),
-    ):
-        if is_solid_at(tray, point) != want_solid:
-            raise SystemExit(f"error: the hook's blade is not {what}")
-
-
 def cut_mount_voids(tray, fits, right):
     """Cut every mount void layout.py gives, in its order: the shell's
     channel and the window, the slot and the pin hole through the north
-    wall, then the grooves, the hook's slots and the pry recess in the
-    floor, and chamfer the slots' and the blade's bed edges."""
+    wall, then the grooves and the pry recess in the floor, and bore the
+    clamp's boss."""
     tray = cut_usb_window(tray, fits)
     tray = cut_lever_slot(tray)
     tray = cut_reset_pin_hole(tray)
@@ -1387,10 +1334,7 @@ def cut_mount_voids(tray, fits, right):
     for box in layout.nano_floor_voids(fits, right):
         tray = cut_floor_void(tray, box, earlier)
         earlier.append(box)
-    tray = chamfer_nano_hook_slots(tray, fits)
-    tray = chamfer_nano_hook_blade(tray, fits)
-    check_nano_hook_free(tray, fits)
-    return tray
+    return cut_nano_clamp_bore(tray, fits)
 
 
 def finish(tray):
@@ -1444,8 +1388,10 @@ def build_tray(right=False, pin_hole_diameter=None, fits=None):
         tray = cut_dowel_hole(tray, along, pin_hole_diameter / 2.0, pin_hole_depth, lead_in)
     tray = cut_parking_hole(tray)
     tray = chamfer_joint_face_bottom(tray, corner_radius)
+    tray = finish(tray)
+    bed_area = check_floor_closed(tray, corner_radius)
     return Tray(
-        finish(tray),
+        tray,
         right,
         corner_radius,
         pin_hole_diameter,
@@ -1455,7 +1401,30 @@ def build_tray(right=False, pin_hole_diameter=None, fits=None):
         skipped,
         fits,
         mounts,
+        bed_area,
     )
+
+
+def build_clamp_tab(fits=None):
+    """The nice!nano clamp's tab (work item 009), a print of its own, as
+    modelled and seated on the fits' boss (layout.py's defaults unless
+    given) in the layout's frame: the plate on the boss's top reaching
+    onto the board, the nose under its end, the screw's hole through the
+    plate. Checked one valid solid of the plate and the nose less the
+    hole."""
+    if fits is None:
+        fits = layout.DEFAULT_MOUNT_FITS
+    plate, nose = layout.nano_clamp_tab_boxes(fits)
+    x, y = layout.nano_clamp_screw_center(fits)
+    radius = layout.NANO_CLAMP_SCREW_HOLE_DIAMETER_MM / 2.0
+    thickness = plate.z_range[1] - plate.z_range[0]
+    hole = Part.makeCylinder(radius, thickness + 2.0 * CUT_EXTRA_MM,
+                             App.Vector(x, y, plate.z_range[0] - CUT_EXTRA_MM), UP)
+    tab = box_prism(plate).fuse(box_prism(nose)).cut(hole).removeSplitter()
+    require_one_valid_solid(tab, "the clamp's tab")
+    expected = box_volume(plate) + box_volume(nose) - math.pi * radius**2 * thickness
+    require_volume("the clamp's tab", tab.Volume, expected, 1e-6)
+    return tab.Solids[0]
 
 
 def mirror_for_right_half(shape):

@@ -22,11 +22,13 @@ parking hole are the left half's there. The other checks would only
 repeat the left half's numbers, so they run once.
 
 The parts' mounts (work item 004) are layout.py's MountBoxes, the
-bodies the tray adds and the voids it cuts, checked as boxes (the
-hook's lip, the USB window and the reset pin hole lie inside theirs):
-inside the tray, clear of the parts, the sockets, the standoffs and the
-joint, the snap hook within its strain, and the openings around what
-passes them as printed, the shell wherever its play lets it go. The
+bodies the tray adds and the voids it cuts, checked as boxes (the USB
+window and the reset pin hole lie inside theirs), the nice!nano's
+clamp tab and screw head (work item 009) with the bodies: inside the
+tray, clear of the parts, the sockets, the standoffs and the joint, the
+floor's voids above its underside, the clamp's tab within its strain
+and under the PCB, and the openings around what passes them as
+printed, the shell wherever its play lets it go. The
 wire rooms behind the parts' leads must stay clear of
 all of it. Those that meet the sockets, the joint or the nice!nano's
 P1.01/P1.02/P1.07 groove, which is the only mount that differs between
@@ -162,21 +164,33 @@ DESIGN_SLIT_CLEARANCE_MM = (0.2, 0.4)  # per side as modelled: across the blade,
 DESIGN_MOUNT_FROM_OTHER_PARTS_MM = 0.5  # every mount body from every part but its own
 DESIGN_MOUNTS_LEAST_FROM_OTHER_PARTS_MM = 1.8  # the battery's northwest rib, from the nice!nano
 DESIGN_MOUNT_VOIDS_FROM_STANDOFFS_MM = 0.5
-DESIGN_HOOK_SLOT_FROM_STANDOFF_MM = 0.676  # the hook's deflection slot, the closest void
-DESIGN_HOOK_BENDING_LENGTH_MM = 11.0
-DESIGN_HOOK_MINIMUM_BENDING_LENGTH_MM = 10.0
-DESIGN_HOOK_MAXIMUM_STRAIN_PERCENT = 2.0  # PLA
-DESIGN_HOOK_STRAIN_PERCENT = {True: 1.61, False: 0.79}  # as printed, as modelled
-DESIGN_HOOK_END_DEFLECTION_MM = 1.50
-DESIGN_HOOK_DEFLECTION_ROOM_MM = 1.6  # as printed
-DESIGN_HOOK_LIP_X_MM = (11.6, 14.4)
+DESIGN_MOUNT_VOIDS_LEAST_FROM_STANDOFFS_MM = 1.669  # the east pin row's groove
 DESIGN_NANO_FREE_MIDDLE_X_MM = (3.105, 16.695)
-DESIGN_HOOK_TOP_Z_MM = 3.83
-DESIGN_HOOK_UNDER_SOCKET_MM = 2.15
-DESIGN_HOOK_SOCKET_KEYS = {"S101"}
-DESIGN_SOLE_CUTOUT_X_MM = {False: (0.6, 15.6), True: (116.798, 131.798)}  # per half
-DESIGN_SOLE_CUTOUT_Y_MM = (38.566, 42.966)
-DESIGN_SOLE_CUTOUT_FROM_STANDOFF_MM = 0.176  # the standoff at (18.574, 37.782)
+# The nice!nano's screw clamp (work item 009), at the default press.
+DESIGN_CLAMP_X_MM = (7.0, 12.8)  # the boss, its foot and the tab
+DESIGN_CLAMP_STOP_FROM_BOARD_MM = 0.25  # the foot's north face from the board's south end
+DESIGN_CLAMP_STOP_TOP_Z_MM = 1.0
+DESIGN_CLAMP_SCREW_FROM_BOARD_MM = 6.5  # the screw's axis from the board's south end
+DESIGN_CLAMP_BOSS_MM = 5.8  # square
+DESIGN_CLAMP_BOSS_TOP_Z_MM = 3.6
+DESIGN_CLAMP_INSERT_ROOM_PRINTED_MM = 3.4  # the bore's bottom counted 0.2 higher
+DESIGN_CLAMP_INSERT_LENGTH_MM = 3.0  # M2 x 3
+DESIGN_CLAMP_SCREW_REACH_MM = 2.8  # an M2 x 4 through the tab as printed
+DESIGN_CLAMP_TAB_Y_MM = (32.616, 43.016)
+DESIGN_CLAMP_TAB_REACH_MM = 1.0  # onto the board
+DESIGN_CLAMP_TAB_THICKNESS_MM = {True: 1.2, False: 1.0}  # as printed, as modelled
+DESIGN_CLAMP_NOSE_DEPTH_MM = 2.1  # below the plate's underside
+DESIGN_CLAMP_PRESS_MM = 0.1  # as printed
+DESIGN_CLAMP_ARM_MM = 4.615
+DESIGN_CLAMP_STRAIN_PERCENT = {True: 0.85, False: 0.70}  # as printed, as modelled
+DESIGN_CLAMP_MAXIMUM_STRAIN_PERCENT = 2.0  # PLA, the removed snap hook's
+DESIGN_CLAMP_NOSE_OVER_STOP_MM = 0.5
+DESIGN_CLAMP_HEAD_TOP_Z_MM = 6.8
+DESIGN_CLAMP_UNDER_PCB_MM = 1.2  # the head
+DESIGN_CLAMP_MINIMUM_UNDER_PCB_MM = 0.5
+DESIGN_CLAMP_HEAD_FROM_SOCKETS_MM = 1.686  # S101's, on both halves
+DESIGN_CLAMP_TAB_UNDER_SOCKET_MM = 1.08  # the plate as printed, lifted by the press
+DESIGN_CLAMP_SOCKET_KEYS = {"S101"}  # over the tab
 DESIGN_LEVER_IN_SLOT_PRINTED_MM = 0.05  # per side
 DESIGN_NANO_BAR_DEPTH_MM = 0.62
 DESIGN_SHELL_PLAY_MM = {"west": 0.05, "east": 0.0, "north": 0.05}  # as printed
@@ -199,14 +213,13 @@ DESIGN_PRY_TOOL_ROOM_PRINTED_MM = 0.6  # its bottom counted 0.2 higher
 DESIGN_PRY_RECESS_FLOOR_UNDER_MM = 0.4  # as modelled, also the least
 DESIGN_PRY_RECESS_FROM_BATTERY_RIB_MM = 0.5  # north of the northwest rib
 DESIGN_PRY_LEVER_RATIO = 2.73
-DESIGN_PRY_LIFT_TO_RELEASE_MM = 0.43
+DESIGN_PRY_LIFT_TO_RELEASE_MM = 0.37  # over the clamp's stop
 DESIGN_PRY_TOOL_DEGREES = {False: (7.3, 10.9), True: (7.3, 10.9)}  # from, to
 DESIGN_PRY_RECESS_CLEARANCES_MM = {  # what: (tightest, minimum)
     "the other parts": (1.8, 0.5),  # the battery
     "the standoffs": (None, 0.5),
     "the joint": (None, 1.0),
     "the mount bodies": (0.5, 0.5),  # the battery's northwest rib
-    "the hook's slots and their bed chamfers": (None, 1.0),
 }
 
 
@@ -1947,12 +1960,20 @@ def check_parking_hole(right=False):
 
 # The parts' mounts (work item 004): layout.py's mount bodies and voids
 # (MountBox) and the wire rooms, against the tray, the parts and the
-# sockets. The hook's lip and the round openings are checked as their
-# bounding boxes, which hold them.
+# sockets. The round openings are checked as their bounding boxes,
+# which hold them. The nice!nano's clamp tab and screw head (work item
+# 009) stand in the cavity like the bodies and are checked with them,
+# except against the pry recess: they are off while the board is pried
+# out.
 
 
 def describe_mount(box):
     return f"{box.label} ({box.part})"
+
+
+def standing_bodies(fits=layout.DEFAULT_MOUNT_FITS):
+    """The mount bodies and the clamp's tab and screw head on its boss."""
+    return layout.mount_bodies(fits) + layout.nano_clamp_part_boxes(fits)
 
 
 def mount_pieces(boxes):
@@ -1966,24 +1987,26 @@ def is_floor_void(box):
 
 
 def mount_containment_problems(right, fits=layout.DEFAULT_MOUNT_FITS):
-    """(problems, tightest) of the mounts in the tray: the bodies and
-    the floor's voids inside the cavity, the floor's voids within the
-    floor's thickness, and the wall's voids from the cavity wall to the
-    outer face."""
+    """(problems, tightest) of the mounts in the tray: the bodies, the
+    clamp's tab and screw head and the floor's voids inside the cavity,
+    the floor's voids within the floor's thickness, short of its
+    underside, so the floor stays closed (work item 009), and the wall's
+    voids from the cavity wall to the outer face."""
     cavity = layout.tray_cavity_polygon()
     outer = layout.tray_outer_polygon()
     problems = []
     tightest = Tightest()
     floor_voids = [box for box in layout.mount_voids(fits, right) if is_floor_void(box)]
-    for box in layout.mount_bodies(fits) + tuple(floor_voids):
+    for box in standing_bodies(fits) + tuple(floor_voids):
         margin = containment_margin(box_polygon(box), cavity)
         tightest.update(margin, describe_mount(box))
         if margin < -TOLERANCE_MM:
             problems.append(f"the {describe_mount(box)} pokes {-margin:.3f} past the cavity wall")
     for box in floor_voids:
         low, high = box.z_range
-        if low < layout.FLOOR_UNDERSIDE_Z_MM - TOLERANCE_MM or high > TOLERANCE_MM:
-            problems.append(f"the {describe_mount(box)} spans z {low} to {high}, not in the floor")
+        if low < layout.FLOOR_UNDERSIDE_Z_MM + TOLERANCE_MM or high > TOLERANCE_MM:
+            problems.append(f"the {describe_mount(box)} spans z {low} to {high}, not in the floor "
+                            "short of its underside")
     for opening in layout.wall_openings(fits):
         problems.extend(wall_opening_problems(opening, cavity, outer))
     return problems, tightest
@@ -2014,22 +2037,22 @@ def check_mount_containment(right=False):
     problems, tightest = mount_containment_problems(right)
     fail_on(problems, f"{half_label(right)}mounts outside the tray")
     return (
-        f"mounts:    {half_label(right)}bodies and the floor's voids inside the cavity wall by "
-        f"{tightest}, the shell's channel and the window, the lever slot and the pin hole "
-        "through the wall"
+        f"mounts:    {half_label(right)}bodies, the clamp's tab and screw head and the floor's "
+        f"voids inside the cavity wall by {tightest}, the floor's voids short of its underside, "
+        "the shell's channel and the window, the lever slot and the pin hole through the wall"
     )
 
 
 def mount_part_clearances(fits=layout.DEFAULT_MOUNT_FITS):
     """(own, other, zone): the Tightest clearance in plan of the mount
-    bodies from their own part's envelopes, from the other parts' and,
-    as printed, from the PCB connector's clear zone, wherever their
-    heights overlap, and the problems: a body in its own part or the
-    zone, or nearer than DESIGN_MOUNT_FROM_OTHER_PARTS_MM to another
-    part."""
+    bodies and the clamp's tab and screw head from their own part's
+    envelopes, from the other parts' and, as printed, from the PCB
+    connector's clear zone, wherever their heights overlap, and the
+    problems: a body in its own part or the zone, or nearer than
+    DESIGN_MOUNT_FROM_OTHER_PARTS_MM to another part."""
     own, other, zone = Tightest(), Tightest(), Tightest()
     problems = []
-    for box in layout.mount_bodies(fits):
+    for box in standing_bodies(fits):
         for envelope in layout.part_envelopes(fits):
             if not ranges_overlap(box.z_range, envelope.z_range):
                 continue
@@ -2070,7 +2093,7 @@ def mount_socket_problems(right, fits=layout.DEFAULT_MOUNT_FITS):
     height, the least height under the sockets of the bodies within
     the ledge's clearance of one in plan)."""
     minimum = layout.LEDGE_RELIEF_CLEARANCE_MM
-    bodies = layout.mount_bodies(fits)
+    bodies = standing_bodies(fits)
     problems, in_plan = socket_clearances(mount_pieces(bodies), minimum, right)
     under = Tightest()
     for box in bodies:
@@ -2099,15 +2122,16 @@ def check_mount_sockets(right=False):
 
 
 def mount_standoff_clearances(fits=layout.DEFAULT_MOUNT_FITS):
-    """(problems, bodies, voids): the bodies clear of the standoffs (the
-    standoffs are the same on both halves in the left half's frame), the
-    voids DESIGN_MOUNT_VOIDS_FROM_STANDOFFS_MM from them, so their bases
-    stay whole, with the Tightest of each."""
+    """(problems, bodies, voids): the bodies and the clamp's tab and
+    screw head clear of the standoffs (the standoffs are the same on both
+    halves in the left half's frame), the voids
+    DESIGN_MOUNT_VOIDS_FROM_STANDOFFS_MM from them, so their bases stay
+    whole, with the Tightest of each."""
     radius = layout.STANDOFF_DIAMETER_MM / 2.0
     problems = []
     bodies, voids = Tightest(), Tightest()
     for boxes, tightest, minimum in (
-        (layout.mount_bodies(fits), bodies, 0.0),
+        (standing_bodies(fits), bodies, 0.0),
         (layout.mount_voids(fits) + layout.mount_voids(fits, right=True), voids,
          DESIGN_MOUNT_VOIDS_FROM_STANDOFFS_MM),
     ):
@@ -2124,7 +2148,7 @@ def mount_standoff_clearances(fits=layout.DEFAULT_MOUNT_FITS):
 def check_mount_standoffs():
     problems, bodies, voids = mount_standoff_clearances()
     ok, text = require_figure(
-        "voids from the standoffs", voids.value, DESIGN_HOOK_SLOT_FROM_STANDOFF_MM, 3
+        "voids from the standoffs", voids.value, DESIGN_MOUNT_VOIDS_LEAST_FROM_STANDOFFS_MM, 3
     )
     fail_on(problems + ([] if ok else [text]), "mounts on the standoffs")
     return f"mounts:    bodies clear of the standoffs by {bodies}; {text} ({voids.where})"
@@ -2138,7 +2162,7 @@ def mount_joint_problems(right, fits=layout.DEFAULT_MOUNT_FITS):
     problems = []
     tightest = Tightest()
     joint = joint_features(right) + boss_fills(right) + joint_voids(right)
-    mounts = [(box, 0.0) for box in layout.mount_bodies(fits)]
+    mounts = [(box, 0.0) for box in standing_bodies(fits)]
     mounts.extend((box, minimum) for box in layout.mount_voids(fits, right))
     for box, needed in mounts:
         for label, polygon, z_range in joint:
@@ -2159,16 +2183,12 @@ def check_mount_joint(right=False):
     return f"mounts:    {half_label(right)}clear of the joint's features and voids by {tightest}"
 
 
-def hook_plan_boxes(fits=layout.DEFAULT_MOUNT_FITS):
-    return (layout.nano_hook_blade_box(fits), layout.nano_hook_lip_box(fits))
-
-
-def hook_under_sockets(fits=layout.DEFAULT_MOUNT_FITS):
-    """(least height under them, the keys) of the sockets over the hook
-    in plan."""
+def clamp_under_sockets(fits=layout.DEFAULT_MOUNT_FITS):
+    """(least height under them, the keys) of the sockets over the
+    clamp's tab and screw head in plan, on the left half."""
     keys = set()
     least = math.inf
-    for box in hook_plan_boxes(fits):
+    for box in layout.nano_clamp_part_boxes(fits):
         for name, socket in socket_footprints():
             if convex_separation(box_polygon(box), socket) < -TOLERANCE_MM:
                 keys.add(name)
@@ -2176,88 +2196,127 @@ def hook_under_sockets(fits=layout.DEFAULT_MOUNT_FITS):
     return least, keys
 
 
-def hook_deflection_room(fits=layout.DEFAULT_MOUNT_FITS):
-    """The deflection slot's width south of the blade as printed."""
-    slot = next(
-        box for box in layout.nano_hook_slot_boxes(fits) if box.label == "hook's deflection slot"
-    )
-    return slot.y_range[1] - slot.y_range[0] - 2.0 * layout.PRINT_SWELLING_PER_SIDE_MM
+def clamp_head_from_sockets(fits=layout.DEFAULT_MOUNT_FITS):
+    """The screw head's bounding box from the nearest socket in plan,
+    the least of both halves: it stands at the sockets' height."""
+    head = box_polygon(layout.nano_clamp_part_boxes(fits)[-1])
+    return min(convex_separation(head, socket)
+               for right in (False, True) for _, socket in socket_footprints(right))
 
 
-def sole_cutout_figures():
-    """The sole's cut-out under the hook on each half, in its frame, and
-    its clearance in plan from the nearest standoff."""
-    cutout = layout.nano_hook_sole_cutout_box()
-    right_x = sorted(layout.mirror_for_right_half((x, 0.0))[0] for x in cutout.x_range)
-    radius = layout.STANDOFF_DIAMETER_MM / 2.0
-    from_standoffs = min(circle_separation(center, radius, box_polygon(cutout))
-                         for center in layout.MOUNTING_DRILL_CENTERS_MM)
-    return [
-        require_figure(
-            "sole cut out from x", cutout.x_range[0], DESIGN_SOLE_CUTOUT_X_MM[False][0], 3
-        ),
-        require_figure("to", cutout.x_range[1], DESIGN_SOLE_CUTOUT_X_MM[False][1], 3),
-        require_figure("y", cutout.y_range[0], DESIGN_SOLE_CUTOUT_Y_MM[0], 3),
-        require_figure("to", cutout.y_range[1], DESIGN_SOLE_CUTOUT_Y_MM[1], 3),
-        require_figure("on the right from x", right_x[0], DESIGN_SOLE_CUTOUT_X_MM[True][0], 3),
-        require_figure("to", right_x[1], DESIGN_SOLE_CUTOUT_X_MM[True][1], 3),
-        require_figure("from the standoff", from_standoffs, DESIGN_SOLE_CUTOUT_FROM_STANDOFF_MM, 3),
-    ]
+def clamp_nose_over_stop(fits=layout.DEFAULT_MOUNT_FITS):
+    """The nose's bottom, the tab seated on the boss, over the stop's top.
+    Both rise with the boss's top and the floor's as printed, and the
+    nose's south face, swollen, reaches over the stop."""
+    nose_bottom = layout.nano_clamp_boss_top_z(fits) - layout.NANO_CLAMP_NOSE_DEPTH_MM
+    return nose_bottom - layout.NANO_CLAMP_STOP_HEIGHT_MM
 
 
-def hook_figures():
-    lip_low, lip_high = layout.nano_hook_lip_x_range()
-    middle_low, middle_high = layout.nano_free_middle_x_range()
-    under, keys = hook_under_sockets()
-    return [
-        require_figure("bending length", layout.NANO_HOOK_BENDING_LENGTH_MM,
-                       DESIGN_HOOK_BENDING_LENGTH_MM, 1),
-        require_figure("strain as printed %", 100.0 * layout.nano_hook_strain(),
-                       DESIGN_HOOK_STRAIN_PERCENT[True], 2),
-        require_figure("as modelled %", 100.0 * layout.nano_hook_strain(printed=False),
-                       DESIGN_HOOK_STRAIN_PERCENT[False], 2),
-        require_figure("free end swings", layout.nano_hook_end_deflection(),
-                       DESIGN_HOOK_END_DEFLECTION_MM, 2),
-        require_figure("in room as printed", hook_deflection_room(),
-                       DESIGN_HOOK_DEFLECTION_ROOM_MM, 1),
-        require_figure("lip from x", lip_low, DESIGN_HOOK_LIP_X_MM[0], 1),
-        require_figure("to", lip_high, DESIGN_HOOK_LIP_X_MM[1], 1),
-        require_figure("in the free middle from x", middle_low, DESIGN_NANO_FREE_MIDDLE_X_MM[0], 3),
-        require_figure("to", middle_high, DESIGN_NANO_FREE_MIDDLE_X_MM[1], 3),
-        require_figure("top z", layout.nano_hook_top_z(), DESIGN_HOOK_TOP_Z_MM, 2),
-        require_figure(f"under {', '.join(sorted(keys))}", under, DESIGN_HOOK_UNDER_SOCKET_MM, 2),
-    ] + sole_cutout_figures()
+def box_overlap(first, second):
+    """The volume two MountBoxes share."""
+    volume = 1.0
+    for low_high in zip((first.x_range, first.y_range, first.z_range),
+                        (second.x_range, second.y_range, second.z_range)):
+        (first_low, first_high), (second_low, second_high) = low_high
+        volume *= max(0.0, min(first_high, second_high) - max(first_low, second_low))
+    return volume
 
 
-def hook_problems(fits=layout.DEFAULT_MOUNT_FITS):
-    """The rules DESIGN.md sets the hook, apart from its figures."""
+def clamp_problems(fits=layout.DEFAULT_MOUNT_FITS):
+    """The rules DESIGN.md sets the clamp, apart from its figures."""
     problems = []
-    strain = 100.0 * layout.nano_hook_strain(fits)
-    if strain > DESIGN_HOOK_MAXIMUM_STRAIN_PERCENT:
-        problems.append(f"the strain as printed, {strain:.2f} %, is over "
-                        f"{DESIGN_HOOK_MAXIMUM_STRAIN_PERCENT} %")
-    if layout.NANO_HOOK_BENDING_LENGTH_MM < DESIGN_HOOK_MINIMUM_BENDING_LENGTH_MM:
-        problems.append(f"the blade bends over less than {DESIGN_HOOK_MINIMUM_BENDING_LENGTH_MM}")
-    swing = layout.nano_hook_end_deflection(fits)
-    room = hook_deflection_room(fits)
-    if swing > room:
-        problems.append(f"the free end swings {swing:.3f}, its slot leaves {room:.3f} as printed")
-    lip_low, lip_high = layout.nano_hook_lip_x_range()
+    strain = 100.0 * layout.nano_clamp_strain(fits)
+    if strain > DESIGN_CLAMP_MAXIMUM_STRAIN_PERCENT:
+        problems.append(f"the tab's arm strains {strain:.2f} % as printed, over "
+                        f"{DESIGN_CLAMP_MAXIMUM_STRAIN_PERCENT} %")
+    low_x, high_x = layout.nano_clamp_x_range(fits)
     middle_low, middle_high = layout.nano_free_middle_x_range(fits)
-    if lip_low < middle_low - TOLERANCE_MM or lip_high > middle_high + TOLERANCE_MM:
-        problems.append(f"the lip (x {lip_low:.3f} to {lip_high:.3f}) leaves the board's free "
+    if low_x < middle_low - TOLERANCE_MM or high_x > middle_high + TOLERANCE_MM:
+        problems.append(f"the tab's nose (x {low_x:.3f} to {high_x:.3f}) leaves the board's free "
                         f"middle (x {middle_low:.3f} to {middle_high:.3f})")
-    _, keys = hook_under_sockets(fits)
-    if keys != DESIGN_HOOK_SOCKET_KEYS:
-        problems.append(f"the sockets over the hook are {sorted(keys)}, DESIGN.md says "
-                        f"{sorted(DESIGN_HOOK_SOCKET_KEYS)}")
+    room = layout.nano_clamp_insert_room(fits)
+    for what, length in (("insert", layout.NANO_CLAMP_INSERT_LENGTH_MM),
+                         ("screw", layout.nano_clamp_screw_reach(fits))):
+        if length > room + TOLERANCE_MM:
+            problems.append(f"the {what} reaches {length:.3f} into the bore, which leaves "
+                            f"{room:.3f} as printed")
+    under_pcb = layout.PCB_UNDERSIDE_Z_MM - max(box.z_range[1]
+                                                for box in layout.nano_clamp_part_boxes(fits))
+    if under_pcb < DESIGN_CLAMP_MINIMUM_UNDER_PCB_MM - TOLERANCE_MM:
+        problems.append(f"the clamp stands {under_pcb:.3f} under the PCB, less than "
+                        f"{DESIGN_CLAMP_MINIMUM_UNDER_PCB_MM}")
+    if clamp_nose_over_stop(fits) < -TOLERANCE_MM:
+        problems.append(f"the tab's nose reaches {-clamp_nose_over_stop(fits):.3f} into the stop")
+    for part in layout.nano_clamp_part_boxes(fits):
+        for body in layout.mount_bodies(fits):
+            if box_overlap(part, body) > TOLERANCE_MM:
+                problems.append(f"the {describe_mount(part)} overlaps the {describe_mount(body)}")
     return problems
 
 
-def check_nano_hook():
-    figures = hook_figures()
-    fail_on(hook_problems() + failed(figures), "the nice!nano's snap hook off DESIGN.md")
-    return "hook:      " + joined(figures)
+def clamp_figures():
+    clamp_x = layout.nano_clamp_x_range()
+    boss, stop = layout.nano_clamp_boxes()
+    tab_y = layout.nano_clamp_tab_y_range()
+    board = layout.NANO_BOARD
+    head = layout.nano_clamp_part_boxes()[-1]
+    middle_low, middle_high = layout.nano_free_middle_x_range()
+    under, keys = clamp_under_sockets()
+    screw_y = layout.nano_clamp_screw_center()[1]
+    return [
+        require_figure("from x", clamp_x[0], DESIGN_CLAMP_X_MM[0], 1),
+        require_figure("to", clamp_x[1], DESIGN_CLAMP_X_MM[1], 1),
+        require_figure("in the free middle from x", middle_low, DESIGN_NANO_FREE_MIDDLE_X_MM[0], 3),
+        require_figure("to", middle_high, DESIGN_NANO_FREE_MIDDLE_X_MM[1], 3),
+        require_figure("stop from the board", board.y_range[0] - stop.y_range[1],
+                       DESIGN_CLAMP_STOP_FROM_BOARD_MM, 2),
+        require_figure("stop top z", stop.z_range[1], DESIGN_CLAMP_STOP_TOP_Z_MM, 1),
+        require_figure("screw from the board", board.y_range[0] - screw_y,
+                       DESIGN_CLAMP_SCREW_FROM_BOARD_MM, 1),
+        require_figure("boss across", boss.x_range[1] - boss.x_range[0], DESIGN_CLAMP_BOSS_MM, 1),
+        require_figure("along", boss.y_range[1] - boss.y_range[0], DESIGN_CLAMP_BOSS_MM, 1),
+        require_figure("boss top z", boss.z_range[1], DESIGN_CLAMP_BOSS_TOP_Z_MM, 1),
+        require_figure("insert room as printed", layout.nano_clamp_insert_room(),
+                       DESIGN_CLAMP_INSERT_ROOM_PRINTED_MM, 1),
+        require_figure("insert", layout.NANO_CLAMP_INSERT_LENGTH_MM,
+                       DESIGN_CLAMP_INSERT_LENGTH_MM, 1),
+        require_figure("screw's reach", layout.nano_clamp_screw_reach(),
+                       DESIGN_CLAMP_SCREW_REACH_MM, 1),
+        require_figure("tab from y", tab_y[0], DESIGN_CLAMP_TAB_Y_MM[0], 3),
+        require_figure("to", tab_y[1], DESIGN_CLAMP_TAB_Y_MM[1], 3),
+        require_figure("onto the board", tab_y[1] - board.y_range[0], DESIGN_CLAMP_TAB_REACH_MM, 1),
+        require_figure("thick as printed", layout.nano_clamp_tab_thickness(),
+                       DESIGN_CLAMP_TAB_THICKNESS_MM[True], 1),
+        require_figure("as modelled", layout.nano_clamp_tab_thickness(printed=False),
+                       DESIGN_CLAMP_TAB_THICKNESS_MM[False], 1),
+        require_figure("nose deep", layout.NANO_CLAMP_NOSE_DEPTH_MM, DESIGN_CLAMP_NOSE_DEPTH_MM, 1),
+        require_figure("press", layout.DEFAULT_MOUNT_FITS.clamp_press, DESIGN_CLAMP_PRESS_MM, 1),
+        require_figure("arm", layout.nano_clamp_arm_length(), DESIGN_CLAMP_ARM_MM, 3),
+        require_figure("strain as printed %", 100.0 * layout.nano_clamp_strain(),
+                       DESIGN_CLAMP_STRAIN_PERCENT[True], 2),
+        require_figure("as modelled %", 100.0 * layout.nano_clamp_strain(printed=False),
+                       DESIGN_CLAMP_STRAIN_PERCENT[False], 2),
+        require_figure("nose over the stop", clamp_nose_over_stop(),
+                       DESIGN_CLAMP_NOSE_OVER_STOP_MM, 1),
+        require_figure("head top z", head.z_range[1], DESIGN_CLAMP_HEAD_TOP_Z_MM, 1),
+        require_figure("under the PCB", layout.PCB_UNDERSIDE_Z_MM - head.z_range[1],
+                       DESIGN_CLAMP_UNDER_PCB_MM, 1),
+        require_figure("head from the sockets in plan", clamp_head_from_sockets(),
+                       DESIGN_CLAMP_HEAD_FROM_SOCKETS_MM, 3),
+        require_figure(f"tab under {', '.join(sorted(keys))}", under,
+                       DESIGN_CLAMP_TAB_UNDER_SOCKET_MM, 2),
+    ]
+
+
+def check_nano_clamp():
+    figures = clamp_figures()
+    _, keys = clamp_under_sockets()
+    problems = clamp_problems() + failed(figures)
+    if keys != DESIGN_CLAMP_SOCKET_KEYS:
+        problems.append(f"the sockets over the clamp are {sorted(keys)}, DESIGN.md says "
+                        f"{sorted(DESIGN_CLAMP_SOCKET_KEYS)}")
+    fail_on(problems, "the nice!nano's screw clamp off DESIGN.md")
+    return "clamp:     " + joined(figures)
 
 
 def nano_shell_play(fits=layout.DEFAULT_MOUNT_FITS):
@@ -2363,7 +2422,7 @@ def wire_room_obstacles(right, fits=layout.DEFAULT_MOUNT_FITS):
     polygon, z range) apart, since a room may lie against its own
     part."""
     tray = ledge_pieces(right) + wall_pieces(right) + joint_features(right) + boss_fills(right)
-    mounts = mount_pieces(layout.mount_bodies(fits))
+    mounts = mount_pieces(standing_bodies(fits))
     sockets = [(f"{name}'s socket", polygon, socket_z_range())
                for name, polygon in socket_footprints(right)]
     parts = [(describe_envelope(envelope), envelope.part, box_polygon(envelope), envelope.z_range)
@@ -2428,9 +2487,8 @@ def check_wire_rooms(right=False):
 
 def pry_recess_obstacles(right, fits=layout.DEFAULT_MOUNT_FITS):
     """{what: [(label, plan polygon, minimum)]} the pry recess keeps
-    clear of in plan: the other parts, the joint, the mount bodies and
-    the hook's slots with their bed chamfers (the sole's cut-out). The
-    standoffs, circles, are checked on their own."""
+    clear of in plan: the other parts, the joint and the mount bodies.
+    The standoffs, circles, are checked on their own."""
     minimums = {what: minimum for what, (_, minimum) in DESIGN_PRY_RECESS_CLEARANCES_MM.items()}
     parts = [
         (describe_envelope(envelope), box_polygon(envelope), minimums["the other parts"])
@@ -2438,16 +2496,11 @@ def pry_recess_obstacles(right, fits=layout.DEFAULT_MOUNT_FITS):
         if envelope.part not in ("nice!nano", layout.PCB_CONNECTOR_CLEAR_ZONE.part)
     ]
     joint = joint_features(right) + boss_fills(right) + joint_voids(right)
-    sole = layout.nano_hook_sole_cutout_box(fits)
     return {
         "the other parts": parts,
         "the joint": [(label, polygon, minimums["the joint"]) for label, polygon, _ in joint],
         "the mount bodies": [(describe_mount(box), box_polygon(box), minimums["the mount bodies"])
                              for box in layout.mount_bodies(fits)],
-        "the hook's slots and their bed chamfers": [
-            (describe_mount(sole), box_polygon(sole),
-             minimums["the hook's slots and their bed chamfers"])
-        ],
     }
 
 
@@ -2646,8 +2699,8 @@ def pry_recess_figures():
         require_figure("from the battery's rib", recess.y_range[0] - rib.y_range[1],
                        DESIGN_PRY_RECESS_FROM_BATTERY_RIB_MM, 1),
         require_figure("lever ratio", layout.nano_pry_lever_ratio(), DESIGN_PRY_LEVER_RATIO, 2),
-        require_figure("lift at the pry to release the hook",
-                       layout.nano_hook_release_lift() / layout.nano_pry_lever_ratio(),
+        require_figure("lift at the pry to clear the clamp's stop",
+                       layout.nano_release_lift() / layout.nano_pry_lever_ratio(),
                        DESIGN_PRY_LIFT_TO_RELEASE_MM, 2),
     ]
 
@@ -2672,7 +2725,7 @@ def pry_recess_zone_overlap():
 
 def check_pry_recess(right=False):
     """The pry recess's size and place, clear in plan of the parts, the
-    standoffs, the joint, the mount bodies and the hook's slots, under
+    standoffs, the joint and the mount bodies, under
     the board only where the floor is already grooved or at its edge,
     with floor left under it, and a tip that gets under the board."""
     problems, tightest = pry_recess_clearances(right)
@@ -2757,7 +2810,7 @@ CHECKS = (
     check_mount_standoffs,
     check_mount_joint,
     on_right_half(check_mount_joint),
-    check_nano_hook,
+    check_nano_clamp,
     check_mount_openings,
     check_pry_recess,
     on_right_half(check_pry_recess),

@@ -1,0 +1,11 @@
+# 009 nice!nano screw clamp
+
+Status: implemented
+
+The user found that the nice!nano bay opens the tray floor: "The nano bay has a hole in the tray floor? That is not acceptable". The snap hook's blade (004) is freed by slots through the whole floor (`layout.nano_hook_slot_boxes`, from the floor's underside to its top), in both trays and in every bay of the 006 strip. A blade that bends in plan needs its bottom edge free of the floor, which sits on the bed, and a blade standing up from the floor is too short to flex within 2 %, so the hook cannot stay with a closed floor.
+
+Chosen by the user: a screw clamp. A small printed clamp tab over the board's south edge, held by an M2 screw into an M2 heat-set insert in a blind boss beside the board. No part flexes, and the floor stays closed. The board comes out by undoing the screw, then lifting it at the pry recess.
+
+The hook goes: its blade, lip, slots, bed chamfers, the sole cut-out under it, and the `hook_lip` and `hook_room` fits with their strain and swing checks. The boss's north face takes over as the board's south stop. A check makes sure no void in either tray reaches the floor's underside, so a hole through the floor cannot come back unnoticed.
+
+Implemented: the clamp's boss stands 6.5 south of the board's south end, where the screw head clears S101's socket in plan, on a 1.0 tall foot whose north face is the stop (a stop as tall as the boss would catch the board as it swings in about the shell's mouth). `scripts/export_clamp_tab.py` exports the tab, one for both halves and every bay, printed top face down. The bay test strip's bays press the board 0.0, 0.1 and 0.2 by their bosses' heights under that one tab, the bar's clearance stepping along as before. `build_tray()` fails on any void that reaches the floor's underside, as the trays before this item did at the hook's slots, and `check_layout.py` keeps the floor's voids short of it. In CI as `kbdkid5_Nano_Clamp_Tab.stl` in the `tray-stl` artifact. DESIGN.md (the nice!nano's bullets) has the figures.

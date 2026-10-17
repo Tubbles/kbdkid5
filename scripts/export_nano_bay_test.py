@@ -1,20 +1,21 @@
 """Export the nice!nano bay test strip (STL): three bays cut out of the
-left tray side by side, whose snap hook lips and hold-down bar
-clearances differ, to settle the bay on a real board before printing
-whole trays (work item 006).
+left tray side by side, whose screw clamps press the board by
+different amounts and whose hold-down bar clearances differ, to settle
+the bay on a real board before printing whole trays (work items 006
+and 009).
 
 Each bay is build_tray()'s left tray (tray_shape.py) with the bay's
 layout.MountFits, cut by one box around the nice!nano's corner, so the
 bay is the tray's geometry and not a copy of it. The box reaches past
 the tray's west and north faces, so it holds the floor, the west and
 north walls at full height with the ledge, the USB window, the
-hold-down bar and its posts, the snap hook with its slots and bed
-chamfers, the east ribs, the solder grooves and the pry recess. Its
-east face (BAY_EAST_X_MM) cuts the floor and the north wall and ledge
-east of the battery's northwest rib, its south face (BAY_SOUTH_Y_MM)
-the floor and the west wall and ledge south of the standoff at
+hold-down bar and its posts, the screw clamp's boss and stop, the east
+ribs, the solder grooves and the pry recess. Its east face
+(BAY_EAST_X_MM) cuts the floor and the north wall and ledge east of the
+battery's northwest rib, its south face (BAY_SOUTH_Y_MM) the floor and
+the west wall and ledge south of the clamp's boss and the standoff at
 (18.574, 37.782), so the bay keeps that standoff and the rib whole
-and floor beyond the ribs and the hook's slots to join and to hold.
+and floor beyond the ribs and the boss to join and to hold.
 The box crosses nothing else: every other feature of the tray lies
 wholly inside it or wholly outside, at least BAY_BOX_MARGIN_MM from
 its faces, and the faces keep BAY_BOX_MARGIN_MM plus the corner's
@@ -27,21 +28,22 @@ joined to the next by a bridge of the floor's thickness across the
 gap, and are fused into one solid. Bay k (from 1) has k notches in its
 floor's south edge, so a printed bay names itself.
 
-The bays step the hook's lip and the bar's clearance together, the
-defaults in bay 2 (BAY_FITS). The hook's deflection room steps with the
-lip: the room is the least 0.1 step that leaves the free end's swing
-(layout.nano_hook_end_deflection()) the margin it has in the default
-tray, which the script checks. The words nano_length and nano_width
-size the board for all three bays, for a test print on a calipered
-board.
+The bays step the clamp's press and the bar's clearance together, the
+defaults in bay 2 (BAY_FITS). The press is set on the bay's side: the
+clamp's boss stands that much lower under one tab
+(export_clamp_tab.py's, the same for every bay and both halves), so a
+tab bent too far or a board left loose shows which press holds. The
+words nano_length and nano_width size the board for all three bays,
+for a test print on a calipered board.
 
 Every bay passes the mount checks the default tray passes:
 check_layout.py's problem functions with the bay's fits (the mounts
 inside the tray and clear of the parts, the sockets, the standoffs and
-the joint, the hook's strain under 2 % and its swing inside its room as
-printed, the openings around the shell and the lever, the pry recess,
-the wire rooms), on top of build_tray()'s own probes of what it built.
-Any problem stops the export.
+the joint, the clamp's tab within its strain and under the PCB, the
+floor's voids short of its underside, the openings around the shell
+and the lever, the pry recess, the wire rooms), on top of
+build_tray()'s own probes of what it built, its closed floor among
+them. Any problem stops the export.
 
 Runs headless under FreeCAD's console interpreter (see
 freecad_common.py for the freecadcmd quirks that shape the
@@ -50,9 +52,9 @@ invocation):
     freecadcmd scripts/export_nano_bay_test.py --pass <strip.stl>
         [nano_length=<mm>] [nano_width=<mm>]
 
-It prints the box and each bay's figures (the lip, the bar's clearance
-as printed, the room as printed, the swing and the strain as printed),
-checks the strip for one valid solid of the bays' and bridges' volume,
+It prints the box and each bay's figures (the press, the boss's top,
+the tab's strain as printed and the bar's clearance as printed), checks
+the strip for one valid solid of the bays' and bridges' volume,
 every bay's notch count, and a closed mesh, and writes it floor down,
 as the tray prints, the floor's underside on z = 0.
 """
@@ -84,12 +86,11 @@ from tray_shape import (
     tray_corner_radius,
 )
 
-# Each bay's (hook_lip, bar_clearance, hook_room), west to east, the
-# defaults in bay 2: the lip onto the board and the bar's clearance over
-# the shell as printed step together, the room as printed with the lip.
-BAY_FITS = ((0.6, 0.0, 1.4), (0.8, 0.1, 1.6), (1.0, 0.2, 1.9))
+# Each bay's (clamp_press, bar_clearance), west to east, the defaults in
+# bay 2: the clamp's press on the board and the bar's clearance over the
+# shell, both as printed, step together.
+BAY_FITS = ((0.0, 0.0), (0.1, 0.1), (0.2, 0.2))
 DEFAULT_BAY_INDEX = 1
-ROOM_STEP_MM = 0.1
 
 # The box each bay is cut by: east and south faces through the floor
 # (and the walls and the ledge they meet), the others past the tray's
@@ -97,7 +98,7 @@ ROOM_STEP_MM = 0.1
 # ledge and the floor keeps BAY_BOX_MARGIN_MM from its faces, inside or
 # outside.
 BAY_EAST_X_MM = 28.0
-BAY_SOUTH_Y_MM = 34.0
+BAY_SOUTH_Y_MM = 31.0
 BAY_BOX_MARGIN_MM = 0.5
 
 # The bays lie this far apart, bridged by the floor's thickness from
@@ -106,7 +107,7 @@ BAY_BOX_MARGIN_MM = 0.5
 BAY_GAP_MM = 2.0
 
 # The notches that number the bays, through the floor from its south
-# edge, west of the standoff and south of the hook's slots.
+# edge, west of the standoff and south of the clamp's boss.
 NOTCH_WIDTH_MM = 1.0
 NOTCH_DEPTH_MM = 0.8
 NOTCH_PITCH_MM = 2.0
@@ -151,32 +152,8 @@ def parse_arguments(argument_list):
 
 
 def bay_fits(index, board_size):
-    hook_lip, bar_clearance, hook_room = BAY_FITS[index]
-    return layout.MountFits(
-        hook_lip=hook_lip, bar_clearance=bar_clearance, hook_room=hook_room, **board_size
-    )
-
-
-# The hook's swing and room.
-
-
-def swing_margin(fits):
-    """What the deflection room leaves the free end's swing, as printed."""
-    return check_layout.hook_deflection_room(fits) - layout.nano_hook_end_deflection(fits)
-
-
-def least_room(fits):
-    """The least ROOM_STEP_MM step of room that leaves the swing the
-    default tray's margin."""
-    needed = layout.nano_hook_end_deflection(fits) + swing_margin(layout.DEFAULT_MOUNT_FITS)
-    return math.ceil(needed / ROOM_STEP_MM - 1e-6) * ROOM_STEP_MM
-
-
-def room_problems(fits):
-    if abs(fits.hook_room - least_room(fits)) > 1e-6:
-        return [f"the room {fits.hook_room} is not the least {ROOM_STEP_MM} step that leaves the "
-                f"default's margin, {least_room(fits):.1f}"]
-    return []
+    clamp_press, bar_clearance = BAY_FITS[index]
+    return layout.MountFits(clamp_press=clamp_press, bar_clearance=bar_clearance, **board_size)
 
 
 # The mount checks, check_layout.py's, with a bay's fits.
@@ -184,7 +161,7 @@ def room_problems(fits):
 
 def mount_problems(fits):
     """Every problem check_layout.py's mount checks find with the fits on
-    the left half, the bay's own room rule included."""
+    the left half."""
     right = False
     return (
         check_layout.mount_containment_problems(right, fits)[0]
@@ -192,11 +169,10 @@ def mount_problems(fits):
         + check_layout.mount_socket_problems(right, fits)[0]
         + check_layout.mount_standoff_clearances(fits)[0]
         + check_layout.mount_joint_problems(right, fits)[0]
-        + check_layout.hook_problems(fits)
+        + check_layout.clamp_problems(fits)
         + check_layout.opening_problems(fits)
         + check_layout.pry_recess_problems(right, fits)
         + check_layout.wire_room_problems(right, fits)[0]
-        + room_problems(fits)
     )
 
 
@@ -209,10 +185,10 @@ def bar_clearance_as_printed(fits):
 
 def bay_figures(fits):
     return (
-        f"lip {fits.hook_lip:.1f} onto the board, bar {bar_clearance_as_printed(fits):.2f} over "
-        f"the shell as printed, room {check_layout.hook_deflection_room(fits):.2f} as printed, "
-        f"swing {layout.nano_hook_end_deflection(fits):.3f} (margin {swing_margin(fits):.3f}), "
-        f"strain {100.0 * layout.nano_hook_strain(fits):.2f} % as printed"
+        f"the clamp pressing {fits.clamp_press:.1f} as printed, its boss's top at z "
+        f"{layout.nano_clamp_boss_top_z(fits):.1f}, the tab's strain "
+        f"{100.0 * layout.nano_clamp_strain(fits):.2f} % as printed, bar "
+        f"{bar_clearance_as_printed(fits):.2f} over the shell as printed"
     )
 
 
@@ -249,12 +225,10 @@ def standoff_square(center):
 def bay_features(fits):
     """(label, convex plan polygon, must lie inside) of every feature of
     the left tray but the walls, the ledge and the floor: the mounts'
-    boxes (the nice!nano's must lie inside), the hook's slots with their
-    bed chamfers, the ledge cut-aways and the sockets' cuts, the
-    standoffs (their flats lie on them) and the joint."""
-    boxes = layout.mount_bodies(fits) + layout.mount_voids(fits) + (
-        layout.nano_hook_sole_cutout_box(fits),
-    )
+    boxes (the nice!nano's must lie inside), the ledge cut-aways and the
+    sockets' cuts, the standoffs (their flats lie on them) and the
+    joint."""
+    boxes = layout.mount_bodies(fits) + layout.mount_voids(fits)
     mounts = [(check_layout.describe_mount(box), check_layout.box_polygon(box),
                box.part == "nice!nano") for box in boxes]
     cuts = [layout.ledge_cutaway_cut(cutaway) for cutaway in layout.LEDGE_CUTAWAYS]
@@ -492,7 +466,7 @@ def main():
     print(f"print:      floor down, its underside on z = 0, {box.XLength:.2f} x "
           f"{box.YLength:.2f} x {box.ZLength:.2f} mm")
     print(f"wrote:      {arguments.stl_file} ({mesh.CountFacets} facets), one closed manifold "
-          "shell")
+          "shell; each bay takes export_clamp_tab.py's tab")
 
 
 run_and_exit(main)
