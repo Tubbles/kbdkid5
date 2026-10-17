@@ -63,6 +63,8 @@ jobs:
           docker run --rm -v "$PWD":/work -w /work freecad-headless \
             freecadcmd scripts/export_slit_test.py --pass mock/kbdkid5_Slit_Test.stl
           docker run --rm -v "$PWD":/work -w /work freecad-headless \
+            freecadcmd scripts/export_slit_test.py --pass mock/kbdkid5_Slit_Test_Wide.stl wide
+          docker run --rm -v "$PWD":/work -w /work freecad-headless \
             freecadcmd scripts/export_socket_test.py --pass mock/kbdkid5_Socket_Test_Pocket.stl \
             pocket
           docker run --rm -v "$PWD":/work -w /work freecad-headless \

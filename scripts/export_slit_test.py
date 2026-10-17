@@ -17,6 +17,13 @@ middle slit needs the slicer's gap closing lowered (DESIGN.md). Every
 slit has the fused mock's default length (layout.default_slit_length()),
 which keeps pull_in, since only the width grips.
 
+The word wide makes the wide strip instead, the first strip's widths
+at the default pull_in without its plate: 0.5 to 1.0 stepping by
+WIDE_SLIT_WIDTH_STEP_MM from WIDE_FIRST_SLIT_WIDTH_MM, as modelled
+whatever the pull_in, the same width on both pins of a cell. The user
+prints in PETG, and on the second strip its widest cell held a switch
+best (doc/log/2026-10-17.md).
+
 Each cell is a 19.05 square of the PCB layer with one key's footprint
 holes (grown by pull_in) and its two pin slits, the cells side by side
 at the key pitch, with no plate. Cell k (from 1, west to east) has k
@@ -31,11 +38,12 @@ Runs headless under FreeCAD's console interpreter (see
 freecad_common.py for the freecadcmd quirks that shape the
 invocation):
 
-    freecadcmd scripts/export_slit_test.py --pass <strip.stl> [pull_in=0.2]
+    freecadcmd scripts/export_slit_test.py --pass <strip.stl> [wide]
+        [pull_in=0.2]
 
-It prints each cell's clearance and slit widths and checks for one
-valid solid of the PCB layer's volume less the notches, every slit
-centered on its pin at its own size and at DESIGN.md's width, the
+It prints each cell's clearance (or width) and slit widths and checks
+for one valid solid of the PCB layer's volume less the notches, every
+slit centered on its pin at its own size and at DESIGN.md's width, the
 notch count of every cell, and a closed mesh.
 """
 
@@ -58,6 +66,11 @@ CELL_COUNT = 6
 FIRST_SLIT_CLEARANCE_MM = -0.15
 SLIT_CLEARANCE_STEP_MM = 0.05
 
+# The wide strip's (the word wide) cell 1 width, as modelled and on
+# both pins, and the step from one cell to the next.
+WIDE_FIRST_SLIT_WIDTH_MM = 0.5
+WIDE_SLIT_WIDTH_STEP_MM = 0.1
+
 # The pins as the strip prints them, in layout.CHOC_PIN_CENTERS_MM's
 # order.
 PIN_NAMES = ("peg-side pin", "middle pin")
@@ -68,6 +81,9 @@ PIN_NAMES = ("peg-side pin", "middle pin")
 DESIGN_PEG_SIDE_SLIT_WIDTHS_MM = (0.25, 0.30, 0.35, 0.40, 0.45, 0.50)
 DESIGN_MIDDLE_SLIT_WIDTHS_MM = (0.05, 0.10, 0.15, 0.20, 0.25, 0.30)
 DESIGN_FIGURE_DECIMALS = 2
+# The wide strip's, the same on both pins. DESIGN.md gives them to one
+# decimal, so the two decimals' tolerance above is the stricter.
+DESIGN_WIDE_SLIT_WIDTHS_MM = (0.5, 0.6, 0.7, 0.8, 0.9, 1.0)
 
 # The notches that number the cells, cut through the whole strip from
 # its south edge.
@@ -76,9 +92,11 @@ NOTCH_DEPTH_MM = 0.8
 NOTCH_PITCH_MM = 2.0
 
 USAGE = f"""\
-usage: freecadcmd scripts/export_slit_test.py --pass <strip.stl>
+usage: freecadcmd scripts/export_slit_test.py --pass <strip.stl> [wide]
            [pull_in={pcb_shape.DEFAULT_PULL_IN_MM}]
 
+  wide       the wide strip: both slits of cell 1 {WIDE_FIRST_SLIT_WIDTH_MM} wide as modelled,
+             each next cell's {WIDE_SLIT_WIDTH_STEP_MM} wider
   pull_in    swelling allowance per side, mm: the footprint holes grow outward
              by this much, and the slit length follows it\
 """
@@ -87,6 +105,7 @@ usage: freecadcmd scripts/export_slit_test.py --pass <strip.stl>
 class Arguments:
     def __init__(self):
         self.stl_file = None
+        self.wide = False
         self.pull_in = pcb_shape.DEFAULT_PULL_IN_MM
 
 
@@ -94,7 +113,9 @@ def parse_arguments(argument_list):
     arguments = Arguments()
     positionals = []
     for argument in argument_list:
-        if "=" in argument:
+        if argument == "wide":
+            arguments.wide = True
+        elif "=" in argument:
             key, _, value = argument.partition("=")
             if key != "pull_in":
                 raise SystemExit(f"error: unknown option '{key}'\n{USAGE}")
@@ -120,16 +141,23 @@ def cell_slit_clearance(index):
     return FIRST_SLIT_CLEARANCE_MM + index * SLIT_CLEARANCE_STEP_MM
 
 
-def cell_slit_widths(index):
-    """Cell index's slit widths, each pin's calipered blade thickness
-    plus the cell's clearance, in layout.CHOC_PIN_CENTERS_MM's order."""
+def cell_wide_slit_width(index):
+    return WIDE_FIRST_SLIT_WIDTH_MM + index * WIDE_SLIT_WIDTH_STEP_MM
+
+
+def cell_slit_widths(index, wide):
+    """Cell index's slit widths, in layout.CHOC_PIN_CENTERS_MM's order:
+    each pin's calipered blade thickness plus the cell's clearance, or
+    for the wide strip the cell's width on both pins."""
+    if wide:
+        return (cell_wide_slit_width(index),) * len(layout.CHOC_PIN_CENTERS_MM)
     clearance = cell_slit_clearance(index)
     return tuple(
         thickness + clearance for thickness in layout.CHOC_PIN_CALIPERED_BLADE_THICKNESSES_MM
     )
 
 
-def strip_holes_and_slits(pull_in):
+def strip_holes_and_slits(pull_in, wide):
     """(holes, slits per cell): the footprint holes of every cell and
     each cell's two slits."""
     holes = [
@@ -139,7 +167,9 @@ def strip_holes_and_slits(pull_in):
     ]
     slit_length = layout.default_slit_length(pull_in)
     slits = [
-        layout.pin_slits_of_widths(cell_key_center(index), slit_length, cell_slit_widths(index))
+        layout.pin_slits_of_widths(
+            cell_key_center(index), slit_length, cell_slit_widths(index, wide)
+        )
         for index in range(CELL_COUNT)
     ]
     return holes, slits
@@ -213,8 +243,10 @@ def cut_notches(strip):
     return solid, len(cutters)
 
 
-def design_slit_widths(index):
+def design_slit_widths(index, wide):
     """DESIGN.md's slit widths of cell index, in PIN_NAMES' order."""
+    if wide:
+        return (DESIGN_WIDE_SLIT_WIDTHS_MM[index],) * len(PIN_NAMES)
     return (DESIGN_PEG_SIDE_SLIT_WIDTHS_MM[index], DESIGN_MIDDLE_SLIT_WIDTHS_MM[index])
 
 
@@ -222,11 +254,12 @@ def design_figure_tolerance():
     return 0.5 * 10.0**-DESIGN_FIGURE_DECIMALS + pcb_shape.SLIT_SIZE_TOLERANCE_MM
 
 
-def check_cell_slit_widths(index, cell_measured):
+def check_cell_slit_widths(index, cell_measured, wide):
     """Cell index's slits as measured, (offset, x length, y length)
     each, against DESIGN.md's widths. The footprint is turned 90
     degrees, so across a blade is along board y."""
-    for name, (_, _, y_length), width in zip(PIN_NAMES, cell_measured, design_slit_widths(index)):
+    design_widths = design_slit_widths(index, wide)
+    for name, (_, _, y_length), width in zip(PIN_NAMES, cell_measured, design_widths):
         if abs(y_length - width) > design_figure_tolerance():
             raise SystemExit(
                 f"error: cell {index + 1}'s {name} slit is {y_length:.4f} wide, DESIGN.md says "
@@ -234,23 +267,30 @@ def check_cell_slit_widths(index, cell_measured):
             )
 
 
-def print_cell(index, cell_measured):
+def cell_step_label(index, wide):
+    """What sets cell index's slits: its width or its clearance."""
+    if wide:
+        return f"width {cell_wide_slit_width(index):.2f} on both pins"
+    return f"clearance {cell_slit_clearance(index):+.2f}"
+
+
+def print_cell(index, cell_measured, wide):
     notches = "1 notch" if index == 0 else f"{index + 1} notches"
-    design_widths = design_slit_widths(index)
+    design_widths = design_slit_widths(index, wide)
     widths = ", ".join(
         f"{y_length:.3f} ({name}, DESIGN.md {width:.2f})"
         for name, (_, _, y_length), width in zip(PIN_NAMES, cell_measured, design_widths)
     )
     lengths = {round(x_length, 4) for _, x_length, _ in cell_measured}
     worst = max(offset for offset, _, _ in cell_measured)
-    print(f"cell {index + 1}:     {notches}, clearance {cell_slit_clearance(index):+.2f}, slits "
+    print(f"cell {index + 1}:     {notches}, {cell_step_label(index, wide)}, slits "
           f"{widths} wide, {', '.join(f'{length:.3f}' for length in sorted(lengths))} long, "
           f"worst offset {worst:.4f} mm")
 
 
 def main():
     arguments = parse_arguments(script_arguments(sys.argv))
-    holes, slits_per_cell = strip_holes_and_slits(arguments.pull_in)
+    holes, slits_per_cell = strip_holes_and_slits(arguments.pull_in, arguments.wide)
     slits = [slit for cell_slits in slits_per_cell for slit in cell_slits]
     pcb_layer, pcb_expected = build_pcb_layer(arguments.pull_in, holes, slits)
     print(f"cells:      {CELL_COUNT} at {layout.KEY_PITCH_MM} pitch, each a PCB layer "
@@ -260,9 +300,9 @@ def main():
         f"{thickness} ({name})"
         for name, thickness in zip(PIN_NAMES, layout.CHOC_PIN_CALIPERED_BLADE_THICKNESSES_MM)
     )
+    sizing = "the cell's width" if arguments.wide else "its blade plus the cell's clearance"
     print(f"blades:     calipered {blades} thick (the model's "
-          f"{layout.CHOC_PIN_BLADE_THICKNESS_MM}), each slit its blade plus the cell's "
-          "clearance")
+          f"{layout.CHOC_PIN_BLADE_THICKNESS_MM}), each slit {sizing}")
     print(f"pcb layer:  volume {pcb_layer.Volume:.3f} mm3 (analytic {pcb_expected:.3f} mm3)")
     strip, notch_count = cut_notches(pcb_layer)
     print(f"notches:    {notch_count}, {NOTCH_WIDTH_MM} wide and {NOTCH_DEPTH_MM} deep, volume "
@@ -270,8 +310,8 @@ def main():
     measured = pcb_shape.measured_slits(strip, slits)
     for index in range(CELL_COUNT):
         cell_measured = measured[2 * index : 2 * index + 2]
-        check_cell_slit_widths(index, cell_measured)
-        print_cell(index, cell_measured)
+        check_cell_slit_widths(index, cell_measured, arguments.wide)
+        print_cell(index, cell_measured, arguments.wide)
     mesh = export_stl(strip, arguments.stl_file)
     check_closed_mesh(arguments.stl_file)
     box = strip.BoundBox
