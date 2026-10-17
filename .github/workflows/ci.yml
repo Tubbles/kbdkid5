@@ -13,6 +13,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # A pull request's github.sha is a merge commit, not the PR's head.
+      - name: Name the artifacts after the commit
+        run: echo "SHORT_SHA=${HEAD_SHA::7}" >> "$GITHUB_ENV"
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Check the layout
         run: python3 scripts/check_layout.py
       - name: Build headless FreeCAD image
@@ -27,7 +32,7 @@ jobs:
       - name: Upload PCB mock STL
         uses: actions/upload-artifact@v4
         with:
-          name: pcb-stl
+          name: kbdkid5-pcb-stl-${{ env.SHORT_SHA }}
           path: pcb/
           if-no-files-found: error
       - name: Export switch plate STL
@@ -45,7 +50,7 @@ jobs:
       - name: Upload switch plate STL
         uses: actions/upload-artifact@v4
         with:
-          name: plate-stl
+          name: kbdkid5-plate-stl-${{ env.SHORT_SHA }}
           path: plate/
           if-no-files-found: error
       - name: Export fused mock and slit test STL
@@ -60,7 +65,7 @@ jobs:
       - name: Upload fused mock and slit test STL
         uses: actions/upload-artifact@v4
         with:
-          name: mock-stl
+          name: kbdkid5-mock-stl-${{ env.SHORT_SHA }}
           path: mock/
           if-no-files-found: error
       - name: Export tray and nano bay test STL
@@ -75,6 +80,6 @@ jobs:
       - name: Upload tray and nano bay test STL
         uses: actions/upload-artifact@v4
         with:
-          name: tray-stl
+          name: kbdkid5-tray-stl-${{ env.SHORT_SHA }}
           path: tray/
           if-no-files-found: error
