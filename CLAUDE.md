@@ -45,6 +45,7 @@ The freecadcmd quirks (exit codes swallowed, `__name__` set to the file stem, sc
 ## Conventions
 
 - Commit and push completed changes without asking. Keep commits small and focused.
+- Test prints come first: the printer idling is the loop's bottleneck. Commit and push a test print (strip, mock, test piece) as soon as its export passes its own checks, since the user fetches STLs from CI's artifacts, then review and document while it prints, and put review findings into the next print. Scope a test print's work item to the printable: a shared change that pulls in the trays or plates is its own item. Verify with the export's checks and quick B-rep probes, never by turning STL meshes back into solids (one such probe ran over 13 minutes).
 - `tmp/` is scratch space, `work/` holds untracked notes and downloads (the research's datasheets are in `work/research/downloads/`). Neither is committed.
 - Test any change to an export script by running it in the container and checking the exit code; freecadcmd hides Python failures unless the script exits through `run_and_exit`.
 - To inspect geometry beyond the exit code: `freecad_common.py`, `tray_shape.py`, `plate_shape.py`, `pcb_shape.py`, `socket_test_shape.py` and `layout.py` import normally (put `scripts/` on `sys.path`), but the export scripts must be exec'd with their trailing `run_and_exit(main)` line stripped and `__file__` predefined (a plain import would run main and `os._exit` the interpreter). Then drive their functions directly.
