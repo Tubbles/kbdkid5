@@ -47,7 +47,7 @@ key center, not the left half's socket.
 """
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 # Keys (DESIGN.md, "Keys", from kbdkid4's boards/board_1.1/board.lp,
 # where every S1xx device has (rotation 90.0) (flip false)). Names are
@@ -1143,6 +1143,13 @@ def printed_fit(nominal, fit):
     return nominal + 2.0 * PRINT_SWELLING_PER_SIDE_MM + fit
 
 
+# An up-facing bottom that a part must fit over (a notch's, a slot's, the
+# pry recess's) is counted this much higher as printed, as the fits above
+# count it. The floor left under such a bottom is counted where it is
+# modelled, the thinner reading.
+PRINT_RISE_OF_UP_FACING_BOTTOMS_MM = PRINT_SWELLING_PER_SIDE_MM
+
+
 # Magnets: four supermagnete S-08-03-N (8 x 3) standing on edge, each
 # glued against a 0.5 skin at the face, which takes its pull. Its slot
 # is a notch through the rest of the block, open at the top and toward
@@ -1650,10 +1657,12 @@ NANO_SHELL_TAB_SLOTS_ACROSS_MM = 11.08
 # item 004). export_tray.py's key=value words override them for a test
 # print: the nano's length and width (the render's), the hook's lip onto
 # the board and the bar's clearance over the shell, which rest on them,
-# and the battery header's front lips (none by default, DESIGN.md says
-# why).
+# the hook's deflection room as printed, which a longer lip needs more
+# of (the nano bay test strip, work item 006), and the battery header's
+# front lips (none by default, DESIGN.md says why).
 NANO_HOOK_LIP_MM = 0.8
 NANO_BAR_CLEARANCE_MM = 0.1
+NANO_HOOK_DEFLECTION_ROOM_MM = 1.6  # as printed
 BATTERY_HEADER_SHOULDER_MM = 0.0
 
 
@@ -1663,6 +1672,7 @@ class MountFits:
     nano_width: float = NANO_WIDTH_MM
     hook_lip: float = NANO_HOOK_LIP_MM
     bar_clearance: float = NANO_BAR_CLEARANCE_MM
+    hook_room: float = NANO_HOOK_DEFLECTION_ROOM_MM
     battery_shoulder: float = BATTERY_HEADER_SHOULDER_MM
 
 
@@ -1698,6 +1708,30 @@ def nano_end_gap(fits):
     """The pocket's gap at each end of the board along y, between the
     bar's posts and the hook's blade: the board's slip fit."""
     return half_fit_gap(fits.nano_length, SLIP_FIT_MM)
+
+
+def nano_board_envelope(fits=DEFAULT_MOUNT_FITS):
+    """NANO_BOARD as the fits size it, its west edge and USB end staying
+    put."""
+    return replace(
+        NANO_BOARD,
+        x_range=(nano_west_x(), nano_east_x(fits)),
+        y_range=(nano_south_end_y(fits), nano_usb_end_y()),
+    )
+
+
+def nano_usb_shell_envelope(fits=DEFAULT_MOUNT_FITS):
+    """NANO_USB_SHELL centered on the board the fits size."""
+    return replace(
+        NANO_USB_SHELL, x_range=centered_range(nano_center_x(fits), NANO_USB_SHELL_WIDTH_MM)
+    )
+
+
+def part_envelopes(fits=DEFAULT_MOUNT_FITS):
+    """PART_ENVELOPES with the nice!nano's board and shell as the fits
+    size them, which is where the mounts hold them."""
+    sized = {NANO_BOARD: nano_board_envelope(fits), NANO_USB_SHELL: nano_usb_shell_envelope(fits)}
+    return tuple(sized.get(envelope, envelope) for envelope in PART_ENVELOPES)
 
 
 # The USB window: kbdkid4's (its scripts/export_tray.py,
@@ -1823,15 +1857,14 @@ def nano_bar_boxes(fits=DEFAULT_MOUNT_FITS):
 # along y. Its north face is the board's south stop, the board's end gap
 # from it. Its lip sits on its last NANO_HOOK_LIP_WIDTH_MM, which starts
 # NANO_HOOK_BENDING_LENGTH_MM from the root, within the free middle of
-# the board's south end. The slots print NANO_HOOK_DEFLECTION_ROOM_MM
-# south of the blade, the room its free end swings through as the lip
-# passes the board's edge, and NANO_HOOK_FREE_SLOT_MM north of it and
-# past its end.
+# the board's south end. The slots print the fits' hook_room
+# (NANO_HOOK_DEFLECTION_ROOM_MM by default) south of the blade, the room
+# its free end swings through as the lip passes the board's edge, and
+# NANO_HOOK_FREE_SLOT_MM north of it and past its end.
 NANO_HOOK_LIP_WIDTH_MM = 2.8
 NANO_HOOK_BENDING_LENGTH_MM = 11.0
 NANO_HOOK_BLADE_THICKNESS_MM = 0.8
 NANO_HOOK_CLEARANCE_MM = SLIP_FIT_MM  # over the board's top edge, as printed
-NANO_HOOK_DEFLECTION_ROOM_MM = 1.6  # as printed
 NANO_HOOK_FREE_SLOT_MM = 0.4  # as printed
 
 
@@ -1890,7 +1923,7 @@ def nano_hook_slot_boxes(fits=DEFAULT_MOUNT_FITS):
     root = nano_hook_root_x()
     end = nano_hook_lip_x_range()[1]
     free = printed_fit(NANO_HOOK_FREE_SLOT_MM, SNUG_FIT_MM)
-    room = printed_fit(NANO_HOOK_DEFLECTION_ROOM_MM, SNUG_FIT_MM)
+    room = printed_fit(fits.hook_room, SNUG_FIT_MM)
     face = nano_hook_face_y(fits)
     back = face - NANO_HOOK_BLADE_THICKNESS_MM
     z_range = (FLOOR_UNDERSIDE_Z_MM, 0.0)
@@ -2102,6 +2135,78 @@ def nano_groove_boxes(fits=DEFAULT_MOUNT_FITS, right=False):
         nano_groove_box("west tab slots' groove", west_tabs, tabs),
         nano_groove_box("east tab slots' groove", east_tabs, tabs),
     )
+
+
+# The pry recess, so the board can be taken out: a pocket in the floor's
+# top along the board's east edge, open upward. A flat tool tip (a
+# spudger, a small flat screwdriver) comes in from the east low over the
+# floor, goes down into it beside the board, slides under the board and,
+# levered on the recess's east edge, lifts the board's east side, which
+# pitches the board about the shell's mouth under the bar and lifts its
+# south end off the hook's lip. The tip crosses only floor on its way
+# there north of the battery: the recess lies NANO_PRY_RECESS_FROM_RIB_MM
+# north of the battery's northwest rib, as far south as the battery
+# allows, since the farther the pry is from the shell's mouth, the less
+# it takes to lift the hook's edge. Across, it is the slip fit of a
+# NANO_PRY_TOOL_WIDTH_MM tip. As printed it reaches
+# NANO_PRY_RECESS_UNDER_BOARD_MM under the board, the reach a straight
+# tip NANO_PRY_TOOL_THICKNESS_MM thick gets at the slopes the tray's
+# walls leave it (check_layout.py works them out), and
+# NANO_PRY_RECESS_BESIDE_BOARD_MM beside it, so the tip at the shallowest
+# of those slopes passes over the recess's east edge. Under the board it
+# stays inside the east pin row's groove, which it runs into, and the
+# strip of floor between that groove and the board's edge, so the board
+# lies flat on the floor it had but that strip. NANO_PRY_RECESS_DEPTH_MM
+# deep, it leaves 0.4 of floor under it, which is counted where it is
+# modelled, and leaves the tip room NANO_PRY_RECESS_DEPTH_MM less
+# PRINT_RISE_OF_UP_FACING_BOTTOMS_MM as printed: 0.2 to tilt in under the
+# board's underside.
+NANO_PRY_TOOL_WIDTH_MM = 4.0
+NANO_PRY_TOOL_THICKNESS_MM = 0.4
+NANO_PRY_RECESS_UNDER_BOARD_MM = 1.0  # as printed
+NANO_PRY_RECESS_BESIDE_BOARD_MM = 4.0  # as printed
+NANO_PRY_RECESS_FROM_RIB_MM = 0.5
+NANO_PRY_RECESS_DEPTH_MM = 0.8
+
+
+def battery_northwest_rib_along_x():
+    return next(box for box in battery_rib_boxes()
+                if box.label == "battery's northwest rib along x")
+
+
+def nano_pry_recess_box(fits=DEFAULT_MOUNT_FITS):
+    east = nano_east_x(fits)
+    under, beside = NANO_PRY_RECESS_UNDER_BOARD_MM, NANO_PRY_RECESS_BESIDE_BOARD_MM
+    south = battery_northwest_rib_along_x().y_range[1] + NANO_PRY_RECESS_FROM_RIB_MM
+    return MountBox(
+        "pry recess",
+        "nice!nano",
+        grown_range((east - under, east + beside), half_fit_gap(under + beside, SNUG_FIT_MM)),
+        (south, south + printed_fit(NANO_PRY_TOOL_WIDTH_MM, SLIP_FIT_MM)),
+        (-NANO_PRY_RECESS_DEPTH_MM, 0.0),
+    )
+
+
+def nano_pry_tool_room():
+    """The room the recess leaves the tip under the board's underside as
+    printed, its up-facing bottom counted higher."""
+    return NANO_PRY_RECESS_DEPTH_MM - PRINT_RISE_OF_UP_FACING_BOTTOMS_MM
+
+
+# The leverage (DESIGN.md): the board pitches about the shell's mouth,
+# where the bar holds it down, so a lift at the pry's middle lifts the
+# board's south end, where the hook's lip holds it, by the ratio of their
+# distances from the mouth.
+def nano_pry_lever_ratio(fits=DEFAULT_MOUNT_FITS):
+    pivot = nano_usb_shell_mouth_y()
+    pry = sum(nano_pry_recess_box(fits).y_range) / 2.0
+    return (pivot - nano_south_end_y(fits)) / (pivot - pry)
+
+
+def nano_hook_release_lift(fits=DEFAULT_MOUNT_FITS):
+    """How far the board's south end must rise for its top edge to pass
+    the lip's tip, as modelled."""
+    return nano_hook_lip_profile(fits)[1][1] - NANO_BOARD.z_range[1]
 
 
 # The power switch: its lever's slot through the north wall, its swept
@@ -2372,7 +2477,16 @@ def mount_voids(fits=DEFAULT_MOUNT_FITS, right=False):
     bed chamfers are left out: they lie in the floor's underside around
     the slots, within the sole's cut-out."""
     openings = tuple(box for opening in wall_openings(fits) for box in opening)
-    return openings + nano_groove_boxes(fits, right) + nano_hook_slot_boxes(fits)
+    return openings + nano_floor_voids(fits, right)
+
+
+def nano_floor_voids(fits=DEFAULT_MOUNT_FITS, right=False):
+    """The nice!nano's voids in the floor, in the order the tray builder
+    cuts them: the solder grooves, the hook's slots and the pry
+    recess."""
+    return (
+        nano_groove_boxes(fits, right) + nano_hook_slot_boxes(fits) + (nano_pry_recess_box(fits),)
+    )
 
 
 # The room the wires need (DESIGN.md: wires need room behind every

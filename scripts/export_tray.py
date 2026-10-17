@@ -15,9 +15,10 @@ diameter, the plastic behind and over them, the flat top, the lead-in),
 the magnet slots, the parking hole, the sockets' clearance from the
 tray as built, and the mounts: the USB shell's channel and the USB
 window, the hold-down bar on its posts, the snap hook (its blade,
-slots, bed chamfers, lip and the strain at its root from what was
-measured), the east ribs, the solder grooves, the lever
-slot and the cradle, the reset pin hole and the back wall, the battery
+slots, bed chamfers, lip, and from what was measured the strain at its
+root and its free end's swing, which must stay inside its room as
+printed whatever is overridden), the east ribs, the solder grooves, the pry recess, the
+lever slot and the cradle, the reset pin hole and the back wall, the battery
 header's pocket and the battery's ribs, and that the PCB connector's
 zone (as printed) and layout.py's wire rooms hold no plastic. Then it builds the
 other half too and joins them as DESIGN.md describes, each half turned
@@ -37,11 +38,12 @@ socket cuts and its slip fit pin holes, mirrored across the layout's
 right-half mirror line. The key=value words (USAGE lists them) override
 a fit for a test print: pin_hole_diameter the half's pin hole fit
 (layout.py: the left half's snug, the right half's slip, as modelled),
-the others the mounts' fits that wait on a caliper (layout.MountFits).
+the others the mounts' fits that wait on a caliper or a test print
+(layout.MountFits).
 A measured figure that is an override is then checked against it
 instead of DESIGN.md's, and the figures that follow from it (the pin
-holes' flat top and the plastic over them, the hook's top and strain)
-are only printed. The other half, built for the joined check, keeps
+holes' flat top and the plastic over them, the hook's top, strain and
+swing) are only printed. The other half, built for the joined check, keeps
 the defaults.
 """
 
@@ -154,6 +156,7 @@ DESIGN_HOOK_TOP_Z_MM = 3.83
 DESIGN_HOOK_SLOTS_MM = {"south": 2.0, "north": 0.8, "end": 0.8}  # as modelled
 DESIGN_HOOK_BED_CHAMFERS_MM = {"slots": 0.4, "blade": 0.2}
 DESIGN_HOOK_STRAIN_PERCENT = 1.61  # as printed
+DESIGN_HOOK_SWING_MM = 1.50  # the free end's, as printed
 DESIGN_HOOK_MAXIMUM_STRAIN_PERCENT = 2.0
 DESIGN_HOOK_UNDER_SOCKET_MM = 2.15
 DESIGN_NANO_RIB_FROM_BOARD_MM = 0.2  # the ribs' face from the board's east edge
@@ -167,6 +170,16 @@ DESIGN_NANO_GROOVE_DEPTH_MM = 0.4
 DESIGN_NANO_ROW_GROOVES_MM = ((0.195, 2.555), (0.46, 32.965))
 DESIGN_NANO_P1_GROOVE_MM = ((2.735, 10.175), (25.685, 27.915))
 DESIGN_NANO_TAB_GROOVES_MM = ((4.54, 6.215), (0.02, 6.42))
+# The pry recess beside and under the board's east edge north of the
+# battery: its reach from the board's edge and its width as printed, its
+# place along y as modelled.
+DESIGN_NANO_PRY_RECESS_ACROSS_PRINTED_MM = 4.1
+DESIGN_NANO_PRY_RECESS_Y_MM = (61.43, 65.93)
+DESIGN_NANO_PRY_RECESS_UNDER_BOARD_PRINTED_MM = 1.0
+DESIGN_NANO_PRY_RECESS_BESIDE_BOARD_PRINTED_MM = 4.0
+DESIGN_NANO_PRY_RECESS_DEPTH_MM = 0.8
+DESIGN_NANO_PRY_RECESS_FLOOR_UNDER_MM = 0.4  # as modelled
+DESIGN_NANO_PRY_TOOL_ROOM_PRINTED_MM = 0.6  # the bottom raised by the swelling
 DESIGN_POWER_SWITCH_CENTER_X_MM = 47.149
 DESIGN_LEVER_SLOT_MM = (4.0, 2.0)  # along x, along z
 DESIGN_LEVER_SLOT_CENTER_Z_MM = 1.95
@@ -223,7 +236,8 @@ JOINED_OVERLAP_TOLERANCE_MM3 = 1e-3
 USAGE = f"""\
 usage: freecadcmd scripts/export_tray.py --pass <tray.stl> [right]
            [pin_hole_diameter=<mm>] [nano_length=<mm>] [nano_width=<mm>]
-           [hook_lip=<mm>] [bar_clearance=<mm>] [battery_shoulder=<mm>]
+           [hook_lip=<mm>] [bar_clearance=<mm>] [hook_room=<mm>]
+           [battery_shoulder=<mm>]
 
   right              export the right half: cut for its own sockets, its pin
                      holes the slip fit, mirrored across the layout's right-half
@@ -240,6 +254,8 @@ printed)
                      (default {layout.NANO_HOOK_LIP_MM})
   bar_clearance      the hold-down bar's clearance over the USB-C shell as
                      printed (default {layout.NANO_BAR_CLEARANCE_MM})
+  hook_room          the room south of the hook's blade as printed, which its
+                     free end swings through (default {layout.NANO_HOOK_DEFLECTION_ROOM_MM})
   battery_shoulder   how far front lips reach onto the battery header's rim
                      (default {layout.BATTERY_HEADER_SHOULDER_MM}, none)\
 """
@@ -252,6 +268,7 @@ OPTION_KEYS = (
     "nano_width",
     "hook_lip",
     "bar_clearance",
+    "hook_room",
     "battery_shoulder",
 )
 
@@ -919,6 +936,13 @@ class MountDesign:
             if arguments.bar_clearance is None
             else arguments.bar_clearance
         )
+        # The hook's slots as modelled, the south one a hook_room
+        # override's as printed plus the swelling on both sides.
+        self.hook_slots = dict(DESIGN_HOOK_SLOTS_MM)
+        if arguments.hook_room is not None:
+            self.hook_slots["south"] = (
+                arguments.hook_room + 2.0 * DESIGN_PRINT_SWELLING_PER_SIDE_MM
+            )
         self.battery_shoulder = arguments.battery_shoulder or 0.0
 
 
@@ -1106,9 +1130,18 @@ def hook_strain_percent(reach, thickness, length):
     return 100.0 * 3.0 * printed_reach * printed_thickness / (2.0 * length**2)
 
 
+def hook_swing(reach, length, lip_width):
+    """DESIGN.md's swing of the blade's free end as printed while the
+    lip's near end moves the lip's reach as printed: past the point load
+    the blade runs on straight, turned by 3/2 the deflection over the
+    length per mm."""
+    deflection = reach + swelling_at_45_degrees()
+    return deflection * (1.0 + 1.5 * lip_width / length)
+
+
 def measure_nano_hook_blade(tray, right, design, figures):
     """The blade and its slots: (line, blade's thickness, its root's x,
-    its north face's y)."""
+    its north face's y, its top's z, the slot south of it)."""
     board = design.board
     blade_x = (DESIGN_HOOK_ROOT_X_MM + DESIGN_HOOK_LIP_X_MM[0]) / 2.0
     face_y = board.south - DESIGN_NANO_END_GAP_MM
@@ -1132,11 +1165,12 @@ def measure_nano_hook_blade(tray, right, design, figures):
         figures.check("bottom z", height[0], DESIGN_FLOOR_UNDERSIDE_Z_MM, 1),
         figures.check("root x", slot_along[0], DESIGN_HOOK_ROOT_X_MM, 1),
         figures.check("end x", blade_end, DESIGN_HOOK_LIP_X_MM[1], 1),
-        figures.check("slot south", span_length(south_slot), DESIGN_HOOK_SLOTS_MM["south"], 1),
-        figures.check("north", span_length(north_slot), DESIGN_HOOK_SLOTS_MM["north"], 1),
-        figures.check("past the end", span_length(end_slot), DESIGN_HOOK_SLOTS_MM["end"], 1),
+        figures.check("slot south", span_length(south_slot), design.hook_slots["south"], 1),
+        figures.check("north", span_length(north_slot), design.hook_slots["north"], 1),
+        figures.check("past the end", span_length(end_slot), design.hook_slots["end"], 1),
     ]
-    return f"hook:       {', '.join(texts)}", span_length(blade), slot_along[0], blade[1], height[1]
+    return (f"hook:       {', '.join(texts)}", span_length(blade), slot_along[0], blade[1],
+            height[1], span_length(south_slot))
 
 
 def bed_chamfer(tray, right, edge, axis, into, inside):
@@ -1163,7 +1197,7 @@ def measure_nano_hook_bed_chamfers(tray, right, design, figures):
     face_y = design.board.south - DESIGN_NANO_END_GAP_MM
     back_y = face_y - DESIGN_HOOK_BLADE_THICKNESS_MM
     end_x = DESIGN_HOOK_LIP_X_MM[1]
-    slots = DESIGN_HOOK_SLOTS_MM
+    slots = design.hook_slots
     middle_x = (DESIGN_HOOK_ROOT_X_MM + end_x) / 2.0
     blade_y = (back_y + face_y) / 2.0
     edges = {
@@ -1193,10 +1227,13 @@ def unless(overridden, stated):
 
 
 def measure_nano_hook(tray, right, design, figures):
-    """The blade and its slots, then the lip, its sides and the strain
-    the lip's reach and the blade make at the root."""
+    """The blade and its slots, then the lip, its sides, the strain the
+    lip's reach and the blade make at the root and the free end's swing
+    in the room south of the blade."""
     board = design.board
-    blade_line, thickness, root, face_y, top = measure_nano_hook_blade(tray, right, design, figures)
+    blade_line, thickness, root, face_y, top, south_slot = measure_nano_hook_blade(
+        tray, right, design, figures
+    )
     lip_x = span_middle(DESIGN_HOOK_LIP_X_MM)
     over_edge = run_span(tray, right, (lip_x, board.south, 1.0), "z", False)[1]
     tip_z = over_edge + design.hook_lip
@@ -1208,6 +1245,8 @@ def measure_nano_hook(tray, right, design, figures):
     lead_in = hook_side_degrees(tray, right, lip_x, sides_y, top + 1.0, -1)
     bending_length = lip[0] - root
     strain = hook_strain_percent(reach, thickness, bending_length)
+    swing = hook_swing(reach, bending_length, span_length(lip))
+    room = south_slot - 2.0 * DESIGN_PRINT_SWELLING_PER_SIDE_MM
     under_socket = DESIGN_SOCKET_BOTTOM_Z_MM - top
     follows = design.hook_lip_overridden
     texts = [
@@ -1225,10 +1264,17 @@ def measure_nano_hook(tray, right, design, figures):
                         unless(follows, DESIGN_HOOK_UNDER_SOCKET_MM), 2),
         check_or_report(figures, "root strain as printed %", strain,
                         unless(follows, DESIGN_HOOK_STRAIN_PERCENT), 2),
+        check_or_report(figures, "free end swings", swing, unless(follows, DESIGN_HOOK_SWING_MM),
+                        2),
+        figures.report("in room as printed", room, 1),
     ]
     if strain > DESIGN_HOOK_MAXIMUM_STRAIN_PERCENT:
         figures.problems.append(
             f"the hook's root strain {strain:.2f} % is over {DESIGN_HOOK_MAXIMUM_STRAIN_PERCENT} %"
+        )
+    if swing > room:
+        figures.problems.append(
+            f"the hook's free end swings {swing:.3f}, its room leaves {room:.3f} as printed"
         )
     return [blade_line, measure_nano_hook_bed_chamfers(tray, right, design, figures),
             f"hook lip:   {', '.join(texts)}"]
@@ -1318,6 +1364,44 @@ def measure_nano_grooves(tray, right, design, figures):
         f"grooves:    {len(offsets)}, {', '.join(texts)}, P1.01/P1.02/P1.07's from x "
         f"{p1[0]:.3f} to {p1[1]:.3f} in the left half's frame"
     )
+
+
+def measure_nano_pry_recess(tray, right, design, figures):
+    """The recess below the east pin row's groove, where it is alone:
+    its place along y, across and along x as printed from the board's
+    east edge, its depth, the tip's room over its bottom as printed and
+    the floor under it. At the groove's depth
+    it runs on west to the groove's west edge."""
+    board = design.board
+    swelling = DESIGN_PRINT_SWELLING_PER_SIDE_MM
+    beside = DESIGN_NANO_PRY_RECESS_BESIDE_BOARD_PRINTED_MM + swelling
+    x = board.east + beside / 2.0
+    y = span_middle(DESIGN_NANO_PRY_RECESS_Y_MM)
+    below_groove = (x, y, -(DESIGN_NANO_GROOVE_DEPTH_MM + DESIGN_NANO_PRY_RECESS_DEPTH_MM) / 2.0)
+    along_x = run_span(tray, right, below_groove, "x", False)
+    along_y = run_span(tray, right, below_groove, "y", False)
+    bottom = run_span(tray, right, below_groove, "z", False)[0]
+    floor = run_span(tray, right, (x, y, (bottom + DESIGN_FLOOR_UNDERSIDE_Z_MM) / 2.0), "z", True)
+    in_groove = run_span(tray, right, (x, y, -DESIGN_NANO_GROOVE_DEPTH_MM / 2.0), "x", False)
+    groove_west = board.east - DESIGN_NANO_ROW_GROOVES_MM[0][1]
+    texts = [
+        figures.check("across as printed", span_length(along_y) - 2.0 * swelling,
+                      DESIGN_NANO_PRY_RECESS_ACROSS_PRINTED_MM, 1),
+        figures.check("under the board", board.east - along_x[0] - swelling,
+                      DESIGN_NANO_PRY_RECESS_UNDER_BOARD_PRINTED_MM, 1),
+        figures.check("beside it", along_x[1] - board.east - swelling,
+                      DESIGN_NANO_PRY_RECESS_BESIDE_BOARD_PRINTED_MM, 1),
+        figures.check("from y", along_y[0], DESIGN_NANO_PRY_RECESS_Y_MM[0], 2),
+        figures.check("to", along_y[1], DESIGN_NANO_PRY_RECESS_Y_MM[1], 2),
+        figures.check("deep", -bottom, DESIGN_NANO_PRY_RECESS_DEPTH_MM, 1),
+        figures.check("the tip's room as printed", -bottom - swelling,
+                      DESIGN_NANO_PRY_TOOL_ROOM_PRINTED_MM, 1),
+        figures.check("floor under it", span_length(floor),
+                      DESIGN_NANO_PRY_RECESS_FLOOR_UNDER_MM, 1),
+        figures.check("into the east row's groove, off its west edge by",
+                      in_groove[0] - groove_west, 0.0, 2),
+    ]
+    return f"recess:     {', '.join(texts)}"
 
 
 def measure_power_switch(tray, right, figures):
@@ -1558,6 +1642,7 @@ def measure_mounts(tray, right, design, fits, figures):
     lines.extend(measure_nano_hook(tray, right, design, figures))
     lines.append(measure_nano_ribs(tray, right, design, figures))
     lines.append(measure_nano_grooves(tray, right, design, figures))
+    lines.append(measure_nano_pry_recess(tray, right, design, figures))
     lines.extend(measure_power_switch(tray, right, figures))
     lines.extend(measure_reset_button(tray, right, figures))
     lines.append(measure_battery_pocket(tray, right, design, figures))
@@ -1775,8 +1860,8 @@ def print_build(build):
     fits = build.fits
     lips = f"{fits.battery_shoulder} onto the rim" if fits.battery_shoulder > 0.0 else "none"
     print(f"mounts:     fitted to a nice!nano {fits.nano_width} x {fits.nano_length}, the hook's "
-          f"lip {fits.hook_lip} onto it, the bar {fits.bar_clearance} over its shell, the battery "
-          f"header's front lips {lips}")
+          f"lip {fits.hook_lip} onto it with {fits.hook_room} of room, the bar "
+          f"{fits.bar_clearance} over its shell, the battery header's front lips {lips}")
     for label, added in build.mounts:
         print(f"added:      {label}, {added:.3f} mm3")
 

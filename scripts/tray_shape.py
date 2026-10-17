@@ -30,13 +30,14 @@ hold-down bar on its posts, its snap hook and its east ribs, the power
 switch's cradle, the reset button's back wall, the battery header's
 pocket and the battery's corner ribs, then the USB shell's channel and
 the USB window, the lever slot and the reset pin hole through the north
-wall and the nice!nano's solder grooves and the hook's slots in the
-floor, with the slots' and the blade's bed edges chamfered. Last the magnet
-slots, open toward the cavity, with the wall cut back over them, the
-flat-topped teardrop pin holes (the half's fit and depth, the right
-half's with a lead-in at the mouth), the flat-topped teardrop parking
-hole and the chamfer along the joint face's bottom edge. Each step
-checks its volume and probes what it made.
+wall and the nice!nano's solder grooves, the hook's slots and the pry
+recess in the floor, with the slots' and the blade's bed edges
+chamfered. Last the magnet slots, open toward the cavity, with the
+wall cut back over them, the flat-topped teardrop pin holes (the
+half's fit and depth, the right half's with a lead-in at the mouth),
+the flat-topped teardrop parking hole and the chamfer along the joint
+face's bottom edge. Each step checks its volume and probes what it
+made.
 
 The right half is built in the left half's frame, cut for its own
 sockets (layout.py's module docstring), and mirrored across the
@@ -1246,10 +1247,11 @@ def cut_reset_pin_hole(tray):
 
 
 def cut_floor_void(tray, box, earlier):
-    """Cut a groove or a slot in the floor, its cutter run on into the
-    open cavity above the floor's top, and below the bed for a slot
-    through the floor. It removes its box less what the earlier voids
-    took from it, and leaves the floor under a groove."""
+    """Cut a groove, a slot or a recess in the floor, its cutter run on
+    into the open cavity above the floor's top, and below the bed for a
+    slot through the floor. It removes its box less what the earlier
+    voids took from it, and leaves the floor under a groove or a
+    recess."""
     through = box.z_range[0] <= FLOOR_UNDERSIDE_Z_MM
     cutter = box_prism(box, CUT_EXTRA_MM if through else 0.0, 0.5)
     result = tray.cut(cutter)
@@ -1376,13 +1378,13 @@ def check_nano_hook_free(tray, fits):
 def cut_mount_voids(tray, fits, right):
     """Cut every mount void layout.py gives, in its order: the shell's
     channel and the window, the slot and the pin hole through the north
-    wall, then the grooves and the hook's slots in the floor, and
-    chamfer the slots' and the blade's bed edges."""
+    wall, then the grooves, the hook's slots and the pry recess in the
+    floor, and chamfer the slots' and the blade's bed edges."""
     tray = cut_usb_window(tray, fits)
     tray = cut_lever_slot(tray)
     tray = cut_reset_pin_hole(tray)
     earlier = []
-    for box in layout.nano_groove_boxes(fits, right) + layout.nano_hook_slot_boxes(fits):
+    for box in layout.nano_floor_voids(fits, right):
         tray = cut_floor_void(tray, box, earlier)
         earlier.append(box)
     tray = chamfer_nano_hook_slots(tray, fits)
