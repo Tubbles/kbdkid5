@@ -223,23 +223,63 @@ def default_slit_length(pull_in):
 
 
 # The hotswap socket (Kailh CPG135001S001) under each key, in
-# footprint-local coordinates: kbdkid4's HOTSWAP_SOCKET_POLYGONS_MM and
-# HOTSWAP_SOCKET_TAB_TIP_MM (scripts/export_tray.py), measured there on
-# LibrePCB's populated STEP export: two offset lobes and the two 1.7 mm
-# end tabs, convex, corners in order around each. The lobe nearer the
-# tab tip has its corner beside the tab chamfered, just outside the
-# body's 0.8 mm round. Mapped onto the board they span x from center
-# - 9.28 to center + 3.87 and y from center - 8.22 to center - 1.37
-# (DESIGN.md, "Keys"). Each socket hangs HOTSWAP_SOCKET_REACH_MM below
-# the PCB.
-HOTSWAP_SOCKET_POLYGONS_MM = (
+# footprint-local coordinates, as convex polygons, corners in order
+# around each, whose union holds the whole socket. The two offset lobes
+# and the two 1.7 mm end tabs are kbdkid4's HOTSWAP_SOCKET_POLYGONS_MM
+# and HOTSWAP_SOCKET_TAB_TIP_MM (scripts/export_tray.py), measured there
+# on LibrePCB's populated STEP export. The lobe nearer the tab tip has
+# its corner beside the tab chamfered, just outside the body's 0.8 mm
+# round. The lobes meet in sharp inside corners, which the body fills,
+# as the socket's own STEP in kbdkid4's library
+# (pkg/23d245ff-14f8-48ad-af68-56ebb3a76786, model 0c4954f5) shows at
+# every height and Kailh's plan view too: at (-6.02, 2.25) the first
+# lobe's face runs on to y 2.680 and meets the second lobe's side in a
+# 0.75 radius, at (-3.57, 2.25) the second lobe reaches down to the
+# first lobe's side in a 1.5 radius. HOTSWAP_SOCKET_FILLS_MM covers
+# them, rectangles from that STEP's faces rounded outward to 0.01 (the
+# 0.75 corner as two, the band along the first lobe and the radius's
+# square), and a step on the second lobe's end from x -2.12 to -1.37,
+# 0.08 past the lobe. Each rectangle covers its radius with some room to
+# spare, so the polygons keep no acute corner. Elsewhere the STEP's
+# outline lies inside the lobes and tabs (it chamfers or rounds their
+# corners) or at most 0.003 past them, where their faces are rounded to
+# 0.01 (the lobes' faces at x -8.22 and -6.02, the tabs' at -5.06 and
+# -2.86). Mapped onto the board they span x from center - 9.28 to
+# center + 3.87 and y from center - 8.22 to center - 1.37 (DESIGN.md,
+# "Keys"). Each socket hangs HOTSWAP_SOCKET_REACH_MM below the PCB.
+HOTSWAP_SOCKET_LOBES_MM = (
     ((-8.22, -2.25), (-3.57, -2.25), (-3.57, 2.25), (-8.22, 2.25)),
     ((-6.02, 2.25), (-1.37, 2.25), (-1.37, 7.60), (-5.47, 7.60), (-6.02, 7.05)),
+)
+HOTSWAP_SOCKET_TABS_MM = (
     ((-4.54, 7.60), (-2.86, 7.60), (-2.86, 9.28), (-4.54, 9.28)),
     ((-6.74, -3.87), (-5.06, -3.87), (-5.06, -2.25), (-6.74, -2.25)),
 )
+HOTSWAP_SOCKET_FILLS_MM = (
+    ((-7.91, 2.25), (-6.02, 2.25), (-6.02, 2.69), (-7.91, 2.69)),
+    ((-6.78, 2.68), (-6.02, 2.68), (-6.02, 3.44), (-6.78, 3.44)),
+    ((-3.57, 1.27), (-3.12, 1.27), (-3.12, 2.25), (-3.57, 2.25)),
+    ((-2.12, 7.48), (-1.37, 7.48), (-1.37, 7.69), (-2.12, 7.69)),
+)
+HOTSWAP_SOCKET_POLYGONS_MM = HOTSWAP_SOCKET_LOBES_MM + HOTSWAP_SOCKET_TABS_MM + (
+    HOTSWAP_SOCKET_FILLS_MM
+)
 HOTSWAP_SOCKET_TAB_TIP_MM = (-3.70, 9.28)
+
+# The socket's plastic body along the tabs' axis (local y), from that
+# STEP's end faces: 9.55, Kailh's plan view's 9.55 +-0.05
+# (doc/components.md). The lobes above reach past it, to y -2.25 and
+# 7.60, over the tabs' roots.
+HOTSWAP_SOCKET_BODY_ENDS_MM = (-2.07, 7.48)
 HOTSWAP_SOCKET_REACH_MM = 2.02
+
+# The socket body's height, from its bottom to the bumps on its top face
+# that bear on a board: Kailh's drawing (CPG135001S30 data sheet,
+# doc/components.md), 1.80 +-0.05, its end tabs' tops 1.85 +-0.1. The
+# STEP above models the body as one 1.85 block hung 0.17 below the PCB,
+# hence the 2.02 reach. A socket pressed against a printed frame instead
+# of soldered under a PCB hangs this far below it (work item 008).
+HOTSWAP_SOCKET_BODY_HEIGHT_MM = 1.80
 
 
 def socket_polygons(key_center):

@@ -53,7 +53,7 @@ jobs:
           name: kbdkid5-plate-stl-${{ env.SHORT_SHA }}
           path: plate/
           if-no-files-found: error
-      - name: Export fused mock and slit test STL
+      - name: Export fused mock, slit test and socket test STL
         run: |
           mkdir -p mock
           docker run --rm -v "$PWD":/work -w /work freecad-headless \
@@ -62,7 +62,15 @@ jobs:
             freecadcmd scripts/export_mock.py --pass mock/kbdkid5_Mock_Right.stl right
           docker run --rm -v "$PWD":/work -w /work freecad-headless \
             freecadcmd scripts/export_slit_test.py --pass mock/kbdkid5_Slit_Test.stl
-      - name: Upload fused mock and slit test STL
+          docker run --rm -v "$PWD":/work -w /work freecad-headless \
+            freecadcmd scripts/export_socket_test.py --pass mock/kbdkid5_Socket_Test_Pocket.stl \
+            pocket
+          docker run --rm -v "$PWD":/work -w /work freecad-headless \
+            freecadcmd scripts/export_socket_test.py --pass mock/kbdkid5_Socket_Test_Lip.stl lip
+          docker run --rm -v "$PWD":/work -w /work freecad-headless \
+            freecadcmd scripts/export_socket_test.py --pass mock/kbdkid5_Socket_Test_Backing.stl \
+            backing
+      - name: Upload fused mock, slit test and socket test STL
         uses: actions/upload-artifact@v4
         with:
           name: kbdkid5-mock-stl-${{ env.SHORT_SHA }}

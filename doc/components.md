@@ -273,6 +273,14 @@ Steel dowel pins perpendicular to the joint face carry the bending: when the joi
 
 **Recommendation: JST SH SM12B-SRSS-TB**, side entry, on the PCB underside near the edge facing the nano, so the plug and cable run horizontally along the floor. It leaves 3 of the 6 free, has the smallest header, and JST sells pre-crimped 28 AWG leads, so no SH crimping tool is needed. GH adds a latch but needs 4.35 of height and 18.25 of width. Soldering the wires straight to pads is the lowest, but then the PCB cannot come out of the tray without desoldering.
 
+## 7. Hotswap socket heights (2026-10-17)
+
+Kailh CPG135001S30, the Choc v1 hotswap socket. Source: Kailh's product specification KH-PS-1702-35 rev. B with drawing KHA-PG135D-005EN, https://www.kailhswitch.com/Content/upload/pdf/202115927/CPG135001S30-data-sheet.pdf?rnd=914 (`work/research/downloads/kailh-cpg135001s30/`). Its drawing is vector graphics, read by rendering the page with pdftoppm.
+
+- Confirmed (the drawing): body 1.80 ±0.05 thick, measured to the small bumps on its top face, 3.05 ±0.05 over its two contact bosses (2.90 ±0.05 across, they sit in the PCB's 3.0 holes), 1.85 ±0.1 at the end tabs, 13.15 ±0.15 tab to tab, 6.85 ±0.05 across both lobes, 4.65 per lobe, tabs 1.68 ±0.05 wide. The plastic body is 9.55 ±0.05 long along the tabs' axis (the plan view). The side view's 9.95 ±0.15 is between the tabs' inner ends, not the body. Mating force 3.0 kgf max, unmating 200 gf min.
+- Derived (pixels on the drawing's front view, 1.85 = 167 px): the body's flat top 1.69 above its bottom, the tabs' tops level with the 1.85, their bottoms 0.37 above the body's bottom, so a tab is about 1.5 tall.
+- The kbdkid4 package model's STEP (`kbdkid4/library/pkg/23d245ff-14f8-48ad-af68-56ebb3a76786/0c4954f5-24c7-4f36-a4b7-4bbd2ff10646.step`, probed with FreeCAD this session) matches the drawing's overall figures (13.15 tab to tab, 6.85 across, the body 9.55 between its end faces) but models the body and tabs as one 1.85 block whose top lies 0.17 under the PCB's underside, with bosses 2.9 across rising 1.15 above it: that gap is where kbdkid4's 2.02 reach comes from. Its section is the same over the body's height (probed at five heights), and its inside corners between the lobes are filled with a 1.5 and a 0.75 radius, as on the drawing's plan view, which `layout.HOTSWAP_SOCKET_FILLS_MM` covers.
+
 ## Not confirmed
 
 - nice!nano outline (33.3 x 18.0) and every pad position: measured on the manufacturer's render, ±0.1, not on a drawing or a board. Footprints say 33.02 x 17.78, the kbdkid4 model 33.2 x 17.8. A caliper settles it.

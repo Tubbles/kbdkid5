@@ -37,7 +37,13 @@ CI uploads both halves, plain and covered, as the `kbdkid5-plate-stl-<short comm
     docker run --rm -v "$PWD":/work -w /work freecad-headless \
         freecadcmd scripts/export_slit_test.py --pass strip.stl [pull_in=0.2]
 
-CI uploads both halves of the fused mock and the strip as the `kbdkid5-mock-stl-<short commit hash>` artifact: `kbdkid5_Mock_Left.stl`, `kbdkid5_Mock_Right.stl` and `kbdkid5_Slit_Test.stl`. The right half's outline and plate are mirrored like the other right parts, but not its switch footprints, since a switch cannot be mirrored: each sits as on the left half, at the mirrored key center.
+`scripts/export_socket_test.py` exports three stackable test strips for a keyboard without a PCB: a printed frame as thick as the PCB takes its place, each hotswap socket held in a pocket on the frame's underside, and the switches wired by hand. Each strip has six cells, and cell k has k notches in its south edge. `pocket` steps the pocket's fit from -0.10 to +0.15 mm. `lip` has snug pockets with lips the socket snaps past from below, reaching 0.15 to 0.35 mm under it, each at the end of a finger cut free by slots so it bends within the snap hook's 2 % strain (that strip has an extra notch in its north edge). `backing` is a plate that screws under either frame strip with M2 screws into heat-set inserts in the frame's bosses, its pads pressing each socket from -0.10 (a gap) to +0.15 mm. Print the pocket strip first: `lip_fit` gives the lip strip the pocket fit that holds the socket best there, and its lips keep their reach from the pocket walls. Solder a wire to each socket tab before pressing the socket in: the tab and its wire slide up a slot in the pocket wall. The frame strips print upside down, the backing bottom down. `insert_length` sets the bores for inserts shorter than the longest the bosses hold, 3.067 mm (an M2 x 3 fits).
+
+    docker run --rm -v "$PWD":/work -w /work freecad-headless \
+        freecadcmd scripts/export_socket_test.py --pass strip.stl pocket|lip|backing \
+        [pull_in=0.2] [insert_length=<mm>] [lip_fit=<mm>]
+
+CI uploads both halves of the fused mock and the strips as the `kbdkid5-mock-stl-<short commit hash>` artifact: `kbdkid5_Mock_Left.stl`, `kbdkid5_Mock_Right.stl`, `kbdkid5_Slit_Test.stl`, `kbdkid5_Socket_Test_Pocket.stl`, `kbdkid5_Socket_Test_Lip.stl` and `kbdkid5_Socket_Test_Backing.stl`. The right half's outline and plate are mirrored like the other right parts, but not its switch footprints, since a switch cannot be mirrored: each sits as on the left half, at the mirrored key center.
 
 ## 3D printed tray
 
