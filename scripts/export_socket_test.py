@@ -479,7 +479,8 @@ def check_finger_slots(frame, index, key_center, finger, lip_fit):
 
 def check_fingers(frame, frame_faces, lip_fit):
     """Each finger's bending length and thickness from its faces, its
-    root's strain as printed by the snap hook's formula with its lip's
+    root's strain as printed by the removed snap hook's formula
+    (layout.cantilever_strain()) with its lip's
     measured reach, failing above DESIGN_LIP_MAXIMUM_STRAIN_PERCENT, its
     slots and its root."""
     room = shape.finger_room_modelled() - 2.0 * layout.PRINT_SWELLING_PER_SIDE_MM

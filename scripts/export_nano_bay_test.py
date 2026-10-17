@@ -188,7 +188,8 @@ def bay_figures(fits):
         f"the clamp pressing {fits.clamp_press:.1f} as printed, its boss's top at z "
         f"{layout.nano_clamp_boss_top_z(fits):.1f}, the tab's strain "
         f"{100.0 * layout.nano_clamp_strain(fits):.2f} % as printed, bar "
-        f"{bar_clearance_as_printed(fits):.2f} over the shell as printed"
+        f"{bar_clearance_as_printed(fits):.2f} over the shell as printed, a flat tip lifting the "
+        f"south end {check_layout.pry_release_margin(fits):.2f} over the stop"
     )
 
 

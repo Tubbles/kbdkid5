@@ -739,7 +739,7 @@ def finger_slots(kind, key_center, lip_fit=LIP_POCKET_FIT_MM):
 
 def lip_snap_deflection(reach):
     """How far a finger bends for the socket to pass its lip, as the
-    snap hook counts it (layout.nano_hook_snap_deflection()): the lip's
+    tray's snap hook counted it before work item 009 removed it: the lip's
     overlap with the socket as modelled with the walls on it (the snug
     fit) plus the swelling of its 45 degree face, which is the lip's
     reach as printed."""
@@ -769,7 +769,8 @@ def finger_strain(finger, reach):
 def finger_swing(finger, reach):
     """How far the free end swings as printed while the lip's near end
     bends the snap deflection: past the load the finger turns straight,
-    as in layout.nano_hook_end_deflection()."""
+    by 3/2 the deflection over the bending length per mm, as the removed
+    snap hook's blade did."""
     deflection = lip_snap_deflection(reach)
     slope = 1.5 * deflection / finger_bending_length(finger)
     return deflection + slope * LIP_LENGTH_MM

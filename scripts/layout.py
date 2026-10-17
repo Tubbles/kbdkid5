@@ -1915,12 +1915,17 @@ def nano_bar_boxes(fits=DEFAULT_MOUNT_FITS):
 # down to the floor's top, like the standoffs, the floor's thickness
 # under it, and stands on a low foot that runs on north to the board:
 # the foot's north face, the board's end gap from its south end, is the
-# board's south stop. The stop is low (NANO_CLAMP_STOP_HEIGHT_MM)
-# because the board swings in about the shell's mouth: its south end
-# comes down from the south of where it rests, by its height squared
-# over twice its distance from the mouth, which a stop as tall as the
-# boss would block, and the board slides out over it once lifted (the
-# pry recess).
+# board's south stop. Taking the board out sets the stop's height
+# (NANO_CLAMP_STOP_HEIGHT_MM): with the tab off, the board slides south
+# over the stop once lifted at the pry recess, and a flat tip must lift
+# its south end clear of the stop with room to spare (check_layout.py).
+# Going in, the board is lowered with the shell's mouth on the floor,
+# level with its underside, so its south end comes down from the north
+# of where it rests (by its height squared over twice its distance from
+# the mouth) and no stop is in its way. Lifted at the pry it pitches
+# under the bar instead, about the shell's top, so its south end moves
+# south as it rises, within the board's play along y as printed at the
+# stop's height (DESIGN.md).
 # The boss stands with the screw NANO_CLAMP_SCREW_FROM_BOARD_END_MM
 # from the board's south end, so the head keeps clear of the socket
 # over the board's end in plan and the tab's arm is long enough to bend.
@@ -1939,7 +1944,7 @@ def nano_bar_boxes(fits=DEFAULT_MOUNT_FITS):
 # right half takes the same tab.
 NANO_CLAMP_WIDTH_MM = STANDOFF_DIAMETER_MM  # along x: the boss, its foot and the tab
 NANO_CLAMP_SCREW_FROM_BOARD_END_MM = 6.5
-NANO_CLAMP_STOP_HEIGHT_MM = 1.0
+NANO_CLAMP_STOP_HEIGHT_MM = 0.5
 NANO_CLAMP_TAB_THICKNESS_MM = 1.0
 NANO_CLAMP_TAB_REACH_MM = 1.0  # onto the board
 NANO_CLAMP_NOSE_DEPTH_MM = 2.1  # below the plate's underside
@@ -2265,10 +2270,12 @@ def nano_pry_tool_room():
     return NANO_PRY_RECESS_DEPTH_MM - PRINT_RISE_OF_UP_FACING_BOTTOMS_MM
 
 
-# The leverage (DESIGN.md): the board pitches about the shell's mouth,
-# where the bar holds it down, so a lift at the pry's middle lifts the
-# board's south end, which must clear the clamp's stop, by the ratio of
-# their distances from the mouth.
+# The leverage (DESIGN.md): lifted at the pry, north of its middle, the
+# board first pivots on its south end until the shell's top meets the
+# bar, the bar's clearance over it as printed. From there it pitches
+# about the shell's mouth, where the bar holds it down, so a further
+# lift at the pry's middle lifts the board's south end, which must clear
+# the clamp's stop, by the ratio of their distances from the mouth.
 def nano_pry_lever_ratio(fits=DEFAULT_MOUNT_FITS):
     pivot = nano_usb_shell_mouth_y()
     pry = sum(nano_pry_recess_box(fits).y_range) / 2.0
@@ -2280,6 +2287,20 @@ def nano_release_lift():
     clear the clamp's stop and slide south over it, the stop's top and
     the floor's top both facing up in the print."""
     return NANO_CLAMP_STOP_HEIGHT_MM
+
+
+def nano_pry_lift_to_release(fits=DEFAULT_MOUNT_FITS):
+    """The lift at the pry's middle that brings the board's south end
+    up to the clamp's stop's top."""
+    clearance = fits.bar_clearance
+    return clearance + (nano_release_lift() - clearance) / nano_pry_lever_ratio(fits)
+
+
+def nano_pry_south_end_lift(fits=DEFAULT_MOUNT_FITS):
+    """How far a flat tip, lifting the board its thickness at the pry,
+    lifts the board's south end."""
+    clearance = fits.bar_clearance
+    return clearance + (NANO_PRY_TOOL_THICKNESS_MM - clearance) * nano_pry_lever_ratio(fits)
 
 
 # The power switch: its lever's slot through the north wall, its swept

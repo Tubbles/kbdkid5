@@ -134,7 +134,6 @@ DESIGN_NANO_TOP_Z_MM = 1.6
 DESIGN_SHELL_WIDTH_MM = 8.94
 DESIGN_SHELL_TOP_Z_MM = 3.16
 DESIGN_SHELL_PAST_BOARD_MM = 0.87  # the shell's mouth past the board's USB end
-DESIGN_WEST_LEDGE_FACE_X_MM = 0.6
 DESIGN_NORTH_EDGES_Y_MM = {"nice!nano": 75.486, "power switch": 80.248, "reset button": 82.629}
 DESIGN_USB_WINDOW_MM = (10.5, 4.5)  # along x, along z
 DESIGN_USB_WINDOW_CENTER_Z_MM = 1.58
@@ -151,7 +150,7 @@ DESIGN_USB_CHANNEL_PAST_MOUTH_MM = 0.25  # its width the bar's opening, its top 
 # default press: the stop, the boss and its bore, all on the board's
 # center line.
 DESIGN_CLAMP_WIDTH_MM = 5.8  # along x: the stop and the boss
-DESIGN_CLAMP_STOP_TOP_Z_MM = 1.0
+DESIGN_CLAMP_STOP_TOP_Z_MM = 0.5
 DESIGN_CLAMP_SCREW_FROM_BOARD_MM = 6.5  # the bore's axis from the board's south end
 DESIGN_CLAMP_BOSS_MM = 5.8  # square
 DESIGN_CLAMP_BOSS_TOP_Z_MM = 3.6  # the board's top plus the nose's depth less the press

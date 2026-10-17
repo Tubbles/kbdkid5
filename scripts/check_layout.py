@@ -169,7 +169,7 @@ DESIGN_NANO_FREE_MIDDLE_X_MM = (3.105, 16.695)
 # The nice!nano's screw clamp (work item 009), at the default press.
 DESIGN_CLAMP_X_MM = (7.0, 12.8)  # the boss, its foot and the tab
 DESIGN_CLAMP_STOP_FROM_BOARD_MM = 0.25  # the foot's north face from the board's south end
-DESIGN_CLAMP_STOP_TOP_Z_MM = 1.0
+DESIGN_CLAMP_STOP_TOP_Z_MM = 0.5
 DESIGN_CLAMP_SCREW_FROM_BOARD_MM = 6.5  # the screw's axis from the board's south end
 DESIGN_CLAMP_BOSS_MM = 5.8  # square
 DESIGN_CLAMP_BOSS_TOP_Z_MM = 3.6
@@ -184,7 +184,7 @@ DESIGN_CLAMP_PRESS_MM = 0.1  # as printed
 DESIGN_CLAMP_ARM_MM = 4.615
 DESIGN_CLAMP_STRAIN_PERCENT = {True: 0.85, False: 0.70}  # as printed, as modelled
 DESIGN_CLAMP_MAXIMUM_STRAIN_PERCENT = 2.0  # PLA, the removed snap hook's
-DESIGN_CLAMP_NOSE_OVER_STOP_MM = 0.5
+DESIGN_CLAMP_NOSE_OVER_STOP_MM = 1.0
 DESIGN_CLAMP_HEAD_TOP_Z_MM = 6.8
 DESIGN_CLAMP_UNDER_PCB_MM = 1.2  # the head
 DESIGN_CLAMP_MINIMUM_UNDER_PCB_MM = 0.5
@@ -213,7 +213,10 @@ DESIGN_PRY_TOOL_ROOM_PRINTED_MM = 0.6  # its bottom counted 0.2 higher
 DESIGN_PRY_RECESS_FLOOR_UNDER_MM = 0.4  # as modelled, also the least
 DESIGN_PRY_RECESS_FROM_BATTERY_RIB_MM = 0.5  # north of the northwest rib
 DESIGN_PRY_LEVER_RATIO = 2.73
-DESIGN_PRY_LIFT_TO_RELEASE_MM = 0.37  # over the clamp's stop
+DESIGN_PRY_LIFT_TO_RELEASE_MM = 0.25  # to the clamp's stop's top, the bar's 0.1 taken up first
+DESIGN_PRY_SOUTH_END_LIFT_MM = 0.92  # a flat 0.4 tip under the board
+DESIGN_PRY_RELEASE_MARGIN_MM = 0.42  # that lift over the stop
+DESIGN_PRY_MINIMUM_RELEASE_MARGIN_MM = 0.4
 DESIGN_PRY_TOOL_DEGREES = {False: (7.3, 10.9), True: (7.3, 10.9)}  # from, to
 DESIGN_PRY_RECESS_CLEARANCES_MM = {  # what: (tightest, minimum)
     "the other parts": (1.8, 0.5),  # the battery
@@ -2699,10 +2702,26 @@ def pry_recess_figures():
         require_figure("from the battery's rib", recess.y_range[0] - rib.y_range[1],
                        DESIGN_PRY_RECESS_FROM_BATTERY_RIB_MM, 1),
         require_figure("lever ratio", layout.nano_pry_lever_ratio(), DESIGN_PRY_LEVER_RATIO, 2),
-        require_figure("lift at the pry to clear the clamp's stop",
-                       layout.nano_release_lift() / layout.nano_pry_lever_ratio(),
-                       DESIGN_PRY_LIFT_TO_RELEASE_MM, 2),
+        require_figure("lift at the pry to reach the clamp's stop's top",
+                       layout.nano_pry_lift_to_release(), DESIGN_PRY_LIFT_TO_RELEASE_MM, 2),
+        require_figure("a flat tip lifts the south end", layout.nano_pry_south_end_lift(),
+                       DESIGN_PRY_SOUTH_END_LIFT_MM, 2),
+        require_figure("over the stop", pry_release_margin(), DESIGN_PRY_RELEASE_MARGIN_MM, 2),
     ]
+
+
+def pry_release_margin(fits=layout.DEFAULT_MOUNT_FITS):
+    """How far a flat tip lifts the board's south end over the clamp's
+    stop."""
+    return layout.nano_pry_south_end_lift(fits) - layout.nano_release_lift()
+
+
+def pry_release_problems(fits=layout.DEFAULT_MOUNT_FITS):
+    margin = pry_release_margin(fits)
+    if margin < DESIGN_PRY_MINIMUM_RELEASE_MARGIN_MM - TOLERANCE_MM:
+        return [f"a flat tip lifts the board's south end only {margin:.3f} over the clamp's "
+                f"stop, under {DESIGN_PRY_MINIMUM_RELEASE_MARGIN_MM}"]
+    return []
 
 
 def pry_recess_groove_overlap():
@@ -2743,7 +2762,8 @@ def check_pry_recess(right=False):
                        DESIGN_PRY_TOOL_DEGREES[right][0], 1),
         require_figure("to", degrees(steepest), DESIGN_PRY_TOOL_DEGREES[right][1], 1),
     ]
-    fail_on(problems + pry_recess_board_problems() + pry_tool_problems(right) + failed(figures),
+    fail_on(problems + pry_recess_board_problems() + pry_tool_problems(right)
+            + pry_release_problems() + failed(figures),
             f"{half_label(right)}the nice!nano's pry recess off DESIGN.md")
     unstated = [f"from {what} {tightest[what]}"
                 for what, stated in stated_clearances.items() if stated is None]
