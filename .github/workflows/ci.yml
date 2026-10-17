@@ -72,6 +72,9 @@ jobs:
           docker run --rm -v "$PWD":/work -w /work freecad-headless \
             freecadcmd scripts/export_socket_test.py --pass mock/kbdkid5_Socket_Test_Backing.stl \
             backing
+          docker run --rm -v "$PWD":/work -w /work freecad-headless \
+            freecadcmd scripts/export_socket_test.py --pass mock/kbdkid5_Socket_Test_Holes.stl \
+            holes
       - name: Upload fused mock, slit test and socket test STL
         uses: actions/upload-artifact@v4
         with:

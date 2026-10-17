@@ -77,11 +77,14 @@ DESIGN_POCKET_FITS_MM = (-0.40, -0.35, -0.30, -0.25, -0.20, -0.15)
 DESIGN_POCKET_PRINTED_X_MM = (9.15, 9.20, 9.25, 9.30, 9.35, 9.40)
 DESIGN_POCKET_PRINTED_Y_MM = (6.45, 6.50, 6.55, 6.60, 6.65, 6.70)
 DESIGN_POCKET_PIN_HOLE_DIAMETER_MM = 3.50
+DESIGN_HOLE_STRIP_HOLES_MM = (3.50, 3.40, 3.30, 3.20, 3.10, 3.00)
+DESIGN_HOLE_STRIP_POCKET_FIT_MM = 0.15
+DESIGN_HOLE_STRIP_POCKET_PRINTED_MM = (9.70, 7.00)
 DESIGN_LIP_POCKET_PRINTED_MM = (9.55, 6.85)
 DESIGN_LIP_REACHES_MM = (0.15, 0.19, 0.23, 0.27, 0.31, 0.35)
 DESIGN_LIP_LENGTH_MM = 1.00
 DESIGN_PAD_OFFSETS_MM = (-0.10, -0.05, 0.00, 0.05, 0.10, 0.15)
-DESIGN_WALL_DEPTHS_MM = {shape.POCKET: 1.80, shape.LIP: 2.27}
+DESIGN_WALL_DEPTHS_MM = {shape.POCKET: 1.80, shape.LIP: 2.27, shape.HOLES: 1.80}
 DESIGN_LIP_RETAINING_DEPTH_MM = 2.00
 DESIGN_TAB_SLOT_WIDTH_MM = 3.18
 DESIGN_BOSS_HEIGHT_MM = 3.87
@@ -127,12 +130,13 @@ MEASURE_TOLERANCE_MM = 1e-6
 WINDOW_MM = 0.5
 
 USAGE = f"""\
-usage: freecadcmd scripts/export_socket_test.py --pass <strip.stl> pocket|lip|backing
+usage: freecadcmd scripts/export_socket_test.py --pass <strip.stl> pocket|lip|backing|holes
            [pull_in={pcb_shape.DEFAULT_PULL_IN_MM}] [insert_length=<mm>] [lip_fit=<mm>]
 
   pocket         the pocket strip, its pocket's fit stepping across the cells
   lip            the lip strip, its lips' reach stepping across the cells
   backing        the backing strip, its pads' height stepping across the cells
+  holes          the hole strip, its pin holes stepping across the cells
   pull_in        swelling allowance per side, mm: the footprint holes grow by it
                  (all but the pocket strip's pin holes, 3.5 as modelled)
   insert_length  the heat-set inserts' length, mm, which sets the bores' depth:
@@ -260,6 +264,8 @@ def design_pocket_size(kind, index, lip_fit):
     lip_fit override."""
     if kind == shape.LIP:
         return DESIGN_LIP_POCKET_PRINTED_MM if lip_fit == shape.LIP_POCKET_FIT_MM else None
+    if kind == shape.HOLES:
+        return DESIGN_HOLE_STRIP_POCKET_PRINTED_MM
     return DESIGN_POCKET_PRINTED_X_MM[index], DESIGN_POCKET_PRINTED_Y_MM[index]
 
 
@@ -285,6 +291,8 @@ def check_pockets(kind, frame, frame_faces, lip_fit):
                            design[1])
         if kind == shape.POCKET:
             require_design(f"cell {index + 1}'s fit", fit, DESIGN_POCKET_FITS_MM[index])
+        if kind == shape.HOLES:
+            require_design(f"cell {index + 1}'s fit", fit, DESIGN_HOLE_STRIP_POCKET_FIT_MM)
         print(f"cell {index + 1}:     pocket fit {fit:+.2f}, {x_size:.3f} x {y_size:.3f} modelled, "
               f"{x_size - swelling:.3f} x {y_size - swelling:.3f} printed, centered within "
               f"{offset:.1e}")
@@ -684,27 +692,50 @@ def check_bores(frame, insert_length):
           f"{floor:.3f}; the longest insert they hold {shape.longest_insert_length():.3f}")
 
 
+def measured_pin_holes(frame, index, radius):
+    """The centers of cell index's vertical cylinders of a radius that
+    run through the plate, the plate's top face to the ceiling."""
+    key_x, _ = shape.cell_key_center(index)
+    return {center for center, (low, high) in bore_faces(frame, radius).items()
+            if abs(low) < MEASURE_TOLERANCE_MM
+            and abs(high - layout.PCB_THICKNESS_MM) < MEASURE_TOLERANCE_MM
+            and abs(center[0] - key_x) < layout.KEY_PITCH_MM / 2.0}
+
+
+def design_pin_hole(kind, index):
+    """DESIGN.md's pin holes as modelled, or None where they follow
+    from pull_in."""
+    if kind == shape.POCKET:
+        return DESIGN_POCKET_PIN_HOLE_DIAMETER_MM
+    if kind == shape.HOLES:
+        return DESIGN_HOLE_STRIP_HOLES_MM[index]
+    return None
+
+
 def check_pin_holes(kind, frame, pull_in):
     """The two holes the socket's bosses sit in, in every cell, through
-    the plate at the strip's size."""
+    the plate at the cell's size."""
     local = layout.CHOC_FOOTPRINT_PIN_HOLE_CENTERS_MM[0]
-    radius = shape.hole_radius(kind, local, dict(layout.CHOC_FOOTPRINT_HOLES_MM)[local], pull_in)
-    found = bore_faces(frame, radius)
-    expected = {(round(x, 6), round(y, 6))
-                for index in range(shape.CELL_COUNT)
-                for x, y in (layout.footprint_point(shape.cell_key_center(index), center)
-                             for center in layout.CHOC_FOOTPRINT_PIN_HOLE_CENTERS_MM)}
-    through = all(abs(low) < MEASURE_TOLERANCE_MM
-                  and abs(high - layout.PCB_THICKNESS_MM) < MEASURE_TOLERANCE_MM
-                  for low, high in found.values())
-    if set(found) != expected or not through:
-        raise SystemExit(f"error: found {len(found)} pin holes {2.0 * radius:.3f} across, not "
-                         f"one through the plate at each of the {len(expected)} pin hole centers")
-    if kind == shape.POCKET:
-        require_design("the pocket strip's pin holes", 2.0 * radius,
-                       DESIGN_POCKET_PIN_HOLE_DIAMETER_MM)
-    printed = 2.0 * (radius - layout.PRINT_SWELLING_PER_SIDE_MM)
-    print(f"pin holes:  {len(found)}, {2.0 * radius:.3f} across modelled, {printed:.3f} printed")
+    diameters = []
+    for index in range(shape.CELL_COUNT):
+        radius = shape.hole_radius(kind, index, local, dict(layout.CHOC_FOOTPRINT_HOLES_MM)[local],
+                                   pull_in)
+        expected = {(round(x, 6), round(y, 6))
+                    for x, y in (layout.footprint_point(shape.cell_key_center(index), center)
+                                 for center in layout.CHOC_FOOTPRINT_PIN_HOLE_CENTERS_MM)}
+        found = measured_pin_holes(frame, index, radius)
+        if found != expected:
+            raise SystemExit(f"error: cell {index + 1} has {len(found)} pin holes "
+                             f"{2.0 * radius:.3f} across through the plate, expected "
+                             f"{len(expected)}")
+        design = design_pin_hole(kind, index)
+        if design is not None:
+            require_design(f"cell {index + 1}'s pin holes", 2.0 * radius, design)
+        diameters.append(2.0 * radius)
+    swelling = 2.0 * layout.PRINT_SWELLING_PER_SIDE_MM
+    print(f"pin holes:  {2 * shape.CELL_COUNT}, cells 1 to {shape.CELL_COUNT} "
+          + ", ".join(f"{diameter:.3f}" for diameter in diameters) + " across modelled, "
+          + ", ".join(f"{diameter - swelling:.3f}" for diameter in diameters) + " printed")
 
 
 def switch_part_columns(key_center):
@@ -825,8 +856,7 @@ def check_finger_clearances(kind, pull_in, lip_fit, frame, bodies, columns, slot
         return []
     other_holes = [shape.hole_cutter(center, radius, layout.PCB_THICKNESS_MM)
                    for index in range(shape.CELL_COUNT)
-                   for center, radius in shape.cell_holes(kind, shape.cell_key_center(index),
-                                                          pull_in)[1:]]
+                   for center, radius in shape.cell_holes(kind, index, pull_in)[1:]]
     slot_prisms = finger_slot_prisms(kind, lip_fit)
     web = least_distance(slot_prisms, other_holes)
     require_clearance("the fingers' slots from the footprint holes but the center post's", web,
@@ -879,11 +909,16 @@ def check_frame_clearances(kind, pull_in, lip_fit, frame):
         recesses.extend(plan_prism(shape.tab_slot(key_center, tab), 0.0, shape.TAB_RECESS_DEPTH_MM)
                         for tab in shape.socket_tab_specs())
         holes.extend(shape.hole_cutter(center, radius, layout.PCB_THICKNESS_MM)
-                     for center, radius in shape.cell_holes(kind, key_center, pull_in))
+                     for center, radius in shape.cell_holes(kind, index, pull_in))
     recess_web = require_clearance("the tabs' recesses from the footprint holes",
                                    least_distance(recesses, holes), RECESS_HOLE_CLEARANCE_MM)
+    tab_count, hole_count = len(shape.socket_tab_specs()), len(layout.CHOC_FOOTPRINT_HOLES_MM)
+    cell_webs = [least_distance(recesses[index * tab_count:(index + 1) * tab_count],
+                                holes[index * hole_count:(index + 1) * hole_count])
+                 for index in range(shape.CELL_COUNT)]
     print(f"recesses:   {recess_web:.3f} from the footprint holes as modelled, "
-          f"{recess_web + 2.0 * layout.PRINT_SWELLING_PER_SIDE_MM:.3f} as printed")
+          f"{recess_web + 2.0 * layout.PRINT_SWELLING_PER_SIDE_MM:.3f} as printed; cells 1 to "
+          f"{shape.CELL_COUNT} " + ", ".join(f"{web:.3f}" for web in cell_webs) + " as modelled")
     figures = [
         ("bosses from the walls", least_distance(bosses, walls)),
         ("bosses from the wire rooms", least_distance(bosses, rooms)),
@@ -911,14 +946,15 @@ def check_notches(strip, z):
 
 
 def check_marks(kind, frame):
-    """Every frame strip's marks open on its own strip only."""
+    """The strip's north edge open at its own marks and solid at every
+    other strip's (the hole strip shares the lip strip's middle one)."""
     _, (_, y_high) = shape.plate_rectangle()
-    for mark_kind in shape.FRAME_KINDS:
-        for x in shape.strip_mark_xs(mark_kind):
-            point = App.Vector(x, y_high - shape.LIP_STRIP_MARK_DEPTH_MM / 2.0,
-                               layout.PCB_THICKNESS_MM / 2.0)
-            if frame.isInside(point, MEASURE_TOLERANCE_MM, True) == (kind == mark_kind):
-                raise SystemExit(f"error: the {mark_kind} strip's mark at x {x:.2f} is wrong")
+    own = shape.strip_mark_xs(kind)
+    for x in sorted({x for mark_kind in shape.STRIP_KINDS for x in shape.strip_mark_xs(mark_kind)}):
+        point = App.Vector(x, y_high - shape.LIP_STRIP_MARK_DEPTH_MM / 2.0,
+                           layout.PCB_THICKNESS_MM / 2.0)
+        if frame.isInside(point, MEASURE_TOLERANCE_MM, True) == (x in own):
+            raise SystemExit(f"error: the {kind} strip's north edge is wrong at x {x:.2f}")
 
 
 def export_frame(arguments):

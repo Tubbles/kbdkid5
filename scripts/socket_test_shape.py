@@ -126,7 +126,9 @@ from tray_shape import CUT_EXTRA_MM, UP, plan_prism, rectangle_wire, require_one
 POCKET = "pocket"
 LIP = "lip"
 BACKING = "backing"
-STRIP_KINDS = (POCKET, LIP, BACKING)
+HOLES = "holes"
+STRIP_KINDS = (POCKET, LIP, BACKING, HOLES)
+# The frame strips the backing is stacked under and checked against.
 FRAME_KINDS = (POCKET, LIP)
 
 CELL_COUNT = 6
@@ -160,6 +162,13 @@ LIP_POCKET_FIT_MM = layout.SNUG_FIT_MM
 # slots keep FINGER_SLOT_HOLE_WEB_MM from them only up to 3.44, and it
 # waits for the pocket strip's result through lip_fit anyway.
 POCKET_STRIP_PIN_HOLE_DIAMETER_MM = 3.5
+
+# The hole strip: every pocket at the first pocket strip's cell 6 fit,
+# which the user found loose, so only the pin holes can hold the
+# socket, the pin holes stepping down from the pocket strip's across the
+# cells (cell_pin_hole_diameter()), as modelled whatever pull_in.
+HOLE_STRIP_POCKET_FIT_MM = 0.15
+HOLE_STRIP_PIN_HOLE_STEP_MM = 0.10
 
 # The pocket walls, as thick as the tray's (two lines), and their
 # clearance as modelled from the holes of the switch's center post and
@@ -292,6 +301,8 @@ LIP_STRIP_MARK_WIDTH_MM = 3.0
 LIP_STRIP_MARK_DEPTH_MM = 1.5
 LIP_STRIP_MARK_X_MM = 3 * layout.KEY_PITCH_MM
 POCKET_STRIP_MARK_XS_MM = (2 * layout.KEY_PITCH_MM, 4 * layout.KEY_PITCH_MM)
+HOLE_STRIP_MARK_XS_MM = (1 * layout.KEY_PITCH_MM, 3 * layout.KEY_PITCH_MM,
+                         5 * layout.KEY_PITCH_MM)
 
 VOLUME_RELATIVE_TOLERANCE = pcb_shape.VOLUME_RELATIVE_TOLERANCE
 AREA_TOLERANCE_MM2 = 1e-9
@@ -463,6 +474,8 @@ def cell_key_center(index):
 def cell_pocket_fit(kind, index, lip_fit=LIP_POCKET_FIT_MM):
     if kind == LIP:
         return lip_fit
+    if kind == HOLES:
+        return HOLE_STRIP_POCKET_FIT_MM
     return FIRST_POCKET_FIT_MM + index * POCKET_FIT_STEP_MM
 
 
@@ -509,7 +522,7 @@ def lip_band_bottom_depth():
 
 
 def wall_depth(kind):
-    return socket_height() if kind == POCKET else lip_band_bottom_depth()
+    return lip_band_bottom_depth() if kind == LIP else socket_height()
 
 
 def boss_height():
@@ -891,7 +904,9 @@ def notch_rectangles():
 
 def strip_mark_xs(kind):
     """The x centers of a strip's marks in its north edge."""
-    return {LIP: (LIP_STRIP_MARK_X_MM,), POCKET: POCKET_STRIP_MARK_XS_MM}.get(kind, ())
+    marks = {LIP: (LIP_STRIP_MARK_X_MM,), POCKET: POCKET_STRIP_MARK_XS_MM,
+             HOLES: HOLE_STRIP_MARK_XS_MM}
+    return marks.get(kind, ())
 
 
 def mark_rectangle(x):
@@ -919,20 +934,29 @@ def is_pin_hole(local_center):
     return local_center in layout.CHOC_FOOTPRINT_PIN_HOLE_CENTERS_MM
 
 
-def hole_radius(kind, local_center, diameter, pull_in):
-    """A footprint hole's radius as modelled: grown by pull_in, but the
-    pocket strip's pin holes POCKET_STRIP_PIN_HOLE_DIAMETER_MM across."""
+def cell_pin_hole_diameter(index):
+    """The hole strip's cell index's pin holes as modelled."""
+    return POCKET_STRIP_PIN_HOLE_DIAMETER_MM - index * HOLE_STRIP_PIN_HOLE_STEP_MM
+
+
+def hole_radius(kind, index, local_center, diameter, pull_in):
+    """Cell index's footprint hole's radius as modelled: grown by
+    pull_in, but the pocket strip's pin holes
+    POCKET_STRIP_PIN_HOLE_DIAMETER_MM across and the hole strip's
+    cell_pin_hole_diameter()."""
     if kind == POCKET and is_pin_hole(local_center):
         return POCKET_STRIP_PIN_HOLE_DIAMETER_MM / 2.0
+    if kind == HOLES and is_pin_hole(local_center):
+        return cell_pin_hole_diameter(index) / 2.0
     return diameter / 2.0 + pull_in
 
 
-def cell_holes(kind, key_center, pull_in):
-    """A cell's footprint holes as (center, radius as modelled), in
+def cell_holes(kind, index, pull_in):
+    """Cell index's footprint holes as (center, radius as modelled), in
     layout.CHOC_FOOTPRINT_HOLES_MM's order."""
-    return [(center, hole_radius(kind, local_center, diameter, pull_in))
+    return [(center, hole_radius(kind, index, local_center, diameter, pull_in))
             for (center, diameter), (local_center, _) in zip(
-                layout.footprint_holes(key_center), layout.CHOC_FOOTPRINT_HOLES_MM)]
+                layout.footprint_holes(cell_key_center(index)), layout.CHOC_FOOTPRINT_HOLES_MM)]
 
 
 def hole_cutter(center, radius, thickness):
@@ -942,7 +966,7 @@ def hole_cutter(center, radius, thickness):
 def strip_holes(kind, pull_in):
     """Every cell's footprint holes as (center, radius) in the plate."""
     return [hole for index in range(CELL_COUNT)
-            for hole in cell_holes(kind, cell_key_center(index), pull_in)]
+            for hole in cell_holes(kind, index, pull_in)]
 
 
 def strip_tab_slots():
@@ -1129,7 +1153,7 @@ def build_plate(kind, pull_in, lip_fit=LIP_POCKET_FIT_MM):
         key_center = cell_key_center(index)
         cutters.extend(
             hole_cutter(center, radius, thickness)
-            for center, radius in cell_holes(kind, key_center, pull_in)
+            for center, radius in cell_holes(kind, index, pull_in)
         )
         cutters.extend(
             plan_prism(tab_slot(key_center, tab), -CUT_EXTRA_MM, TAB_RECESS_DEPTH_MM)
