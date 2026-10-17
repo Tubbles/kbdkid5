@@ -6,12 +6,13 @@ layout's frame) with each key's two pin holes replaced by slits that
 grip the switch's pin blades, the way a hotswap socket's contacts do:
 slit_width across the blade, slit_length along it. pull_in sets their
 defaults but does not grow a given slit_width or slit_length. By
-default the width is the blade's thickness plus pull_in per side, a
-nominal zero clearance once the print swells as expected, until the
-test strip (export_slit_test.py) shows which width grips best, and
-the length is the blade's width plus pull_in per side plus
-layout.SLIT_LENGTH_CLEARANCE_MM, so only the width grips. Every other
-hole is the mock's, grown by pull_in.
+default the width is the model's blade thickness plus pull_in per
+side, meant as a nominal zero clearance once the print swells as
+expected. The user's print of the first slit test strip showed it
+does not grip, and it stays until the second strip
+(export_slit_test.py) has been tried. The length is the blade's width
+plus pull_in per side plus layout.SLIT_LENGTH_CLEARANCE_MM, so only
+the width grips. Every other hole is the mock's, grown by pull_in.
 
 The plate on it is plate_shape.py's (z 9.6 to 11.8), plain, with its
 side shave but no pattern shift: kbdkid4's shift corrects its printed
@@ -69,7 +70,7 @@ usage: freecadcmd scripts/export_mock.py --pass <mock.stl> [right]
   pull_in      swelling allowance per side, mm: the PCB layer's outline moves
                inward and its holes grow outward by this much; it sets the
                slits' defaults but does not grow a given slit size
-  slit_width   the pin slits across the blade, mm (default the blade's
+  slit_width   the pin slits across the blade, mm (default the model blade's
                {layout.CHOC_PIN_BLADE_THICKNESS_MM} plus pull_in per side)
   slit_length  the pin slits along the blade, mm (default the blade's
                {layout.CHOC_PIN_BLADE_WIDTH_MM} plus pull_in per side, plus

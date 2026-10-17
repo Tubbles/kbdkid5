@@ -32,8 +32,9 @@ The fused mock (export_mock.py) and its slit test strip
 (export_slit_test.py) replace each key's two pin holes with slits that
 grip the switch's pin blades: rectangles at the size given, which
 pull_in does not grow (it only sets the default sizes, in layout.py).
-They share the helpers at the end of this module: fusing the PCB layer
-with the plate and measuring the openings of a fused part's faces.
+The helpers at the end of this module fuse the fused mock's PCB layer
+with the plate and measure the openings of a part's faces, the latter
+for the strip too.
 
 build_mock() returns the mock with its bottom face on z = 0. Like
 freecad_common.py this module has no entry point, so it is safe to

@@ -162,6 +162,13 @@ CHOC_PIN_BLADE_WIDTH_MM = 0.8
 CHOC_PIN_FULL_WIDTH_DEPTH_MM = 2.65
 CHOC_PIN_LENGTH_MM = 3.0
 
+# The blades' thicknesses along footprint x, in CHOC_PIN_CENTERS_MM's
+# order: the user's caliper figures on a real switch (2026-10-17), the
+# pin near a side peg about 0.4, the middle one about 0.2. The model
+# said 0.2 for both (CHOC_PIN_BLADE_THICKNESS_MM). The second slit
+# test strip (export_slit_test.py) sizes its slits from these.
+CHOC_PIN_CALIPERED_BLADE_THICKNESSES_MM = (0.4, 0.2)
+
 
 def footprint_rectangle(key_center, local_center, size_along_x, size_along_y):
     """A rectangle around a footprint-local center, its sides along the
@@ -183,17 +190,27 @@ def footprint_rectangle(key_center, local_center, size_along_x, size_along_y):
 def pin_slits(key_center, slit_length, slit_width):
     """A key's two slits for the switch's pins, centered on the blades:
     slit_length along each blade's width, slit_width across it."""
+    return pin_slits_of_widths(key_center, slit_length, (slit_width,) * len(CHOC_PIN_CENTERS_MM))
+
+
+def pin_slits_of_widths(key_center, slit_length, slit_widths):
+    """A key's two pin slits like pin_slits(), each with its own width
+    across its blade, slit_widths in CHOC_PIN_CENTERS_MM's order."""
     return tuple(
         footprint_rectangle(key_center, pin_center, slit_width, slit_length)
-        for pin_center in CHOC_PIN_CENTERS_MM
+        for pin_center, slit_width in zip(CHOC_PIN_CENTERS_MM, slit_widths, strict=True)
     )
 
 
 # The fused mock's default slits (DESIGN.md, "Plate and mocks"), for a
-# print that swells by pull_in per side: across the blade its thickness
-# plus pull_in per side, a nominal zero clearance as printed, and along
-# it its width plus pull_in per side plus SLIT_LENGTH_CLEARANCE_MM, so
-# only the slit's width grips the blade.
+# print that swells by pull_in per side: across the blade the model's
+# thickness plus pull_in per side (0.6 at the default pull_in), meant
+# as a nominal zero clearance as printed, and along it its width plus
+# pull_in per side plus SLIT_LENGTH_CLEARANCE_MM, so only the slit's
+# width grips the blade. The width was the first slit test strip's
+# default, and the user's print of that strip showed it does not grip
+# (doc/log/2026-10-17.md). It stays until the second strip
+# (export_slit_test.py) has been tried.
 SLIT_LENGTH_CLEARANCE_MM = 0.4
 
 

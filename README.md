@@ -32,7 +32,7 @@ CI uploads both halves, plain and covered, as the `plate-stl` artifact: `kbdkid5
         freecadcmd scripts/export_mock.py --pass mock.stl [right] \
         [pull_in=0.2] [slit_width=0.6] [slit_length=1.6]
 
-`scripts/export_slit_test.py` exports a strip of six single-key cells to find the slit width that grips best: slits 0.5, 0.6 (the default), 0.7, 0.8, 0.9 and 1.0 mm wide, all 1.6 mm long, and cell k has k notches in its south edge. Pass the winning width to the fused mock as `slit_width`.
+`scripts/export_slit_test.py` exports a strip of six single-key cells of the PCB layer alone, with no plate, to find the slits that grip the switch's pins. The first strip's slits, 0.5 to 1.0 mm, all let the blades through easily, so the fused mock's default 0.6 mm does not grip either. On a real switch the two blades are not equally thick, so each pin gets its own slit, its blade's thickness plus the cell's clearance as modelled (no `pull_in`), from -0.15 mm in cell 1 to +0.10 mm in cell 6 in 0.05 mm steps: 0.05 to 0.30 mm for the middle pin, 0.25 to 0.50 mm for the pin near a side peg, all 1.6 mm long. PrusaSlicer's "Slice gap closing radius" defaults to 0.049 mm, which fills cell 1's middle slit, so lower that setting for this strip, and check every slit in the slicer preview. Elephant foot on the bed face matters too, as for the fused mock. Cell k has k notches in its south edge. The clearance that holds a switch best sets the fused mock's slits.
 
     docker run --rm -v "$PWD":/work -w /work freecad-headless \
         freecadcmd scripts/export_slit_test.py --pass strip.stl [pull_in=0.2]
