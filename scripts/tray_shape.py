@@ -21,23 +21,29 @@ slant, the standoffs bored for M2 heat-set inserts, and the dowel pin
 bosses and the parking hole's boss, up to the PCB's underside, with the
 fills that close the crevices beside them. Then the cuts, all exactly as
 layout.py gives them: the ledge cut-aways layout.py declares for the
-parts in the tray (whose mounts are work item 004's), the sockets'
-notches, pockets and reliefs, and the standoffs' flats. Every cut but
-the pockets is clipped to the cavity so it never reaches the wall, and
-a cut that finds nothing left to remove (a tab's relief inside its
-notch) is skipped. Last the magnet slots, open toward the cavity, with
-the wall cut back over them, the flat-topped teardrop pin holes (the
-half's fit and depth, the right half's with a lead-in at the mouth),
-the flat-topped teardrop parking hole and the chamfer along the joint
-face's bottom edge. Each step checks its volume and probes what it
-made.
+parts in the tray, the sockets' notches, pockets and reliefs, and the
+standoffs' flats. Every cut but the pockets is clipped to the cavity so
+it never reaches the wall, and a cut that finds nothing left to remove
+(a tab's relief inside its notch) is skipped. Then the parts' mounts
+(work item 004), layout.py's boxes in its order: the nice!nano's
+hold-down bar on its posts, its snap hook and its east ribs, the power
+switch's cradle, the reset button's back wall, the battery header's
+pocket and the battery's corner ribs, then the USB shell's channel and
+the USB window, the lever slot and the reset pin hole through the north
+wall and the nice!nano's solder grooves and the hook's slots in the
+floor, with the slots' and the blade's bed edges chamfered. Last the magnet
+slots, open toward the cavity, with the wall cut back over them, the
+flat-topped teardrop pin holes (the half's fit and depth, the right
+half's with a lead-in at the mouth), the flat-topped teardrop parking
+hole and the chamfer along the joint face's bottom edge. Each step
+checks its volume and probes what it made.
 
 The right half is built in the left half's frame, cut for its own
 sockets (layout.py's module docstring), and mirrored across the
 layout's mirror line by mirror_for_right_half(), so the halves' pins
 and magnets sit at the same places along the slant. build_tray()
-returns the tray unmirrored, so work that extends it (the parts' mounts,
-a carrying case) can add to it in the layout's frame first.
+returns the tray unmirrored, so work that extends it (a carrying case)
+can add to it in the layout's frame first.
 
 Like freecad_common.py this module has no entry point, so it is safe
 to import from the export scripts and probes.
@@ -292,6 +298,8 @@ class Tray:
     pin_hole_lead_in: float
     cuts: list  # (label, removed volume) of the ledge, wall and standoff cuts
     skipped_cuts: list  # labels of the cuts that found nothing left to remove
+    fits: layout.MountFits  # the mounts' fits the tray was built with
+    mounts: list  # (label, added volume) of the mounts' bodies
 
 
 def layout_polygon_wire(polygon, z):
@@ -829,6 +837,560 @@ def chamfer_joint_face_bottom(tray, corner_radius):
     return result
 
 
+# The parts' mounts (work item 004): layout.py gives every body and void
+# as a MountBox. The bodies are fused one by one after the standoffs'
+# flats, so the cradle can fill the ledge cut-away's margins, then the
+# voids are cut. Each is checked against a volume worked out from the
+# layout alone where the tray around it is known (the hook on the open
+# floor, the voids in the wall and the floor), and probed.
+
+
+def box_prism(box, extra_below=0.0, extra_above=0.0):
+    """A MountBox as a solid, its z range run on by the given extras."""
+    (low_x, high_x), (low_y, high_y) = box.x_range, box.y_range
+    corners = ((low_x, low_y), (high_x, low_y), (high_x, high_y), (low_x, high_y))
+    return plan_prism(corners, box.z_range[0] - extra_below, box.z_range[1] + extra_above)
+
+
+def box_point(box, x_fraction=0.5, y_fraction=0.5, z=None):
+    """A point inside a box at the given fractions of its x and y ranges,
+    at its middle height unless z is given."""
+    (low_x, high_x), (low_y, high_y) = box.x_range, box.y_range
+    if z is None:
+        z = sum(box.z_range) / 2.0
+    return App.Vector(
+        low_x + x_fraction * (high_x - low_x), low_y + y_fraction * (high_y - low_y), z
+    )
+
+
+def range_overlap(first, second):
+    return max(0.0, min(first[1], second[1]) - max(first[0], second[0]))
+
+
+def box_overlap_volume(first, second):
+    return (
+        range_overlap(first.x_range, second.x_range)
+        * range_overlap(first.y_range, second.y_range)
+        * range_overlap(first.z_range, second.z_range)
+    )
+
+
+def box_volume(box):
+    return box_overlap_volume(box, box)
+
+
+def fuse_mount_body(tray, label, body):
+    """(tray, added volume) after fusing a mount body: one valid solid,
+    more plastic but no more than the body, solid at the body's center
+    of mass."""
+    result = tray.fuse(body)
+    require_one_valid_solid(result, f"adding the {label}")
+    added = result.Volume - tray.Volume
+    if not NOTHING_LEFT_MM3 < added <= body.Volume + NOTHING_LEFT_MM3:
+        raise SystemExit(
+            f"error: the {label} added {added:.3f} mm3, its body is {body.Volume:.3f} mm3"
+        )
+    if not is_solid_at(result, body.CenterOfMass):
+        raise SystemExit(f"error: the {label} is not solid at its center of mass")
+    return result, added
+
+
+def nano_hook_lip_solid(fits):
+    """The lip's triangle (layout.nano_hook_lip_profile()) across its x
+    range."""
+    low_x, high_x = layout.nano_hook_lip_x_range()
+    points = [App.Vector(low_x, y, z) for y, z in layout.nano_hook_lip_profile(fits)]
+    face = Part.Face(Part.makePolygon(points + [points[0]]))
+    return face.extrude(App.Vector(high_x - low_x, 0.0, 0.0))
+
+
+def mount_body_solid(box, fits):
+    """The solid a mount body's box stands for: the hook's lip is its
+    triangle, every other body its box."""
+    if box.label == layout.nano_hook_lip_box(fits).label:
+        return nano_hook_lip_solid(fits)
+    return box_prism(box)
+
+
+def nano_hook_added_volumes(fits):
+    """{label: volume} the blade and the lip add on the open floor: the
+    blade above the floor's top, the lip all of its triangle, whose base
+    on the blade's face is twice its reach and whose height is its
+    reach."""
+    blade = layout.nano_hook_blade_box(fits)
+    lip = layout.nano_hook_lip_box(fits)
+    blade_top = layout.MountBox(
+        blade.label, blade.part, blade.x_range, blade.y_range, (0.0, blade.z_range[1])
+    )
+    reach = lip.y_range[1] - lip.y_range[0]
+    return {
+        blade.label: box_volume(blade_top),
+        lip.label: reach**2 * (lip.x_range[1] - lip.x_range[0]),
+    }
+
+
+def check_nano_hook(tray, fits):
+    """The blade stands this tall and no taller, and its lip reaches onto
+    the board and passes over the board's south edge clear of it."""
+    blade = layout.nano_hook_blade_box(fits)
+    (face, low), (tip, tip_z), _ = layout.nano_hook_lip_profile(fits)
+    lip_x = sum(layout.nano_hook_lip_x_range()) / 2.0
+    edge = layout.nano_south_end_y(fits)
+    edge_z = low + (edge - face)
+    top = blade.z_range[1]
+    for point, want_solid, what in (
+        (box_point(blade, z=top - 0.05), True, "this tall"),
+        (box_point(blade, z=top + 0.05), False, "no taller"),
+        (App.Vector(lip_x, tip - 0.05, tip_z), True, "reaching onto the board"),
+        (App.Vector(lip_x, tip + 0.05, tip_z), False, "reaching no further"),
+        (App.Vector(lip_x, edge, edge_z + 0.05), True, "over the board's edge"),
+        (App.Vector(lip_x, edge, edge_z - 0.05), False, "clear of the board's edge"),
+    ):
+        if is_solid_at(tray, point) != want_solid:
+            raise SystemExit(f"error: the hook's blade or lip is not {what}")
+
+
+def add_mounts(tray, fits):
+    """Fuse every mount body layout.py gives, in its order. Returns
+    (tray, (label, added volume) of each)."""
+    exact = nano_hook_added_volumes(fits)
+    added_volumes = []
+    for box in layout.mount_bodies(fits):
+        tray, added = fuse_mount_body(tray, box.label, mount_body_solid(box, fits))
+        if box.label in exact:
+            require_volume(f"the {box.label}", added, exact[box.label], 1e-6)
+        added_volumes.append((box.label, added))
+    check_nano_hook(tray, fits)
+    return tray, added_volumes
+
+
+def rounded_rectangle_wire(center, along_axis, up_axis, half_width, half_height, radius):
+    """A rectangle with rounded corners in the plane spanned by two unit
+    vectors, centered on `center`: `half_width` along `along_axis`,
+    `half_height` along `up_axis`. Its edges always run arc, line, arc,
+    line, ... from the same corner, so two such wires loft edge to edge
+    (kbdkid4's export_tray.py)."""
+
+    def point(along, height):
+        return center.add(along_axis * along).add(up_axis * height)
+
+    inner_along = half_width - radius
+    inner_height = half_height - radius
+    corner_centers = (  # counterclockwise from the bottom one along +along_axis
+        (inner_along, -inner_height),
+        (inner_along, inner_height),
+        (-inner_along, inner_height),
+        (-inner_along, -inner_height),
+    )
+    arcs = []
+    for index, (corner_along, corner_height) in enumerate(corner_centers):
+        start = -90.0 + 90.0 * index
+        arcs.append([
+            point(
+                corner_along + radius * math.cos(math.radians(start + step)),
+                corner_height + radius * math.sin(math.radians(start + step)),
+            )
+            for step in (0.0, 45.0, 90.0)
+        ])
+    edges = []
+    for index, arc in enumerate(arcs):
+        edges.append(Part.Arc(*arc).toShape())
+        edges.append(Part.LineSegment(arc[2], arcs[(index + 1) % 4][0]).toShape())
+    return Part.Wire(edges)
+
+
+def rounded_rectangle_area(half_width, half_height, radius):
+    return 4.0 * half_width * half_height - (4.0 - math.pi) * radius**2
+
+
+def rounded_rectangle_perimeter(half_width, half_height, radius):
+    return 4.0 * (half_width + half_height) - 2.0 * (4.0 - math.pi) * radius
+
+
+def chamfer_volume(perimeter, size):
+    """The volume a 45 degree chamfer of `size` takes out of a face
+    around a rounded rectangle opening of the given perimeter
+    (kbdkid4's)."""
+    return perimeter * size**2 / 2.0 + math.pi * size**3 / 3.0
+
+
+def disc_corner_area(width, height, radius):
+    """The area of the box [0, width] x [0, height] inside the disc of
+    the given radius about the origin, width no more than the radius."""
+    knee = math.sqrt(radius**2 - min(height, radius) ** 2)
+    if knee >= width:
+        return width * height
+
+    def under_arc(x):
+        return (x * math.sqrt(radius**2 - x**2) + radius**2 * math.asin(x / radius)) / 2.0
+
+    return height * knee + under_arc(width) - under_arc(knee)
+
+
+def rectangle_in_window_area(x_range, z_range, center, half_width, half_height, radius):
+    """The area of an upright rectangle inside a window with rounded
+    corners around center (x, z), for a rectangle across the window's
+    corner centers both ways: the rectangle within the window's bounds
+    less, at each corner, what lies beyond the corner's round."""
+    center_x, center_z = center
+    low_x = max(x_range[0], center_x - half_width)
+    high_x = min(x_range[1], center_x + half_width)
+    low_z = max(z_range[0], center_z - half_height)
+    high_z = min(z_range[1], center_z + half_height)
+    area = (high_x - low_x) * (high_z - low_z)
+    for beyond_x in (high_x - (center_x + half_width - radius),
+                     (center_x - half_width + radius) - low_x):
+        for beyond_z in (high_z - (center_z + half_height - radius),
+                         (center_z - half_height + radius) - low_z):
+            width, height = max(beyond_x, 0.0), max(beyond_z, 0.0)
+            area -= width * height - disc_corner_area(width, height, radius)
+    return area
+
+
+def check_usb_window(tray, middle, half_width, half_height, radius, chamfer, thickness,
+                     window_from):
+    """kbdkid4's probes of its rounded window, on the wall's outer face
+    only: open inside its edges and solid just outside them in the wall,
+    the chamfer open just outside the edges near the outer face but no
+    wider than the chamfer, and the corners rounded. `middle` lies on
+    the window's south face, the shell's mouth, the wall `thickness`
+    along +y from it, and the opening is the window's alone from
+    `window_from` along +y on, past the shell's channel."""
+    across = App.Vector(1.0, 0.0, 0.0)
+    through = App.Vector(0.0, 1.0, 0.0)
+
+    def solid(along, depth, height):
+        return is_solid_at(tray, middle.add(across * along).add(through * depth).add(UP * height))
+
+    mid_wall = (window_from + thickness - chamfer) / 2.0
+    near_face = thickness - chamfer / 4.0
+    if solid(0.0, mid_wall, 0.0):
+        raise SystemExit("error: the USB window did not open the wall")
+    for along_sign, height_sign in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+
+        def beyond_edge(distance):
+            return (along_sign * (half_width + distance), height_sign * (half_height + distance))
+
+        along, height = beyond_edge(-0.05)
+        if solid(along, mid_wall, height):
+            raise SystemExit("error: the USB window is smaller than intended")
+        along, height = beyond_edge(0.05)
+        if not solid(along, mid_wall, height):
+            raise SystemExit("error: the USB window is larger than intended")
+        if solid(along, near_face, height):
+            raise SystemExit("error: the USB window's chamfer is missing")
+        along, height = beyond_edge(chamfer + 0.1)
+        if not solid(along, near_face, height):
+            raise SystemExit("error: the USB window's chamfer is too wide")
+    for along_sign in (1, -1):
+        for height_sign in (1, -1):
+            corner_along = along_sign * (half_width - radius)
+            corner_height = height_sign * (half_height - radius)
+            for fraction, want_solid in ((0.6, False), (0.9, True)):
+                offset = fraction * radius
+                if solid(corner_along + along_sign * offset, mid_wall,
+                         corner_height + height_sign * offset) != want_solid:
+                    raise SystemExit(
+                        f"error: the USB window's corners are not rounded with {radius} mm"
+                    )
+
+
+def cut_usb_shell_channel(tray, fits):
+    """The shell's channel through the wall's inner part, its cutter run
+    on into the open cavity between the bar's posts, so it removes its
+    box from the solid wall."""
+    box = layout.usb_shell_channel_box(fits)
+    inner, north = box.y_range
+    cutter_box = layout.MountBox(
+        box.label, box.part, box.x_range, (inner - 0.5, north), box.z_range
+    )
+    result = tray.cut(box_prism(cutter_box))
+    require_one_valid_solid(result, "the USB shell's channel")
+    require_volume("the USB shell's channel", tray.Volume - result.Volume, box_volume(box), 1e-6)
+    middle = box_point(box)
+    in_wall = App.Vector(middle.x, (inner + layout.nano_usb_shell_mouth_y()) / 2.0, middle.z)
+    for point, want_solid, what in (
+        (in_wall, False, "open"),
+        (App.Vector(in_wall.x, in_wall.y, box.z_range[1] + 0.05), True, "closed above"),
+        (App.Vector(in_wall.x, in_wall.y, box.z_range[0] - 0.05), True, "closed below"),
+        (App.Vector(box.x_range[0] - 0.05, in_wall.y, in_wall.z), True, "closed on the west"),
+        (App.Vector(box.x_range[1] + 0.05, in_wall.y, in_wall.z), True, "closed on the east"),
+    ):
+        if is_solid_at(result, point) != want_solid:
+            raise SystemExit(f"error: the USB shell's channel is not {what}")
+    return result
+
+
+def check_bar_to_mouth(tray, fits):
+    """Over the shell's channel the wall stands on to the shell's mouth,
+    where the window opens: the bar's depth."""
+    center_x, _center_z = layout.usb_window_center(fits)
+    mouth = layout.nano_usb_shell_mouth_y()
+    window_top = layout.usb_window_box(fits).z_range[1]
+    over_channel = (layout.nano_bar_underside_z(fits) + window_top) / 2.0
+    for y, want_solid, what in ((mouth - 0.05, True, "reach"), (mouth + 0.05, False, "stop at")):
+        if is_solid_at(tray, App.Vector(center_x, y, over_channel)) != want_solid:
+            raise SystemExit(f"error: the bar does not {what} the shell's mouth")
+
+
+def cut_usb_window(tray, fits):
+    """The shell's channel, then kbdkid4's window with rounded corners
+    through the north wall from the shell's mouth out, its outer face
+    chamfered at 45 degrees (layout.py says why only there): the profile
+    at the mouth extruded out past the outer face, and a ruled loft from
+    the profile grown by the chamfer and a little more just outside the
+    outer face to the profile itself at the chamfer's depth. The wall is
+    solid over the whole profile, the floor's thickness below the
+    cavity's floor included, but where the channel runs on past the
+    mouth, so the cut removes the profile's area through the wall and
+    the chamfer, less the channel's part inside the profile."""
+    tray = cut_usb_shell_channel(tray, fits)
+    box = layout.usb_window_box(fits)
+    channel = layout.usb_shell_channel_box(fits)
+    center_x, center_z = layout.usb_window_center(fits)
+    mouth, outer = box.y_range
+    half_width = layout.USB_WINDOW_WIDTH_MM / 2.0
+    half_height = layout.USB_WINDOW_HEIGHT_MM / 2.0
+    radius = layout.USB_WINDOW_CORNER_RADIUS_MM
+    chamfer = layout.USB_WINDOW_CHAMFER_MM
+    overshoot = 0.05
+    across = App.Vector(1.0, 0.0, 0.0)
+
+    def profile(y, grow):
+        return rounded_rectangle_wire(
+            App.Vector(center_x, y, center_z), across, UP,
+            half_width + grow, half_height + grow, radius + grow,
+        )
+
+    through = Part.Face(profile(mouth, 0.0)).extrude(
+        App.Vector(0.0, outer - mouth + CUT_EXTRA_MM, 0.0)
+    )
+    outer_chamfer = Part.makeLoft(
+        [profile(outer + overshoot, chamfer + overshoot), profile(outer - chamfer, 0.0)], True, True
+    )
+    cutter = through.fuse(outer_chamfer)
+    if not cutter.isValid() or len(cutter.Solids) != 1:
+        raise SystemExit("error: the USB window's cutter is not one solid")
+    result = tray.cut(cutter)
+    require_one_valid_solid(result, "the USB window")
+    area = rounded_rectangle_area(half_width, half_height, radius)
+    perimeter = rounded_rectangle_perimeter(half_width, half_height, radius)
+    channel_past = channel.y_range[1] - mouth
+    in_channel = channel_past * rectangle_in_window_area(
+        channel.x_range, channel.z_range, (center_x, center_z), half_width, half_height, radius
+    )
+    expected = area * (outer - mouth) + chamfer_volume(perimeter, chamfer) - in_channel
+    require_volume("the USB window", tray.Volume - result.Volume, expected, 2e-3)
+    middle = App.Vector(center_x, mouth, center_z)
+    check_usb_window(
+        result, middle, half_width, half_height, radius, chamfer, outer - mouth, channel_past
+    )
+    check_bar_to_mouth(result, fits)
+    return result
+
+
+def cut_lever_slot(tray):
+    """The power switch lever's slot through the north wall, its cutter
+    run on into the open cavity over the ledge's cut-away and out past
+    the outer face, so it removes the slot through the wall alone."""
+    box = layout.power_switch_lever_slot_box()
+    inner, outer = box.y_range
+    cutter_box = layout.MountBox(
+        box.label, box.part, box.x_range, (inner - 0.5, outer + CUT_EXTRA_MM), box.z_range
+    )
+    result = tray.cut(box_prism(cutter_box))
+    require_one_valid_solid(result, "the lever slot")
+    require_volume("the lever slot", tray.Volume - result.Volume, box_volume(box), 1e-6)
+    middle = box_point(box)
+    for point, want_solid, what in (
+        (middle, False, "open"),
+        (box_point(box, z=box.z_range[1] + 0.05), True, "closed above"),
+        (box_point(box, z=box.z_range[0] - 0.05), True, "closed below"),
+        (App.Vector(box.x_range[0] - 0.05, middle.y, middle.z), True, "closed on the west"),
+        (App.Vector(box.x_range[1] + 0.05, middle.y, middle.z), True, "closed on the east"),
+    ):
+        if is_solid_at(result, point) != want_solid:
+            raise SystemExit(f"error: the lever slot is not {what}")
+    return result
+
+
+def cut_reset_pin_hole(tray):
+    """The flat-topped teardrop pin hole through the north wall over the
+    reset button's stem, its cutter run on past both faces."""
+    box = layout.reset_pin_hole_box()
+    inner, outer = box.y_range
+    x, z = layout.reset_pin_hole_center()
+    radius = layout.RESET_PIN_HOLE_DIAMETER_MM / 2.0
+    axis = App.Vector(0.0, -1.0, 0.0)
+    start = App.Vector(x, outer + CUT_EXTRA_MM, z)
+    cutter = teardrop_prism(start, axis, radius, outer - inner + 2.0 * CUT_EXTRA_MM)
+    result = tray.cut(cutter)
+    require_one_valid_solid(result, "the reset pin hole")
+    require_volume(
+        "the reset pin hole",
+        tray.Volume - result.Volume,
+        teardrop_area(radius) * (outer - inner),
+        1e-4,
+    )
+    middle = App.Vector(x, (inner + outer) / 2.0, z)
+    for point, want_solid, what in (
+        (middle, False, "open"),
+        (middle.add(UP * (radius - 0.05)), False, "open up to its flat"),
+        (middle.add(UP * (radius + 0.05)), True, "closed above its flat"),
+        (middle.add(UP * -(radius + 0.05)), True, "closed below"),
+        (middle.add(App.Vector(radius + 0.05, 0.0, 0.0)), True, "this narrow"),
+    ):
+        if is_solid_at(result, point) != want_solid:
+            raise SystemExit(f"error: the reset pin hole is not {what}")
+    return result
+
+
+def cut_floor_void(tray, box, earlier):
+    """Cut a groove or a slot in the floor, its cutter run on into the
+    open cavity above the floor's top, and below the bed for a slot
+    through the floor. It removes its box less what the earlier voids
+    took from it, and leaves the floor under a groove."""
+    through = box.z_range[0] <= FLOOR_UNDERSIDE_Z_MM
+    cutter = box_prism(box, CUT_EXTRA_MM if through else 0.0, 0.5)
+    result = tray.cut(cutter)
+    require_one_valid_solid(result, f"the {box.label}")
+    taken = sum(box_overlap_volume(box, other) for other in earlier)
+    require_volume(f"the {box.label}", tray.Volume - result.Volume, box_volume(box) - taken, 1e-6)
+    bottom = box.z_range[0]
+    probes = [(box_point(box, z=bottom + 0.05), False, "open to its bottom")]
+    if not through:
+        probes.append((box_point(box, z=bottom - 0.05), True, "this shallow"))
+    for point, want_solid, what in probes:
+        if is_solid_at(result, point) != want_solid:
+            raise SystemExit(f"error: the {box.label} is not {what}")
+    return result
+
+
+def rectangle_wire(x_range, y_range, z):
+    (low_x, high_x), (low_y, high_y) = x_range, y_range
+    return layout_polygon_wire(
+        ((low_x, low_y), (high_x, low_y), (high_x, high_y), (low_x, high_y)), z
+    )
+
+
+def check_bed_chamfer(shape, edges, size, what):
+    """Probe a 45 degree chamfer of `size` along bed edges, each given as
+    (a point on the edge, the unit vector along the bed from the face
+    into the material): open in its triangle, solid just past its ends
+    along the bed and up the face."""
+    bed = UP * FLOOR_UNDERSIDE_Z_MM
+    for edge, into in edges:
+        for along, height, want_solid, how in (
+            (size / 4.0, size / 4.0, False, "open at the edge"),
+            (size + 0.05, 0.05, True, "this short on the bed"),
+            (0.05, size + 0.05, True, "this short up the face"),
+        ):
+            point = edge.add(bed).add(into * along).add(UP * height)
+            if is_solid_at(shape, point) != want_solid:
+                raise SystemExit(f"error: {what} is not {how}")
+
+
+def chamfer_nano_hook_slots(tray, fits):
+    """Chamfer the floor's bed edges on the hook's slots' south, north and
+    east sides: a ruled loft from the slots' outline grown by the chamfer
+    and a little more just under the bed to the outline itself at the
+    chamfer's height, less the blade, which it leaves whole. The floor
+    is solid around the slots there, so the cut removes the chamfer's
+    triangle along each side and where two sides meet."""
+    (low_x, high_x), (low_y, high_y) = layout.nano_hook_slots_outline(fits)
+    size = layout.NANO_HOOK_SLOT_BED_CHAMFER_MM
+    bed = FLOOR_UNDERSIDE_Z_MM
+    overshoot = 0.05
+    grown = size + overshoot
+    loft = Part.makeLoft([
+        rectangle_wire((low_x, high_x + grown), (low_y - grown, high_y + grown), bed - overshoot),
+        rectangle_wire((low_x, high_x), (low_y, high_y), bed + size),
+    ], True, True)
+    cutter = loft.cut(box_prism(layout.nano_hook_blade_box(fits), CUT_EXTRA_MM))
+    result = tray.cut(cutter)
+    what = "the hook slots' bed chamfer"
+    require_one_valid_solid(result, what)
+    along_x, along_y = high_x - low_x, high_y - low_y
+    expected = along_x * size**2 + along_y * size**2 / 2.0 + 2.0 * size**3 / 3.0
+    require_volume(what, tray.Volume - result.Volume, expected, 1e-6)
+    middle_x, middle_y = (low_x + high_x) / 2.0, (low_y + high_y) / 2.0
+    check_bed_chamfer(result, (
+        (App.Vector(middle_x, low_y, 0.0), App.Vector(0.0, -1.0, 0.0)),
+        (App.Vector(middle_x, high_y, 0.0), App.Vector(0.0, 1.0, 0.0)),
+        (App.Vector(high_x, middle_y, 0.0), App.Vector(1.0, 0.0, 0.0)),
+    ), size, what)
+    return result
+
+
+def chamfer_nano_hook_blade(tray, fits):
+    """Chamfer the blade's bed edges on its south and north faces and at
+    its free end: cut its bottom, run on into the open slots around it,
+    less a ruled loft from its footprint shrunk by the chamfer and a
+    little more on those three sides just under the bed to the footprint
+    itself at the chamfer's height."""
+    blade = layout.nano_hook_blade_box(fits)
+    (root, end), (south, north) = blade.x_range, blade.y_range
+    size = layout.NANO_HOOK_BLADE_BED_CHAMFER_MM
+    bed = FLOOR_UNDERSIDE_Z_MM
+    overshoot = 0.05
+    shrunk = size + overshoot
+    kept = Part.makeLoft([
+        rectangle_wire((root, end - shrunk), (south + shrunk, north - shrunk), bed - overshoot),
+        rectangle_wire((root, end), (south, north), bed + size),
+    ], True, True)
+    bottom = layout.MountBox(blade.label, blade.part, (root, end + overshoot),
+                             (south - overshoot, north + overshoot), (bed - overshoot, bed + size))
+    result = tray.cut(box_prism(bottom).cut(kept))
+    what = "the hook blade's bed chamfer"
+    require_one_valid_solid(result, what)
+    along_x, along_y = end - root, north - south
+    expected = along_x * size**2 + along_y * size**2 / 2.0 - 2.0 * size**3 / 3.0
+    require_volume(what, tray.Volume - result.Volume, expected, 1e-6)
+    middle_x, middle_y = (root + end) / 2.0, (south + north) / 2.0
+    check_bed_chamfer(result, (
+        (App.Vector(middle_x, south, 0.0), App.Vector(0.0, 1.0, 0.0)),
+        (App.Vector(middle_x, north, 0.0), App.Vector(0.0, -1.0, 0.0)),
+        (App.Vector(end, middle_y, 0.0), App.Vector(-1.0, 0.0, 0.0)),
+    ), size, what)
+    return result
+
+
+def check_nano_hook_free(tray, fits):
+    """In the floor's plane the blade is plastic with the slots open
+    right beside it on its south and north and at its free end, so it
+    hangs on at its root alone (the tray is still one solid)."""
+    blade = layout.nano_hook_blade_box(fits)
+    in_floor = FLOOR_UNDERSIDE_Z_MM / 2.0
+    beside = 0.02
+    middle = box_point(blade, z=in_floor)
+    for point, want_solid, what in (
+        (middle, True, "plastic"),
+        (App.Vector(middle.x, blade.y_range[0] - beside, in_floor), False, "free on its south"),
+        (App.Vector(middle.x, blade.y_range[1] + beside, in_floor), False, "free on its north"),
+        (App.Vector(blade.x_range[1] + beside, middle.y, in_floor), False, "free at its end"),
+    ):
+        if is_solid_at(tray, point) != want_solid:
+            raise SystemExit(f"error: the hook's blade is not {what}")
+
+
+def cut_mount_voids(tray, fits, right):
+    """Cut every mount void layout.py gives, in its order: the shell's
+    channel and the window, the slot and the pin hole through the north
+    wall, then the grooves and the hook's slots in the floor, and
+    chamfer the slots' and the blade's bed edges."""
+    tray = cut_usb_window(tray, fits)
+    tray = cut_lever_slot(tray)
+    tray = cut_reset_pin_hole(tray)
+    earlier = []
+    for box in layout.nano_groove_boxes(fits, right) + layout.nano_hook_slot_boxes(fits):
+        tray = cut_floor_void(tray, box, earlier)
+        earlier.append(box)
+    tray = chamfer_nano_hook_slots(tray, fits)
+    tray = chamfer_nano_hook_blade(tray, fits)
+    check_nano_hook_free(tray, fits)
+    return tray
+
+
 def finish(tray):
     """Merge the faces the booleans split, keeping one valid solid of
     the same volume."""
@@ -838,13 +1400,16 @@ def finish(tray):
     return merged.Solids[0]
 
 
-def build_tray(right=False, pin_hole_diameter=None):
+def build_tray(right=False, pin_hole_diameter=None, fits=None):
     """The half's tray as one solid in the layout's frame (the right
     half's unmirrored, see the module docstring), and how it came about
     (a Tray). pin_hole_diameter is the half's fit in layout.py unless
-    given."""
+    given, fits the mounts' (a layout.MountFits) layout.py's defaults
+    unless given."""
     if pin_hole_diameter is None:
         pin_hole_diameter = layout.dowel_hole_diameter(right)
+    if fits is None:
+        fits = layout.DEFAULT_MOUNT_FITS
     pin_hole_depth = layout.dowel_hole_depth(right)
     lead_in = layout.dowel_hole_lead_in(right)
     outer_wire = layout_polygon_wire(layout.tray_outer_polygon(), 0.0)
@@ -869,6 +1434,8 @@ def build_tray(right=False, pin_hole_diameter=None):
             skipped.append(flat.label)
         else:
             cuts.append((flat.label, removed))
+    tray, mounts = add_mounts(tray, fits)
+    tray = cut_mount_voids(tray, fits, right)
     for along in layout.MAGNET_ALONGS_MM:
         tray = cut_magnet_slot(tray, along)
     for along in layout.DOWEL_PIN_ALONGS_MM:
@@ -884,6 +1451,8 @@ def build_tray(right=False, pin_hole_diameter=None):
         lead_in,
         cuts,
         skipped,
+        fits,
+        mounts,
     )
 
 

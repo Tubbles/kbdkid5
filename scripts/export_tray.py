@@ -3,35 +3,46 @@
 tray_shape.py builds the tray (see its docstring): walls, floor, ledge
 and joint block, standoffs bored for M2 heat-set inserts, the dowel pin
 and parking bosses with their fills, the ledge cut-aways and the
-sockets' cuts as layout.py gives them, the magnet slots, the
-flat-topped teardrop pin holes and parking hole, and the joint face's
-bottom chamfer. This script mirrors it for the right half, measures it
-and prints what it found against DESIGN.md's figures, which it
-transcribes itself (the DESIGN_* constants below), never against the
+sockets' cuts as layout.py gives them, the parts' mounts, the magnet
+slots, the flat-topped teardrop pin holes and parking hole, and the
+joint face's bottom chamfer. This script mirrors it for the right half,
+measures it and prints what it found against DESIGN.md's figures, which
+it transcribes itself (the DESIGN_* constants below), never against the
 constants the tray is built from: the outside's size, the walls, the
 floor, the ledge and the joint block, the standoffs and their bores,
 the joint face's angle, place and bottom chamfer, the pin holes (depth,
 diameter, the plastic behind and over them, the flat top, the lead-in),
-the magnet slots and the parking hole. Then it builds the other half
-too and joins them as DESIGN.md describes, each half turned 17.74
-degrees so the outer slant faces touch, and checks that the trays do
-not overlap, that the pin holes line up into one channel at least 1.0
-longer than the pin, and that the magnet slots face each other. Last,
-it writes the tray as built, floor on the bed, as one closed mesh.
+the magnet slots, the parking hole, the sockets' clearance from the
+tray as built, and the mounts: the USB shell's channel and the USB
+window, the hold-down bar on its posts, the snap hook (its blade,
+slots, bed chamfers, lip and the strain at its root from what was
+measured), the east ribs, the solder grooves, the lever
+slot and the cradle, the reset pin hole and the back wall, the battery
+header's pocket and the battery's ribs, and that the PCB connector's
+zone (as printed) and layout.py's wire rooms hold no plastic. Then it builds the
+other half too and joins them as DESIGN.md describes, each half turned
+17.74 degrees so the outer slant faces touch, and checks that the trays
+do not overlap, that the pin holes line up into one channel at least
+1.0 longer than the pin, and that the magnet slots face each other.
+Last, it writes the tray as built, floor on the bed, as one closed mesh.
 
 Runs headless under FreeCAD's console interpreter (see
 freecad_common.py for the freecadcmd quirks that shape the
 invocation):
 
-    freecadcmd scripts/export_tray.py --pass <tray.stl> [right] [pin_hole_diameter=<mm>]
+    freecadcmd scripts/export_tray.py --pass <tray.stl> [right] [key=value ...]
 
 The word "right" makes the right half: the tray built with that half's
 socket cuts and its slip fit pin holes, mirrored across the layout's
-right-half mirror line. pin_hole_diameter overrides the half's pin
-hole fit (layout.py: the left half's snug, the right half's slip, as
-modelled), for a test print. The measured diameter is then checked
-against it instead of DESIGN.md's, and the flat top and the plastic
-over the holes, which follow from it, are only printed.
+right-half mirror line. The key=value words (USAGE lists them) override
+a fit for a test print: pin_hole_diameter the half's pin hole fit
+(layout.py: the left half's snug, the right half's slip, as modelled),
+the others the mounts' fits that wait on a caliper (layout.MountFits).
+A measured figure that is an override is then checked against it
+instead of DESIGN.md's, and the figures that follow from it (the pin
+holes' flat top and the plastic over them, the hook's top and strain)
+are only printed. The other half, built for the joined check, keeps
+the defaults.
 """
 
 import math
@@ -106,6 +117,89 @@ DESIGN_SOCKET_BOTTOM_Z_MM = 5.98
 # The least any socket keeps from the tray as cut: the ledge relief's
 # and the tab pocket's clearance.
 DESIGN_LEAST_SOCKET_CLEARANCE_MM = 0.5
+# The parts' mounts (DESIGN.md, "Parts in the tray"), the left half's,
+# placed on either half by half_point(). The nice!nano's mounts follow
+# the board, so they are given from its edges, and the board from its
+# fixed corner (the west edge and the USB end), its size DESIGN.md's
+# unless a key=value word overrides it.
+DESIGN_PRINT_SWELLING_PER_SIDE_MM = 0.2  # a 45 degree face: this times the square root of 2
+DESIGN_NANO_WEST_X_MM = 0.9
+DESIGN_NANO_USB_END_Y_MM = 75.316
+DESIGN_NANO_SIZE_MM = (18.0, 33.3)  # along x, along y
+DESIGN_NANO_TOP_Z_MM = 1.6
+DESIGN_SHELL_WIDTH_MM = 8.94
+DESIGN_SHELL_TOP_Z_MM = 3.16
+DESIGN_SHELL_PAST_BOARD_MM = 0.87  # the shell's mouth past the board's USB end
+DESIGN_WEST_LEDGE_FACE_X_MM = 0.6
+DESIGN_NORTH_EDGES_Y_MM = {"nice!nano": 75.486, "power switch": 80.248, "reset button": 82.629}
+DESIGN_USB_WINDOW_MM = (10.5, 4.5)  # along x, along z
+DESIGN_USB_WINDOW_CENTER_Z_MM = 1.58
+DESIGN_USB_WINDOW_CORNER_RADIUS_MM = 1.95
+DESIGN_USB_WINDOW_CHAMFER_MM = {"outer": 0.2, "inner": 0.0}
+DESIGN_NANO_END_GAP_MM = 0.25  # at each end of the board, to the bar's posts and the hook
+DESIGN_NANO_BAR_OPENING_MM = 9.44
+DESIGN_NANO_BAR_POST_WIDTH_MM = 1.0
+DESIGN_NANO_BAR_CLEARANCE_MM = 0.1  # over the shell's top, as printed
+DESIGN_NANO_BAR_HEIGHT_MM = 1.5
+DESIGN_NANO_BAR_DEPTH_MM = 0.62  # to the shell's mouth
+DESIGN_USB_CHANNEL_PAST_MOUTH_MM = 0.25  # its width the bar's opening, its top the bar's underside
+DESIGN_HOOK_ROOT_X_MM = DESIGN_WEST_LEDGE_FACE_X_MM
+DESIGN_HOOK_BENDING_LENGTH_MM = 11.0
+DESIGN_HOOK_LIP_X_MM = (11.6, 14.4)
+DESIGN_HOOK_BLADE_THICKNESS_MM = 0.8
+DESIGN_HOOK_LIP_REACH_MM = 0.8  # onto the board
+DESIGN_HOOK_LIP_OVER_EDGE_MM = 0.1  # over the board's top edge, as printed
+DESIGN_HOOK_SIDES_DEGREES = 45.0
+DESIGN_HOOK_TOP_Z_MM = 3.83
+DESIGN_HOOK_SLOTS_MM = {"south": 2.0, "north": 0.8, "end": 0.8}  # as modelled
+DESIGN_HOOK_BED_CHAMFERS_MM = {"slots": 0.4, "blade": 0.2}
+DESIGN_HOOK_STRAIN_PERCENT = 1.61  # as printed
+DESIGN_HOOK_MAXIMUM_STRAIN_PERCENT = 2.0
+DESIGN_HOOK_UNDER_SOCKET_MM = 2.15
+DESIGN_NANO_RIB_FROM_BOARD_MM = 0.2  # the ribs' face from the board's east edge
+DESIGN_NANO_RIB_MM = (0.6, 3.0, 1.0)  # thick, long, tall
+DESIGN_NANO_RIB_FROM_BOARD_ENDS_MM = 2.0
+DESIGN_NANO_GROOVE_DEPTH_MM = 0.4
+# Each groove's (x from the board's west edge, or from its east edge for
+# the east row, or either side of its center line for the tab slots, y
+# from the board's USB end), on both halves seen from above, since the
+# right half's nice!nano lies the same side up.
+DESIGN_NANO_ROW_GROOVES_MM = ((0.195, 2.555), (0.46, 32.965))
+DESIGN_NANO_P1_GROOVE_MM = ((2.735, 10.175), (25.685, 27.915))
+DESIGN_NANO_TAB_GROOVES_MM = ((4.54, 6.215), (0.02, 6.42))
+DESIGN_POWER_SWITCH_CENTER_X_MM = 47.149
+DESIGN_LEVER_SLOT_MM = (4.0, 2.0)  # along x, along z
+DESIGN_LEVER_SLOT_CENTER_Z_MM = 1.95
+DESIGN_CRADLE_OPENING_MM = 9.2
+DESIGN_CRADLE_DEPTH_MM = 3.9  # from the wall's inner face to the back arms
+DESIGN_CRADLE_PIN_SLOT_MM = 6.0
+DESIGN_CRADLE_END_MM = 1.2
+DESIGN_CRADLE_ARM_MM = 0.8
+DESIGN_CRADLE_TOP_Z_MM = 3.0
+DESIGN_RESET_CENTER_X_MM = 66.199
+DESIGN_RESET_PIN_HOLE_MM = 3.0
+DESIGN_RESET_PIN_HOLE_AXIS_Z_MM = 1.75
+DESIGN_RESET_PIN_HOLE_FLAT_MM = 1.24
+DESIGN_RESET_BACK_WALL_DEPTH_MM = 4.9  # from the wall's inner face
+DESIGN_RESET_BACK_WALL_MM = 1.2
+DESIGN_RESET_BACK_WALL_TOP_Z_MM = 3.5
+DESIGN_RESET_NOTCH_WIDTH_MM = 1.55
+DESIGN_RESET_NOTCH_FROM_CENTER_MM = 3.425  # each notch's middle
+DESIGN_RESET_NOTCH_BOTTOM_Z_MM = 0.9
+DESIGN_RESET_BACK_WALL_BEYOND_NOTCHES_MM = 1.0
+DESIGN_BATTERY_HEADER_X_MM = (85.0, 91.0)
+DESIGN_BATTERY_HEADER_MIDDLE_Y_MM = 74.6
+DESIGN_BATTERY_POCKET_MM = (6.4, 6.3)  # inside, along x, along y
+DESIGN_BATTERY_POCKET_WALL_MM = 1.2
+DESIGN_BATTERY_POCKET_TOP_Z_MM = 4.5
+DESIGN_BATTERY_POST_SLOT_MM = 3.14
+DESIGN_BATTERY_POST_SLOT_BOTTOM_Z_MM = 1.21
+DESIGN_BATTERY_X_MM = (22.0, 56.37)
+DESIGN_BATTERY_Y_MM = (8.1, 59.63)
+DESIGN_BATTERY_RIB_CLEARANCE_MM = 0.5
+DESIGN_BATTERY_RIB_MM = (0.8, 6.0, 1.0)  # thick, arm from the pocket's corner, tall
+DESIGN_BATTERY_RIB_CORNERS = ((-1, -1), (-1, 1), (1, -1))  # (east, north): all but the northeast
+DESIGN_PCB_CONNECTOR_ZONE_MM = ((20.0, 37.0), (65.5, 74.5))
 
 # The walls are measured at these points of DESIGN.md's outline, (where,
 # point on an outline edge, outward unit vector), at WALL_PROBE_Z_MM,
@@ -128,7 +222,8 @@ JOINED_OVERLAP_TOLERANCE_MM3 = 1e-3
 
 USAGE = f"""\
 usage: freecadcmd scripts/export_tray.py --pass <tray.stl> [right]
-           [pin_hole_diameter=<mm>]
+           [pin_hole_diameter=<mm>] [nano_length=<mm>] [nano_width=<mm>]
+           [hook_lip=<mm>] [bar_clearance=<mm>] [battery_shoulder=<mm>]
 
   right              export the right half: cut for its own sockets, its pin
                      holes the slip fit, mirrored across the layout's right-half
@@ -137,15 +232,43 @@ usage: freecadcmd scripts/export_tray.py --pass <tray.stl> [right]
                      the half's fit ({layout.DOWEL_HOLE_SNUG_DIAMETER_MM:.1f} snug on the left, \
 {layout.DOWEL_HOLE_SLIP_DIAMETER_MM:.1f} slip
                      on the right, both less {layout.PRINT_SWELLING_PER_SIDE_MM} per side once \
-printed)\
+printed)
+  nano_length        the nice!nano's board length the mounts are fitted to
+                     (default {layout.NANO_LENGTH_MM}), its USB end staying put
+  nano_width         its width (default {layout.NANO_WIDTH_MM}), its west edge staying put
+  hook_lip           how far the snap hook's lip reaches onto the board
+                     (default {layout.NANO_HOOK_LIP_MM})
+  bar_clearance      the hold-down bar's clearance over the USB-C shell as
+                     printed (default {layout.NANO_BAR_CLEARANCE_MM})
+  battery_shoulder   how far front lips reach onto the battery header's rim
+                     (default {layout.BATTERY_HEADER_SHOULDER_MM}, none)\
 """
+
+# The key=value words, each a number: the pin holes' diameter and the
+# mounts' fits (layout.MountFits' fields).
+OPTION_KEYS = (
+    "pin_hole_diameter",
+    "nano_length",
+    "nano_width",
+    "hook_lip",
+    "bar_clearance",
+    "battery_shoulder",
+)
 
 
 class Arguments:
     def __init__(self):
         self.stl_file = None
         self.right = False
-        self.pin_hole_diameter = None
+        for key in OPTION_KEYS:
+            setattr(self, key, None)
+
+    def mount_fits(self):
+        """layout.MountFits with the overrides given."""
+        given = {
+            key: getattr(self, key) for key in OPTION_KEYS[1:] if getattr(self, key) is not None
+        }
+        return layout.MountFits(**given)
 
 
 def parse_arguments(argument_list):
@@ -156,10 +279,10 @@ def parse_arguments(argument_list):
             arguments.right = True
         elif "=" in argument:
             key, _, value = argument.partition("=")
-            if key != "pin_hole_diameter":
+            if key not in OPTION_KEYS:
                 raise SystemExit(f"error: unknown option '{key}'\n{USAGE}")
             try:
-                arguments.pin_hole_diameter = float(value)
+                setattr(arguments, key, float(value))
             except ValueError:
                 raise SystemExit(f"error: '{key}' needs a number, got '{value}'")
         else:
@@ -763,7 +886,687 @@ def measure_socket_clearance(tray, right, figures):
     )
 
 
-def measure(tray, right, pin_hole_radius, design):
+# The parts' mounts.
+
+
+class Board:
+    """The nice!nano's board where DESIGN.md places it, its size
+    DESIGN.md's or a test print's: its edges in the left half's frame.
+    The west edge and the USB end stay put whatever the size."""
+
+    def __init__(self, width, length):
+        self.west = DESIGN_NANO_WEST_X_MM
+        self.east = DESIGN_NANO_WEST_X_MM + width
+        self.north = DESIGN_NANO_USB_END_Y_MM
+        self.south = DESIGN_NANO_USB_END_Y_MM - length
+        self.center = (self.west + self.east) / 2.0
+
+
+class MountDesign:
+    """What the mounts are measured against: DESIGN.md's figures, a test
+    print's key=value overrides in their place. A figure that is an
+    override is checked against it, one that follows from an override
+    only printed."""
+
+    def __init__(self, arguments):
+        width = DESIGN_NANO_SIZE_MM[0] if arguments.nano_width is None else arguments.nano_width
+        length = DESIGN_NANO_SIZE_MM[1] if arguments.nano_length is None else arguments.nano_length
+        self.board = Board(width, length)
+        self.hook_lip_overridden = arguments.hook_lip is not None
+        self.hook_lip = arguments.hook_lip if self.hook_lip_overridden else DESIGN_HOOK_LIP_REACH_MM
+        self.bar_clearance = (
+            DESIGN_NANO_BAR_CLEARANCE_MM
+            if arguments.bar_clearance is None
+            else arguments.bar_clearance
+        )
+        self.battery_shoulder = arguments.battery_shoulder or 0.0
+
+
+def half_place(right, point):
+    """A left half's (x, y, z) on the given half."""
+    x, y, z = point
+    return vector(half_point((x, y), right), z)
+
+
+def run_span(tray, right, point, axis, material):
+    """(low, high) along "x", "y" or "z" in the left half's frame of the
+    material (or, with material False, the empty) run through the left
+    half's point, measured on the given half. An open end reads
+    PROBE_REACH_MM away."""
+    direction = {"x": App.Vector(1, 0, 0), "y": App.Vector(0, 1, 0), "z": UP}[axis]
+    if axis == "x" and right:
+        direction = direction * -1.0
+    low, high = run_through(tray, half_place(right, point), direction, material)
+    origin = point["xyz".index(axis)]
+    return origin + low, origin + high
+
+
+def span_length(span):
+    return span[1] - span[0]
+
+
+def span_middle(span):
+    return (span[0] + span[1]) / 2.0
+
+
+def worst_offset(measured, expected):
+    """The measured edge farthest from its expected place, signed."""
+    offsets = [got - want for got, want in zip(measured, expected)]
+    return max(offsets, key=abs)
+
+
+def north_wall_faces(part):
+    """(inner, outer) y of DESIGN.md's north wall behind the part."""
+    edge = DESIGN_NORTH_EDGES_Y_MM[part]
+    return edge + DESIGN_GAP_MM, edge + DESIGN_GAP_MM + DESIGN_WALL_MM
+
+
+def opening_chamfer(tray, right, point, width):
+    """A 45 degree chamfer's size from an opening's width along x 0.05
+    inside a face, as measure_pin_hole() reads a lead-in."""
+    widening = (span_length(run_span(tray, right, point, "x", False)) - width) / 2.0
+    return widening + 0.05 if widening > 1e-6 else 0.0
+
+
+def window_corner_radius(tray, right, x, y, top, half_width):
+    """The window's corner radius from its half width 0.2 under its top:
+    a corner of radius r takes a off the width and b off the height
+    where (r - a)^2 + (r - b)^2 = r^2."""
+    below_top = 0.2
+    across = run_span(tray, right, (x, y, top - below_top), "x", False)
+    off_width = half_width - span_length(across) / 2.0
+    return off_width + below_top + math.sqrt(2.0 * off_width * below_top)
+
+
+def shell_mouth_y(board):
+    return board.north + DESIGN_SHELL_PAST_BOARD_MM
+
+
+def channel_top_z(design):
+    return DESIGN_SHELL_TOP_Z_MM + DESIGN_PRINT_SWELLING_PER_SIDE_MM + design.bar_clearance
+
+
+def measure_usb_window(tray, right, design, figures):
+    """The window between the shell's channel and the outer chamfer,
+    where it is the opening alone, and its chamfers."""
+    board = design.board
+    _inner, outer = north_wall_faces("nice!nano")
+    mouth = shell_mouth_y(board)
+    width, height = DESIGN_USB_WINDOW_MM
+    channel_end = mouth + DESIGN_USB_CHANNEL_PAST_MOUTH_MM
+    alone_y = (channel_end + outer - DESIGN_USB_WINDOW_CHAMFER_MM["outer"]) / 2.0
+    middle = (board.center, alone_y, DESIGN_USB_WINDOW_CENTER_Z_MM)
+    across = run_span(tray, right, middle, "x", False)
+    up = run_span(tray, right, middle, "z", False)
+    half_width = span_length(across) / 2.0
+    radius = window_corner_radius(tray, right, middle[0], middle[1], up[1], half_width)
+    outer_chamfer = opening_chamfer(tray, right, (middle[0], outer - 0.05, middle[2]), width)
+    inner_chamfer = opening_chamfer(tray, right, (middle[0], mouth + 0.05, middle[2]), width)
+    texts = [
+        figures.check("wide", span_length(across), width, 1),
+        figures.check("tall", span_length(up), height, 1),
+        figures.check("off the shell's middle", span_middle(across) - board.center, 0.0, 2),
+        figures.check("middle z", span_middle(up), DESIGN_USB_WINDOW_CENTER_Z_MM, 2),
+        figures.check(
+            "into the floor", -up[0], round(height / 2.0 - DESIGN_USB_WINDOW_CENTER_Z_MM, 2), 2
+        ),
+        figures.check("corners", radius, DESIGN_USB_WINDOW_CORNER_RADIUS_MM, 2),
+        figures.check("outer chamfer", outer_chamfer, DESIGN_USB_WINDOW_CHAMFER_MM["outer"], 1),
+        figures.check("inner chamfer", inner_chamfer, DESIGN_USB_WINDOW_CHAMFER_MM["inner"], 1),
+    ]
+    return f"USB window: {', '.join(texts)}"
+
+
+def measure_usb_channel(tray, right, design, figures):
+    """The shell's channel through the wall's inner part: across and up
+    in the wall, its end past the shell's mouth at a top corner, where
+    it reaches out of the window's corner round."""
+    board = design.board
+    inner, _outer = north_wall_faces("nice!nano")
+    mouth = shell_mouth_y(board)
+    in_wall = (board.center, (inner + mouth) / 2.0, 1.0)
+    across = run_span(tray, right, in_wall, "x", False)
+    up = run_span(tray, right, in_wall, "z", False)
+    corner = (board.center + DESIGN_NANO_BAR_OPENING_MM / 2.0 - 0.1, in_wall[1],
+              channel_top_z(design) - 0.05)
+    end = run_span(tray, right, corner, "y", False)[1]
+    over_shell = up[1] - DESIGN_PRINT_SWELLING_PER_SIDE_MM - DESIGN_SHELL_TOP_Z_MM
+    texts = [
+        figures.check("wide", span_length(across), DESIGN_NANO_BAR_OPENING_MM, 2),
+        figures.check("off the shell's middle", span_middle(across) - board.center, 0.0, 2),
+        figures.check("from z", up[0], 0.0, 2),
+        figures.check("over the shell as printed", over_shell, design.bar_clearance, 2),
+        figures.check("past the shell's mouth", end - mouth, DESIGN_USB_CHANNEL_PAST_MOUTH_MM, 2),
+    ]
+    return f"channel:    {', '.join(texts)}"
+
+
+def measure_nano_bar(tray, right, design, figures):
+    board = design.board
+    inner, _outer = north_wall_faces("nice!nano")
+    y = inner - 0.1
+    opening = run_span(tray, right, (board.center, y, 1.0), "x", False)
+    posts = [
+        run_span(tray, right, (opening[0] - 0.1, y, 1.0), "x", True),
+        run_span(tray, right, (opening[1] + 0.1, y, 1.0), "x", True),
+    ]
+    under = run_span(tray, right, (board.center, y, 1.0), "z", False)
+    in_bar = (board.center, y, under[1] + 0.1)
+    bar = run_span(tray, right, in_bar, "z", True)
+    south_faces = [run_span(tray, right, in_bar, "y", True)[0]] + [
+        run_span(tray, right, (span_middle(post), y, 1.0), "y", True)[0] for post in posts
+    ]
+    south_gap = worst_offset(south_faces, [board.north] * 3)
+    mouth = shell_mouth_y(board)
+    over_channel = (channel_top_z(design) + DESIGN_USB_WINDOW_CENTER_Z_MM
+                    + DESIGN_USB_WINDOW_MM[1] / 2.0) / 2.0
+    deep = run_span(tray, right, (board.center, mouth - 0.1, over_channel), "y", True)
+    texts = [
+        figures.check("posts' opening", span_length(opening), DESIGN_NANO_BAR_OPENING_MM, 2),
+        figures.check("off the shell's middle", span_middle(opening) - board.center, 0.0, 2),
+        figures.check("west post", span_length(posts[0]), DESIGN_NANO_BAR_POST_WIDTH_MM, 1),
+        figures.check("east post", span_length(posts[1]), DESIGN_NANO_BAR_POST_WIDTH_MM, 1),
+        figures.check(
+            "bar over the shell as printed",
+            under[1] - DESIGN_PRINT_SWELLING_PER_SIDE_MM - DESIGN_SHELL_TOP_Z_MM,
+            design.bar_clearance,
+            2,
+        ),
+        figures.check("bar tall", span_length(bar), DESIGN_NANO_BAR_HEIGHT_MM, 1),
+        figures.check("deep", span_length(deep), DESIGN_NANO_BAR_DEPTH_MM, 2),
+        figures.check("to the shell's mouth", deep[1] - mouth, 0.0, 2),
+        figures.check(
+            "bar and posts from the board's USB end", south_gap, DESIGN_NANO_END_GAP_MM, 2
+        ),
+    ]
+    return f"bar:        {', '.join(texts)}"
+
+
+def hook_side_degrees(tray, right, x, ys, z, toward):
+    """The angle from horizontal of the lip's underside (toward 1, read
+    upward from below it) or its top (toward -1, read downward from above
+    it) between two y."""
+    heights = []
+    for y in ys:
+        low, high = run_span(tray, right, (x, y, z), "z", False)
+        heights.append(high if toward > 0 else low)
+    return math.degrees(math.atan2(abs(heights[1] - heights[0]), abs(ys[1] - ys[0])))
+
+
+def swelling_at_45_degrees():
+    return DESIGN_PRINT_SWELLING_PER_SIDE_MM * math.sqrt(2.0)
+
+
+def hook_strain_percent(reach, thickness, length):
+    """DESIGN.md's bending strain at the blade's root, as printed: the
+    print's swelling grows the blade and moves the lip's tip, where its
+    45 degree sides meet, out by the swelling at 45 degrees."""
+    printed_thickness = thickness + 2.0 * DESIGN_PRINT_SWELLING_PER_SIDE_MM
+    printed_reach = reach + swelling_at_45_degrees()
+    return 100.0 * 3.0 * printed_reach * printed_thickness / (2.0 * length**2)
+
+
+def measure_nano_hook_blade(tray, right, design, figures):
+    """The blade and its slots: (line, blade's thickness, its root's x,
+    its north face's y)."""
+    board = design.board
+    blade_x = (DESIGN_HOOK_ROOT_X_MM + DESIGN_HOOK_LIP_X_MM[0]) / 2.0
+    face_y = board.south - DESIGN_NANO_END_GAP_MM
+    in_blade = (blade_x, face_y - DESIGN_HOOK_BLADE_THICKNESS_MM / 2.0, 2.0)
+    blade = run_span(tray, right, in_blade, "y", True)
+    height = run_span(tray, right, in_blade, "z", True)
+    floor_z = DESIGN_FLOOR_UNDERSIDE_Z_MM / 2.0
+    in_floor = run_span(tray, right, (blade_x, in_blade[1], floor_z), "y", True)
+    south_slot = run_span(tray, right, (blade_x, blade[0] - 0.1, floor_z), "y", False)
+    north_slot = run_span(tray, right, (blade_x, blade[1] + 0.1, floor_z), "y", False)
+    slot_along = run_span(tray, right, (blade_x, blade[0] - 0.1, floor_z), "x", False)
+    blade_end = run_span(tray, right, in_blade, "x", True)[1]
+    end_slot = run_span(tray, right, (blade_end + 0.1, in_blade[1], floor_z), "x", False)
+    texts = [
+        figures.check("blade thick", span_length(blade), DESIGN_HOOK_BLADE_THICKNESS_MM, 1),
+        figures.check(
+            "as thick in the floor", span_length(in_floor), DESIGN_HOOK_BLADE_THICKNESS_MM, 1
+        ),
+        figures.check("north face from the board's south end", board.south - blade[1],
+                      DESIGN_NANO_END_GAP_MM, 2),
+        figures.check("bottom z", height[0], DESIGN_FLOOR_UNDERSIDE_Z_MM, 1),
+        figures.check("root x", slot_along[0], DESIGN_HOOK_ROOT_X_MM, 1),
+        figures.check("end x", blade_end, DESIGN_HOOK_LIP_X_MM[1], 1),
+        figures.check("slot south", span_length(south_slot), DESIGN_HOOK_SLOTS_MM["south"], 1),
+        figures.check("north", span_length(north_slot), DESIGN_HOOK_SLOTS_MM["north"], 1),
+        figures.check("past the end", span_length(end_slot), DESIGN_HOOK_SLOTS_MM["end"], 1),
+    ]
+    return f"hook:       {', '.join(texts)}", span_length(blade), slot_along[0], blade[1], height[1]
+
+
+def bed_chamfer(tray, right, edge, axis, into, inside):
+    """(in along the bed, up the face) of a 45 degree chamfer at the bed
+    edge of a vertical face: edge the (x, y) of a point on the face, the
+    material on the `into` (1 or -1) side along axis, `inside` deep."""
+    bed = DESIGN_FLOOR_UNDERSIDE_Z_MM
+    index = "xy".index(axis)
+
+    def place(depth, z):
+        point = [edge[0], edge[1], z]
+        point[index] += into * depth
+        return tuple(point)
+
+    along = run_span(tray, right, place(inside, bed + 0.001), axis, True)
+    bed_edge = along[0] if into > 0 else along[1]
+    up = run_span(tray, right, place(0.001, bed + 0.6), "z", True)
+    return abs(bed_edge - edge[index]) + 0.001, up[0] - bed + 0.001
+
+
+def measure_nano_hook_bed_chamfers(tray, right, design, figures):
+    """The floor's bed edges on the slots' south, north and east sides
+    and the blade's on its south and north faces and its free end."""
+    face_y = design.board.south - DESIGN_NANO_END_GAP_MM
+    back_y = face_y - DESIGN_HOOK_BLADE_THICKNESS_MM
+    end_x = DESIGN_HOOK_LIP_X_MM[1]
+    slots = DESIGN_HOOK_SLOTS_MM
+    middle_x = (DESIGN_HOOK_ROOT_X_MM + end_x) / 2.0
+    blade_y = (back_y + face_y) / 2.0
+    edges = {
+        "slots": [
+            ((middle_x, back_y - slots["south"]), "y", -1),
+            ((middle_x, face_y + slots["north"]), "y", 1),
+            ((end_x + slots["end"], blade_y), "x", 1),
+        ],
+        "blade": [((middle_x, back_y), "y", 1), ((middle_x, face_y), "y", -1),
+                  ((end_x, blade_y), "x", -1)],
+    }
+    inside = {"slots": 0.6, "blade": DESIGN_HOOK_BLADE_THICKNESS_MM / 2.0}
+    labels = {"slots": "the slots' floor edges", "blade": "the blade's edges"}
+    texts = []
+    for what, stated in DESIGN_HOOK_BED_CHAMFERS_MM.items():
+        sizes = [size for edge, axis, into in edges[what]
+                 for size in bed_chamfer(tray, right, edge, axis, into, inside[what])]
+        worst = max(sizes, key=lambda size: abs(size - stated))
+        texts.append(figures.check(labels[what], worst, stated, 1))
+    return f"hook bed:   chamfered along the bed and up the faces, {', '.join(texts)}"
+
+
+def unless(overridden, stated):
+    """A DESIGN.md figure to check against, or None (only print it) when
+    it follows from a test print's override."""
+    return None if overridden else stated
+
+
+def measure_nano_hook(tray, right, design, figures):
+    """The blade and its slots, then the lip, its sides and the strain
+    the lip's reach and the blade make at the root."""
+    board = design.board
+    blade_line, thickness, root, face_y, top = measure_nano_hook_blade(tray, right, design, figures)
+    lip_x = span_middle(DESIGN_HOOK_LIP_X_MM)
+    over_edge = run_span(tray, right, (lip_x, board.south, 1.0), "z", False)[1]
+    tip_z = over_edge + design.hook_lip
+    tip = run_span(tray, right, (lip_x, face_y - 0.4, tip_z), "y", True)[1]
+    reach = tip - board.south
+    lip = run_span(tray, right, (lip_x, board.south, (over_edge + tip_z) / 2.0), "x", True)
+    sides_y = (face_y + 0.15, tip - 0.4)
+    underside = hook_side_degrees(tray, right, lip_x, sides_y, 1.0, 1)
+    lead_in = hook_side_degrees(tray, right, lip_x, sides_y, top + 1.0, -1)
+    bending_length = lip[0] - root
+    strain = hook_strain_percent(reach, thickness, bending_length)
+    under_socket = DESIGN_SOCKET_BOTTOM_Z_MM - top
+    follows = design.hook_lip_overridden
+    texts = [
+        figures.check("lip onto the board", reach, design.hook_lip, 2),
+        figures.check("over the board's edge as printed",
+                      over_edge - swelling_at_45_degrees() - DESIGN_NANO_TOP_Z_MM,
+                      DESIGN_HOOK_LIP_OVER_EDGE_MM, 2),
+        figures.check("from x", lip[0], DESIGN_HOOK_LIP_X_MM[0], 1),
+        figures.check("to", lip[1], DESIGN_HOOK_LIP_X_MM[1], 1),
+        figures.check("underside degrees", underside, DESIGN_HOOK_SIDES_DEGREES, 0),
+        figures.check("lead-in degrees", lead_in, DESIGN_HOOK_SIDES_DEGREES, 0),
+        figures.check("bending length", bending_length, DESIGN_HOOK_BENDING_LENGTH_MM, 1),
+        check_or_report(figures, "top z", top, unless(follows, DESIGN_HOOK_TOP_Z_MM), 2),
+        check_or_report(figures, "under the sockets' bottoms", under_socket,
+                        unless(follows, DESIGN_HOOK_UNDER_SOCKET_MM), 2),
+        check_or_report(figures, "root strain as printed %", strain,
+                        unless(follows, DESIGN_HOOK_STRAIN_PERCENT), 2),
+    ]
+    if strain > DESIGN_HOOK_MAXIMUM_STRAIN_PERCENT:
+        figures.problems.append(
+            f"the hook's root strain {strain:.2f} % is over {DESIGN_HOOK_MAXIMUM_STRAIN_PERCENT} %"
+        )
+    return [blade_line, measure_nano_hook_bed_chamfers(tray, right, design, figures),
+            f"hook lip:   {', '.join(texts)}"]
+
+
+def measure_nano_ribs(tray, right, design, figures):
+    board = design.board
+    thickness, length, height = DESIGN_NANO_RIB_MM
+    rib_x = board.east + DESIGN_NANO_RIB_FROM_BOARD_MM + thickness / 2.0
+    ends = DESIGN_NANO_RIB_FROM_BOARD_ENDS_MM + length / 2.0
+    texts = []
+    for name, middle_y in (("south", board.south + ends), ("north", board.north - ends)):
+        point = (rib_x, middle_y, 0.5)
+        across = run_span(tray, right, point, "x", True)
+        along = run_span(tray, right, point, "y", True)
+        up = run_span(tray, right, point, "z", True)
+        from_end = along[0] - board.south if name == "south" else board.north - along[1]
+        texts.append(
+            f"{name}: "
+            + ", ".join([
+                figures.check("face from the board", across[0] - board.east,
+                              DESIGN_NANO_RIB_FROM_BOARD_MM, 2),
+                figures.check("thick", span_length(across), thickness, 1),
+                figures.check("long", span_length(along), length, 1),
+                figures.check("tall", up[1], height, 1),
+                figures.check(
+                    "from the board's end", from_end, DESIGN_NANO_RIB_FROM_BOARD_ENDS_MM, 1
+                ),
+            ])
+        )
+    return f"ribs:       {'; '.join(texts)}"
+
+
+def nano_groove_places(board, right):
+    """(label, x range, y range) of DESIGN.md's grooves on the given half,
+    in the left half's frame. The P1.01/P1.02/P1.07 groove lies at the
+    board's west edge seen from above, which in the left half's frame is
+    the east edge on the right half."""
+    (row_near, row_far), row_y = DESIGN_NANO_ROW_GROOVES_MM
+    (p1_near, p1_far), p1_y = DESIGN_NANO_P1_GROOVE_MM
+    (tab_near, tab_far), tab_y = DESIGN_NANO_TAB_GROOVES_MM
+
+    def from_usb_end(offsets):
+        return (board.north - offsets[1], board.north - offsets[0])
+
+    if right:
+        p1_x = (board.east - p1_far, board.east - p1_near)
+    else:
+        p1_x = (board.west + p1_near, board.west + p1_far)
+    return [
+        ("west row", (board.west + row_near, board.west + row_far), from_usb_end(row_y)),
+        ("east row", (board.east - row_far, board.east - row_near), from_usb_end(row_y)),
+        ("P1.01/P1.02/P1.07", p1_x, from_usb_end(p1_y)),
+        ("west tab slots", (board.center - tab_far, board.center - tab_near), from_usb_end(tab_y)),
+        ("east tab slots", (board.center + tab_near, board.center + tab_far), from_usb_end(tab_y)),
+    ]
+
+
+def measure_nano_grooves(tray, right, design, figures):
+    """Each groove's edges against DESIGN.md's and its depth. Where the
+    hook's north slot reaches north past the west row's groove's south
+    end (DESIGN.md's board), the groove runs on into it, so that end
+    reads as the blade's face."""
+    board = design.board
+    blade_face = board.south - DESIGN_NANO_END_GAP_MM
+    north_slot_end = blade_face + DESIGN_HOOK_SLOTS_MM["north"]
+    offsets, depths = [], []
+    for label, x_range, y_range in nano_groove_places(board, right):
+        middle = (span_middle(x_range), span_middle(y_range), -DESIGN_NANO_GROOVE_DEPTH_MM / 2.0)
+        across = run_span(tray, right, middle, "x", False)
+        along = run_span(tray, right, middle, "y", False)
+        depths.append(-run_span(tray, right, middle, "z", False)[0])
+        if label == "west row" and north_slot_end >= y_range[0]:
+            y_range = (blade_face, y_range[1])
+        offsets.append(worst_offset(across + along, x_range + y_range))
+    texts = [
+        figures.check("edges off DESIGN.md's by", max(offsets, key=abs), 0.0, 2),
+        figures.check(
+            "deep",
+            max(depths, key=lambda depth: abs(depth - DESIGN_NANO_GROOVE_DEPTH_MM)),
+            DESIGN_NANO_GROOVE_DEPTH_MM,
+            1,
+        ),
+    ]
+    p1 = nano_groove_places(board, right)[2][1]
+    return (
+        f"grooves:    {len(offsets)}, {', '.join(texts)}, P1.01/P1.02/P1.07's from x "
+        f"{p1[0]:.3f} to {p1[1]:.3f} in the left half's frame"
+    )
+
+
+def measure_power_switch(tray, right, figures):
+    center = DESIGN_POWER_SWITCH_CENTER_X_MM
+    inner, outer = north_wall_faces("power switch")
+    in_slot = (center, (inner + outer) / 2.0, DESIGN_LEVER_SLOT_CENTER_Z_MM)
+    across = run_span(tray, right, in_slot, "x", False)
+    up = run_span(tray, right, in_slot, "z", False)
+    through = run_span(tray, right, in_slot, "y", False)
+    if through[0] > inner or through[1] < outer:
+        figures.problems.append("the lever slot does not pass through the wall")
+    body_y = inner - 2.0
+    opening = run_span(tray, right, (center, body_y, 1.5), "x", False)
+    ends = [
+        run_span(tray, right, (opening[0] - 0.1, body_y, 1.5), "x", True),
+        run_span(tray, right, (opening[1] + 0.1, body_y, 1.5), "x", True),
+    ]
+    beside_pins = (opening[0] + 0.5, body_y, 1.5)
+    depth = run_span(tray, right, beside_pins, "y", False)
+    arm = run_span(tray, right, (beside_pins[0], depth[0] - 0.1, 1.5), "y", True)
+    pin_slot = run_span(tray, right, (center, depth[0] - 0.1, 1.5), "x", False)
+    top = run_span(tray, right, (span_middle(ends[0]), body_y, 1.5), "z", True)[1]
+    slot_texts = [
+        figures.check("wide", span_length(across), DESIGN_LEVER_SLOT_MM[0], 1),
+        figures.check("tall", span_length(up), DESIGN_LEVER_SLOT_MM[1], 1),
+        figures.check("off x", span_middle(across) - center, 0.0, 2),
+        figures.check("middle z", span_middle(up), DESIGN_LEVER_SLOT_CENTER_Z_MM, 2),
+    ]
+    cradle_texts = [
+        figures.check("opening", span_length(opening), DESIGN_CRADLE_OPENING_MM, 1),
+        figures.check("off x", span_middle(opening) - center, 0.0, 2),
+        figures.check("ends", min(span_length(end) for end in ends), DESIGN_CRADLE_END_MM, 1),
+        figures.check("deep to the back arms", depth[1] - depth[0], DESIGN_CRADLE_DEPTH_MM, 1),
+        figures.check("back arms", span_length(arm), DESIGN_CRADLE_ARM_MM, 1),
+        figures.check("pin slot", span_length(pin_slot), DESIGN_CRADLE_PIN_SLOT_MM, 1),
+        figures.check("top z", top, DESIGN_CRADLE_TOP_Z_MM, 1),
+    ]
+    return [f"lever slot: {', '.join(slot_texts)}", f"cradle:     {', '.join(cradle_texts)}"]
+
+
+def measure_reset_button(tray, right, figures):
+    center = DESIGN_RESET_CENTER_X_MM
+    inner, outer = north_wall_faces("reset button")
+    in_hole = (center, (inner + outer) / 2.0, DESIGN_RESET_PIN_HOLE_AXIS_Z_MM)
+    across = run_span(tray, right, in_hole, "x", False)
+    up = run_span(tray, right, in_hole, "z", False)
+    through = run_span(tray, right, in_hole, "y", False)
+    if through[0] > inner or through[1] < outer:
+        figures.problems.append("the reset pin hole does not pass through the wall")
+    radius = span_length(across) / 2.0
+    _top, flat = flat_top(tray, half_place(right, in_hole), App.Vector(1, 0, 0))
+    in_front = run_span(tray, right, (center, inner - 1.0, DESIGN_RESET_BACK_WALL_TOP_Z_MM - 0.1),
+                        "y", False)
+    in_wall = (center, in_front[0] - DESIGN_RESET_BACK_WALL_MM / 2.0, 2.0)
+    wall = run_span(tray, right, in_wall, "y", True)
+    wall_top = run_span(tray, right, in_wall, "z", True)[1]
+    notch_texts = []
+    for side in (-1.0, 1.0):
+        notch_point = (center + side * DESIGN_RESET_NOTCH_FROM_CENTER_MM, in_wall[1], 2.0)
+        notch = run_span(tray, right, notch_point, "x", False)
+        bottom = run_span(tray, right, notch_point, "z", False)[0]
+        outer_edge = notch[1] if side > 0 else notch[0]
+        end = run_span(tray, right, (outer_edge + side * 0.1, in_wall[1], 2.0), "x", True)
+        notch_texts.extend([
+            figures.check("notch", span_length(notch), DESIGN_RESET_NOTCH_WIDTH_MM, 2),
+            figures.check("from the middle", abs(span_middle(notch) - center),
+                          DESIGN_RESET_NOTCH_FROM_CENTER_MM, 2),
+            figures.check("bottom z", bottom, DESIGN_RESET_NOTCH_BOTTOM_Z_MM, 1),
+            figures.check("wall beyond", span_length(end), DESIGN_RESET_BACK_WALL_BEYOND_NOTCHES_MM,
+                          1),
+        ])
+    hole_texts = [
+        figures.check("pin hole across", span_length(across), DESIGN_RESET_PIN_HOLE_MM, 1),
+        figures.check("off x", span_middle(across) - center, 0.0, 2),
+        figures.check("axis z", up[0] + radius, DESIGN_RESET_PIN_HOLE_AXIS_Z_MM, 2),
+        f"top {up[1] - up[0] - radius:.3f} above the axis",
+        figures.check("flat top", flat, DESIGN_RESET_PIN_HOLE_FLAT_MM, 2),
+    ]
+    wall_texts = [
+        figures.check("back wall from the wall's inner face", in_front[1] - in_front[0],
+                      DESIGN_RESET_BACK_WALL_DEPTH_MM, 1),
+        figures.check("thick", span_length(wall), DESIGN_RESET_BACK_WALL_MM, 1),
+        figures.check("top z", wall_top, DESIGN_RESET_BACK_WALL_TOP_Z_MM, 1),
+    ] + notch_texts
+    return [f"reset:      {', '.join(hole_texts)}", f"back wall:  {', '.join(wall_texts)}"]
+
+
+def measure_battery_pocket(tray, right, design, figures):
+    """The pocket, its mouth where the side walls end, or with a test
+    print's front lips, which run on from the side walls, at the lips'
+    faces."""
+    middle_y = DESIGN_BATTERY_HEADER_MIDDLE_Y_MM
+    header_x = DESIGN_BATTERY_HEADER_X_MM
+    in_pocket = (span_middle(header_x), middle_y, 2.0)
+    across = run_span(tray, right, in_pocket, "y", False)
+    beside_post_slot = (in_pocket[0], across[0] + 0.1, 2.0)
+    back = run_span(tray, right, beside_post_slot, "x", False)[1]
+    walls = [
+        run_span(tray, right, (in_pocket[0], across[0] - 0.1, 2.0), "y", True),
+        run_span(tray, right, (in_pocket[0], across[1] + 0.1, 2.0), "y", True),
+    ]
+    side = run_span(tray, right, (in_pocket[0], across[0] - 0.1, 2.0), "x", True)
+    if design.battery_shoulder > 0.0:
+        mouth_x = run_span(tray, right, beside_post_slot, "x", False)[0]
+    else:
+        mouth_x = side[0]
+    top = run_span(tray, right, (in_pocket[0], across[0] - 0.1, 2.0), "z", True)[1]
+    back_wall = run_span(tray, right, (back + 0.1, beside_post_slot[1], 2.0), "x", True)
+    in_post_slot = (back + 0.1, middle_y, DESIGN_BATTERY_POCKET_TOP_Z_MM - 0.1)
+    post_slot = run_span(tray, right, in_post_slot, "y", False)
+    slot_bottom = run_span(tray, right, in_post_slot, "z", False)[0]
+    pocket_width, pocket_across = DESIGN_BATTERY_POCKET_MM
+    mouth = run_span(tray, right, (mouth_x - 0.5, middle_y, 2.0), "y", False)
+    texts = [
+        figures.check("inside along x", back - mouth_x, pocket_width, 1),
+        figures.check("across", span_length(across), pocket_across, 1),
+        figures.check("middle y", span_middle(across), middle_y, 2),
+        figures.check("mouth before the header", header_x[0] - mouth_x,
+                      round((pocket_width - (header_x[1] - header_x[0])) / 2.0, 2), 2),
+        figures.check("side walls", min(span_length(wall) for wall in walls),
+                      DESIGN_BATTERY_POCKET_WALL_MM, 1),
+        figures.check("back wall", span_length(back_wall), DESIGN_BATTERY_POCKET_WALL_MM, 1),
+        figures.check("top z", top, DESIGN_BATTERY_POCKET_TOP_Z_MM, 1),
+        figures.check("post slot", span_length(post_slot), DESIGN_BATTERY_POST_SLOT_MM, 2),
+        figures.check("down to z", slot_bottom, DESIGN_BATTERY_POST_SLOT_BOTTOM_Z_MM, 2),
+    ]
+    if design.battery_shoulder > 0.0:
+        texts.append(figures.report("front lips' opening", span_length(mouth), 1))
+    elif span_length(mouth) < pocket_across:
+        figures.problems.append(f"the battery pocket's mouth is {span_length(mouth):.3f} across, "
+                                "DESIGN.md leaves it open")
+    else:
+        texts.append("open toward the plug")
+    return f"pocket:     {', '.join(texts)}"
+
+
+def battery_rib_pocket():
+    clearance = DESIGN_BATTERY_RIB_CLEARANCE_MM
+    return (
+        (DESIGN_BATTERY_X_MM[0] - clearance, DESIGN_BATTERY_X_MM[1] + clearance),
+        (DESIGN_BATTERY_Y_MM[0] - clearance, DESIGN_BATTERY_Y_MM[1] + clearance),
+    )
+
+
+def battery_rib_arm(tray, right, corner, outward, axis):
+    """(thickness, arm from the pocket's corner, top z) of the rib arm
+    running along axis from the pocket's corner, (east, north) outward."""
+    (corner_x, corner_y), (east, north) = corner, outward
+    thickness, arm, _height = DESIGN_BATTERY_RIB_MM
+    if axis == "x":
+        point = (corner_x - east * arm / 2.0, corner_y + north * thickness / 2.0, 0.5)
+        across, along_index, sign = "y", 0, east
+    else:
+        point = (corner_x + east * thickness / 2.0, corner_y - north * arm / 2.0, 0.5)
+        across, along_index, sign = "x", 1, north
+    width = span_length(run_span(tray, right, point, across, True))
+    along = run_span(tray, right, point, axis, True)
+    free_end = along[0] if sign > 0 else along[1]
+    top = run_span(tray, right, point, "z", True)[1]
+    return width, abs(free_end - corner[along_index]), top
+
+
+def measure_battery_ribs(tray, right, figures):
+    (low_x, high_x), (low_y, high_y) = battery_rib_pocket()
+    thickness, arm, height = DESIGN_BATTERY_RIB_MM
+    widths, arms, tops = [], [], []
+    for east, north in DESIGN_BATTERY_RIB_CORNERS:
+        corner = (high_x if east > 0 else low_x, high_y if north > 0 else low_y)
+        for axis in ("x", "y"):
+            width, reach, top = battery_rib_arm(tray, right, corner, (east, north), axis)
+            widths.append(width)
+            arms.append(reach)
+            tops.append(top)
+    inside_x = run_span(tray, right, ((low_x + high_x) / 2.0, low_y + arm / 2.0, 0.5), "x", False)
+    inside_y = run_span(tray, right, (low_x + arm / 2.0, (low_y + high_y) / 2.0, 0.5), "y", False)
+    for point in ((high_x - arm / 2.0, high_y + thickness / 2.0, 0.5),
+                  (high_x + thickness / 2.0, high_y - arm / 2.0, 0.5)):
+        if tray.isInside(half_place(right, point), SAME_PLACE_MM, True):
+            figures.problems.append(
+                "a battery rib stands at the northeast corner, which DESIGN.md leaves free"
+            )
+    measured_middle = (span_middle(inside_x), span_middle(inside_y))
+    battery_middle = (span_middle(DESIGN_BATTERY_X_MM), span_middle(DESIGN_BATTERY_Y_MM))
+    texts = [
+        figures.check("inside", span_length(inside_x), round(high_x - low_x, 2), 1),
+        figures.check("by", span_length(inside_y), round(high_y - low_y, 2), 1),
+        figures.check("off the battery's middle", worst_offset(measured_middle, battery_middle),
+                      0.0, 2),
+        figures.check("thick", max(widths, key=lambda width: abs(width - thickness)), thickness, 1),
+        figures.check("arms", max(arms, key=lambda reach: abs(reach - arm)), arm, 1),
+        figures.check("tall", max(tops, key=lambda top: abs(top - height)), height, 1),
+        "no rib at the northeast corner",
+    ]
+    return f"battery:    {len(widths)} rib arms at 3 corners, {', '.join(texts)}"
+
+
+def half_box(right, x_range, y_range, z_range):
+    """A box given in the left half's frame, on the given half."""
+    corners = [half_point((x, y), right) for x in x_range for y in y_range]
+    low_x, high_x = min(x for x, _ in corners), max(x for x, _ in corners)
+    low_y, high_y = min(y for _, y in corners), max(y for _, y in corners)
+    return Part.makeBox(
+        high_x - low_x,
+        high_y - low_y,
+        z_range[1] - z_range[0],
+        App.Vector(low_x, low_y, z_range[0]),
+    )
+
+
+def measure_kept_clear(tray, right, fits, figures):
+    """The PCB connector's zone above the floor holds no plastic of the
+    tray as printed (the zone grown by the swelling holds none as
+    built), and every wire room (layout.py's, the rooms DESIGN.md asks
+    for behind every lead) none as built."""
+    x_range, y_range = (
+        (low - DESIGN_PRINT_SWELLING_PER_SIDE_MM, high + DESIGN_PRINT_SWELLING_PER_SIDE_MM)
+        for low, high in DESIGN_PCB_CONNECTOR_ZONE_MM
+    )
+    zone = half_box(right, x_range, y_range, (0.0, DESIGN_LEDGE_TOP_Z_MM)).common(tray).Volume
+    rooms = layout.wire_rooms(fits, right)
+    in_rooms = sum(
+        half_box(right, room.x_range, room.y_range, room.z_range).common(tray).Volume
+        for room in rooms
+    )
+    texts = [
+        figures.check("plastic in the PCB connector's zone as printed, mm3", zone, 0.0, 3),
+        figures.check(f"in the {len(rooms)} wire rooms, mm3", in_rooms, 0.0, 3),
+    ]
+    return f"kept clear: {', '.join(texts)}"
+
+
+def measure_mounts(tray, right, design, fits, figures):
+    lines = [
+        measure_usb_window(tray, right, design, figures),
+        measure_usb_channel(tray, right, design, figures),
+        measure_nano_bar(tray, right, design, figures),
+    ]
+    lines.extend(measure_nano_hook(tray, right, design, figures))
+    lines.append(measure_nano_ribs(tray, right, design, figures))
+    lines.append(measure_nano_grooves(tray, right, design, figures))
+    lines.extend(measure_power_switch(tray, right, figures))
+    lines.extend(measure_reset_button(tray, right, figures))
+    lines.append(measure_battery_pocket(tray, right, design, figures))
+    lines.append(measure_battery_ribs(tray, right, figures))
+    lines.append(measure_kept_clear(tray, right, fits, figures))
+    return lines
+
+
+def measure(tray, right, pin_hole_radius, design, mount_design, fits):
     """Print every measured figure against DESIGN.md's, stopping on any
     that is off."""
     figures = Figures()
@@ -779,6 +1582,7 @@ def measure(tray, right, pin_hole_radius, design):
     lines.extend(measure_magnet_slots(tray, right, figures))
     lines.append(measure_parking_hole(tray, right, figures))
     lines.append(measure_socket_clearance(tray, right, figures))
+    lines.extend(measure_mounts(tray, right, mount_design, fits, figures))
     for line in lines:
         print(line)
     figures.stop_on_problems()
@@ -948,9 +1752,9 @@ def check_joined(left, right, left_radius, right_radius):
 # The build.
 
 
-def half_tray(right, pin_hole_diameter):
+def half_tray(right, pin_hole_diameter, fits=None):
     """(build, the tray on its half as exported)."""
-    build = build_tray(right, pin_hole_diameter)
+    build = build_tray(right, pin_hole_diameter, fits)
     solid = mirror_for_right_half(build.solid) if right else build.solid
     return build, solid
 
@@ -968,12 +1772,20 @@ def print_build(build):
     lead_in = f"{build.pin_hole_lead_in} lead-in" if build.pin_hole_lead_in else "no lead-in"
     print(f"pins:       holes {build.pin_hole_diameter} across "
           f"({'slip' if build.right else 'snug'} fit), {build.pin_hole_depth} deep, {lead_in}")
+    fits = build.fits
+    lips = f"{fits.battery_shoulder} onto the rim" if fits.battery_shoulder > 0.0 else "none"
+    print(f"mounts:     fitted to a nice!nano {fits.nano_width} x {fits.nano_length}, the hook's "
+          f"lip {fits.hook_lip} onto it, the bar {fits.bar_clearance} over its shell, the battery "
+          f"header's front lips {lips}")
+    for label, added in build.mounts:
+        print(f"added:      {label}, {added:.3f} mm3")
 
 
 def main():
     arguments = parse_arguments(script_arguments(sys.argv))
     right = arguments.right
-    build, tray = half_tray(right, arguments.pin_hole_diameter)
+    fits = arguments.mount_fits()
+    build, tray = half_tray(right, arguments.pin_hole_diameter, fits)
     print_build(build)
     if right:
         print(f"half:       right, mirrored across x = {layout.RIGHT_HALF_MIRROR_X_MM:.3f} (the "
@@ -982,7 +1794,7 @@ def main():
     else:
         print("half:       left")
     design = hole_design(right, arguments.pin_hole_diameter)
-    measure(tray, right, build.pin_hole_diameter / 2.0, design)
+    measure(tray, right, build.pin_hole_diameter / 2.0, design, MountDesign(arguments), fits)
     _other_build, other = half_tray(not right, None)
     left, right_tray = (other, tray) if right else (tray, other)
     left_diameter = layout.dowel_hole_diameter(False)

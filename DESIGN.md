@@ -48,7 +48,7 @@ Five 2.4 mm drills, M2 screws into heat-set inserts in tray standoffs, as on kbd
 
 | | z |
 |---|---|
-| Tray floor underside (the 1.0 rubber sole goes under it) | -1.2 |
+| Tray floor underside (the 1.0 rubber sole goes under it, cut out under the snap hook: Parts in the tray) | -1.2 |
 | Battery top (4.11 thick) | 4.11 |
 | Socket bottoms, 1.87 above the battery | 5.98 |
 | PCB underside, standoff and ledge tops | 8.0 |
@@ -68,44 +68,65 @@ kbdkid4's tray with the dimensions above: the PCB rests on the standoffs and on 
 
 ## Parts in the tray
 
-Envelopes below are bodies only. Wires need room behind every lead.
+Envelopes below are bodies only. `build_tray()` builds every part's mounts into both trays, each mount a box in `scripts/layout.py` (`MountBox`), the right half's in the left half's frame and mirrored with the tray (Mirroring, below). Every printed fit follows the joint's rule (The joint). A 45 degree face swells 0.283 along x, y or z (the 0.2 along its normal). Every mount body keeps at least 0.5 from every part but its own (the tightest 1.8, the battery's northwest rib from the nice!nano), overlaps its own part nowhere (the closest 0.2 as modelled, a snug fit's swelling), stays out of the PCB connector's zone as printed (by 0.1, the nice!nano's north rib) and stays under the sockets, at least 2.15 below the nearest (the hook under S101). The mounts' voids keep at least 0.5 from the standoffs (the tightest 0.676, the hook's deflection slot south of its blade, from the standoff at (18.574, 37.782)). The hook's bed chamfers come 0.176 from that standoff's footprint, in the floor's underside, below its base.
+
+Wires need room behind every lead: 3.0 beyond each lead's tip, over the leads' row plus 1.0 to either side, from the floor up to 1.5 over the lead. Over the nice!nano's pads, whose wires are soldered on its top side, the room is 3.0 above the board, 0.5 beyond the pads. The battery's lead gets 3.0 along both edges at its corner. On both halves every room is clear of the tray as cut, the mounts, the standoffs, the joint, the sockets and the other parts, by at least 0.345 (the room over the nice!nano's west pin row, from the west ledge).
+
+Printed floor down, the mounts need no support. Their only overhangs are bridges: the hold-down bar between its posts and on over the shell's channel to the mouth (9.44), the USB window's top (10.5 across, 6.6 of it flat between the corner rounds, as on kbdkid4's tray), the lever slot's top (4.0) and the reset pin hole's flat top (1.24). The snap hook's lip and its bed chamfers have 45 degree sides, and the reset button's notches and the battery header's post slot open at the top.
 
 ### nice!nano v2 (northwest corner)
 
 - Board 33.3 x 18.0 x 1.6 (measured on the manufacturer's render, unconfirmed by caliper), its flat underside on the floor, the USB end north, wires soldered on its top side only.
 - x 0.9 to 18.9 (0.3 from the west ledge's face), y 42.016 to 75.316. The USB-C shell (8.94 wide, 3.16 tall, z 0 to 3.16, flush with the board's underside) reaches 0.87 past the board's north end, so its mouth lies 0.5 behind the north wall's outer face, as on kbdkid4.
-- USB window: kbdkid4's 10.5 x 4.5 window (corners rounded 1.95, faces chamfered 0.2), centered on the shell (x 9.9, z 1.58), so its bottom edge cuts 0.67 into the floor. The north ledge is cut away over the nano's width plus 0.5 on each side.
-- Held down at the USB end by a bar over the shell's top (0.1 clear), just inside the north wall, no wider than the shell plus 0.5, so it stays off the B+ and B- pads at the end's corners, which carry wires.
-- Held down at the far end by a snap hook over the middle of the board's south edge: the last 5.8 of the board's top side carries no parts or pads across its middle 13.7. The hook's lip reaches 0.8 onto the board. The hook stands on a blade that flexes along y: a vertical blade on the bed, free of the floor on three sides by a slot, rooted at one end, at least 10 long so the bending strain stays under 2 % for PLA. The hook's top stays 0.3 under the S101 socket above it (z 5.68).
-- Located sideways by the west ledge's face and low ribs (1.0 tall) along the east edge, which touch only the board's side face.
-- Shallow grooves (0.4 deep) in the floor under the two pin rows, B+ and B-, the P1.01/P1.02/P1.07 row and the shell's tab slots, so solder that runs through the plated holes cannot lift the board.
+- USB window: kbdkid4's 10.5 x 4.5 window (corners rounded 1.95), centered on the shell (x 9.9, z 1.58), through the wall's outer 0.5 from the shell's mouth (y 76.186) out, so its bottom edge cuts 0.67 into the floor. Its outer face is chamfered 0.2. As printed the wall face it opens from stands 0.2 north of the mouth, so a plug whose overmold has to come to the mouth would stop short of it (work item 004). The north ledge is cut away over the nano's width plus 0.5 on each side.
+- Between the cavity face and the mouth the wall stands over and beside the shell, which passes it in a channel of its own: the shell's slip fit across (9.44, the posts' opening), from the floor up to the bar's underside (z 3.46, 0.1 over the shell as printed), run on 0.25 past the mouth (the board's end gap). As printed the shell can move 0.05 west (the posts, before the ledge's 0.1), none east (the ribs) and 0.05 north (the posts). Wherever that play lets it go it stays inside the channel as printed, at the farthest west against its side (0.0), its mouth at the farthest north reaching the channel's end (0.0), so the window's corner rounds, 0.2 smaller as printed, never meet its corners.
+- Held down at the USB end by a bar over the shell's top (z 3.46 to 4.96, 0.1 clear as printed) against the north wall's inner face, bridging between two posts 1.0 wide on the floor. The wall carries the bar and its posts on to the shell's mouth, 0.62 deep in all. The posts stand 9.44 apart, the shell's slip fit, so the bar stays off the B+ and B- pads at the end's corners, which carry wires. Their south faces, 0.25 north of the board's USB end, are its north stop.
+- Held down at the far end by a snap hook: a vertical blade 0.8 thick along the board's south edge, from the bed up to z 3.83, rooted at the west ledge's face (x 0.6) and free of the floor on its other three sides by slots through it, 2.0 south of it (1.6 printed, room for its free end, which swings 1.50) and 0.8 north of it and past its end (0.4 printed). Its north face, 0.25 south of the board's south end, is the board's south stop.
+- On the bed the slots' floor edges are chamfered 0.4 at 45 degrees on their south, north and east sides, like the joint face's bottom edge, and the blade's south, north and end edges 0.2, leaving it 0.4 on the bed, so the first layer squashed out past them cannot fuse the blade's free end to the floor. The blade cannot start above the bed without support, so its bottom is flush with the floor's underside, and the rubber sole is cut out under the blade and its slots, since a sole glued there would stop the blade flexing: x 0.6 to 15.6, y 38.566 to 42.966 on the left half and x 116.798 to 131.798 on the right (the slots' outline on the bed, the chamfers included).
+- The hook's lip sits on the blade's last 2.8 (x 11.6 to 14.4), 11.0 from the root, within the free middle of the board's far end (x 3.105 to 16.695, between the last pins' pads at the larger of the render's row insets), off the board's center so the slots keep 0.676 from the standoff at (18.574, 37.782). The lip is a triangle with 45 degree sides. Its underside rises over the board's south edge 0.1 above the board's top as printed (0.383 as modelled) to its tip 0.8 onto the board, and its top falls back to the blade as the lead-in, so the board snaps in from above and comes out with a firm pull. While the lip passes the board's edge, the blade bends at its root by 3 d t / 2 L², with the deflection d 1.083 (the reach, the tip 0.283 farther out as printed) and the thickness t 1.2 as printed (0.8 and 0.8 as modelled) over L 11.0: 1.61 % (0.79 % as modelled), under the 2 % allowed for PLA, with the blade bending over at least 10. The hook's top stays 2.15 under the S101 socket above it (z 5.98).
+- Located sideways by the west ledge's face and two low ribs along the east edge (1.0 tall, 0.6 thick, 1.0 as printed, 3.0 long, 2.0 from the board's ends), which touch only the board's side face: their face lies 18.5 from the ledge's face, the board's slip fit, 0.2 from its east edge as placed.
+- Grooves 0.4 deep in the floor under the two pin rows with B+ and B-, the P1.01/P1.02/P1.07 row and the shell's tab slots, so solder that runs through the plated holes cannot lift the board. Each covers its features at both of the render's readings, grown by the render's 0.1 and half a slip fit's 0.5 on each side: the rows 0.195 to 2.555 in from each long edge and 0.46 to 32.965 from the USB end (the west row's groove runs on into the hook's north slot), the P1 row 2.735 to 10.175 from the board's west edge seen from above and 25.685 to 27.915 from the USB end, the tab slots 4.54 to 6.215 either side of the center line and 0.02 to 6.42 from the USB end.
+- The mounts' figures that rest on the render wait on a caliper: the board's length and width, the hook's lip and the bar's clearance, which `export_tray.py`'s `nano_length`, `nano_width`, `hook_lip` and `bar_clearance` override for a test print. A board wider than 18.1 runs the north rib into the PCB connector's zone as printed, which the export refuses.
 
 ### Power switch (column 2's north wall)
 
-- SOFNG SS-12D00-G3: body 8.8 (x, the lever's travel) x 3.9 (z) x 3.5 (y), lever 1.5 x 1.5 x 3 on the body's north face, three 3.0 pins pointing south.
-- Centered at x 47.149, its north face against the cavity wall (y 80.648), z 0 to 3.9. The lever passes a 4.0 (x) x 2.0 (z) slot through the wall and stands 2.2 proud of the outer face, so a fingertip flips it.
-- A cradle on the floor holds the body's ends against the 3.5 N slide force. The north ledge is cut away over the switch body plus 0.5 on each side.
+- SOFNG SS-12D00-G3: body 8.8 (x, the lever's travel) x 3.9 (z) x 3.5 (y), lever 1.5 x 1.5 x 3 on the body's north face, centered on its 3.9, three pins 0.5 x 0.3 at 2.5 pitch pointing south 3.0 from the body (the SOFNG drawing).
+- Centered at x 47.149, its north face against the cavity wall (y 80.648), z 0 to 3.9. The lever passes a 4.0 (x) x 2.0 (z) slot through the wall, centered at z 1.95 (its swept 3.5 x 1.5 a slip fit, 0.05 per side as printed), and stands 2.2 proud of the outer face as modelled, 1.8 as printed (the swollen wall face pushes the snug body 0.2 south, and the outer face swells 0.2), so a fingertip flips it.
+- A cradle on the floor, 3.0 tall, holds the body snug against the 3.5 N slide force: two end blocks 1.2 thick, 9.2 apart (the body's 8.8 snug), from the wall's inner face 4.7 south, and two back arms 0.8 thick whose face lies 3.9 from the wall's inner face (the body's 3.5 snug), against a push on the lever's tip, 6.0 apart for the pins (their 5.5 a slip fit). The north ledge is cut away over the switch body plus 0.5 on each side, and the end blocks fill that margin.
 
 ### Reset button (column 3's north wall)
 
-- C&K PTS636 SL43 LFS: body 6.0 x 3.5, 4.3 to the stem's top, stem 3 x 1.5, two 3.9 leads, 130 gf.
-- Lying on its side, centered at x 66.199: 6.0 along x, 3.5 along z (z 0 to 3.5), the stem facing north and ending 0.2 short of the cavity wall (y 83.029). A 3.0 hole through the wall over the stem (kbdkid4's plate reset hole is 3.0 too) for a SIM pin. The leads point south.
-- A back wall behind the body, slotted for the leads, takes the press. The stem reaches into the north ledge, so the ledge is cut away over the button plus 0.5 on each side.
+- C&K PTS636 SL43 LFS: body 6.0 x 3.5, 4.3 to the stem's top, stem 3 x 1.5, 130 gf, two leads 1.0 wide and 3.9 long at 6.4 pitch, kinked out to 7.7 across their outsides (the datasheet's page 2), 0.4 thick (assumed).
+- Lying on its side, centered at x 66.199: 6.0 along x, 3.5 along z (z 0 to 3.5), the stem facing north and ending 0.2 short of the cavity wall (y 83.029). A 3.0 hole through the wall over the stem's middle (z 1.75) for a SIM pin, a flat-topped teardrop like the dowel holes (flat 1.24). It is a passage rather than a fit, so it prints about 2.6 (kbdkid4's plate reset hole is 3.0 too). The leads point south.
+- A back wall behind the body, 1.2 thick and 3.5 tall, takes the press. Its face lies 4.9 from the wall's inner face: the button's 4.3 and the stem's 0.2 short of the wall, as a snug fit. It is notched from its top for the leads, each notch 1.55 wide (the band from 2.9 to 3.95 off the center that a lead may lie in, as a slip fit) down to z 0.9, and runs on 1.0 beyond the notches. The stem reaches into the north ledge, so the ledge is cut away over the button plus 0.5 on each side.
+- Nothing holds the button down: its leads sit in open-top notches, and the PCB is 4.5 above it, so it could lift until its stem leaves the pin hole's line. Glue its body to the floor.
 
 ### Battery connector (column 4's north strip)
 
-- JST PH B2B-PH-K-S (top entry) laid on its side: 5.9 along y, 4.5 along z, 6.0 along x, the plug entering from the west, the 3.4 posts pointing east for the wires. Mated, plug and header are 4.5 tall.
-- Header x 85.0 to 91.0, y 72.55 to 78.45. The pocket holds the header's front shoulders, since the plug pulls out toward the west, which PH plugs resist hard.
+- JST PH B2B-PH-K-S (top entry) laid on its side: 5.9 along y, 4.5 along z, 6.0 along x, the plug entering from the west, its two 0.64 square posts at 2.0 pitch reaching 3.4 east for the wires, 1.78 from one 4.5 face (JST's PH catalogue). Mated, the PHR-2 plug's housing (5.8 x 4.5) stands 2.0 out of the header's entry face.
+- Header x 85.0 to 91.0, y 71.65 to 77.55. Its middle (y 74.6) lies far enough south that the wires' room behind its posts keeps 0.347 from the ledge where the north edge steps in to column 5's at x 94.774.
+- A pocket holds the header snug: two side walls 1.2 thick, 6.3 apart (the 5.9 snug), a back wall 1.2 thick behind the header's base, 6.4 from the pocket's mouth (the 6.0 snug), slotted from the top down to z 1.21 for the posts (3.14 wide, their 2.64 a slip fit), the floor, the walls' top at z 4.5. The mouth lies 0.2 before the header's entry face, open toward the plug.
+- The plug pulls out toward the west, which PH plugs resist hard, and only the snug pocket's friction holds the header against that pull. By JST's figures the mated plug's housing (5.8 x 4.5) covers the header's whole 5.9 x 4.5 entry face but 0.05 per side, so lips over the header's front shoulders would keep the plug from seating. Glue the header into the pocket until the parts in hand show a rim to hold. `export_tray.py`'s `battery_shoulder` adds such lips, reaching that far onto the rim as printed, for a test print.
 
 ### Battery
 
 - 34.37 x 51.53 x 4.11 pouch, its lead (about 66 with a PH plug) leaving one corner.
 - x 22.0 to 56.37, y 8.1 to 59.63, lying under the sockets of columns 1 and 2 with 1.87 of clearance. Its west edge is 0.53 from the standoffs. Its south edge is 0.36 clear of the ledge along the riser where column 3's south edge steps out, which a battery starting at y 5.9 would overlap. Its lead's corner is at the northeast (turn the pouch over to put it there), about 31 from the connector's plug.
-- Located by low L-shaped ribs at its corners (1.0 tall, 0.5 clear).
+- Located by low L-shaped ribs at its southwest, northwest and southeast corners (1.0 tall, 0.8 thick, each arm 6.0 from the corner), 0.5 clear of the pouch as modelled (0.3 as printed, since pouches vary), and none at the northeast corner, which its lead leaves. The southeast rib runs into the ledge there.
 
 ### PCB connector (kept clear)
 
 The PCB's off-board connector is the PCB design's choice, recommended a JST SH SM12B-SRSS-TB side-entry header on the underside, 2.95 deep with its plug. The tray keeps column 1's north strip clear for it: x 20.0 to 37.0, y 65.5 to 74.5 (0.39 clear of the north ledge), no tray feature above z 0 there. That is next to the nano's east pin row.
+
+### Mirroring
+
+The right tray is the left one cut for the right half's sockets and mirrored (Frame and units), mounts and all. A mirrored mount is right wherever its part maps onto itself under the mirror or lies mirrored on the right half:
+
+- nice!nano: the same part, the same side up, on both halves. Its board, shell, B+ and B- pair, pin rows (within the 0.13 between the render's two row insets, which the grooves cover), free middle and tab slots are symmetric about its center line, so the bar, the shell's channel, the hook, the ribs and their grooves mirror rightly. The P1.01/P1.02/P1.07 row does not: it lies on the B- side, the west seen from above, on both halves. So the right tray's P1 groove is mirrored about the board's center line before the tray is, the only mount that differs between the halves.
+- Power switch: symmetric along its travel, so the mirrored slot and cradle hold it as on the left half. Which way is on follows the wiring.
+- Reset button: on the mirror line and symmetric, so it maps onto itself.
+- Battery connector: the mirror flips it along x only, and the header is symmetric about its pin row's middle but for its pin 1 mark, so its mirror image is the header turned 180 degrees about the vertical. On the right half the plug enters from the east and pin 1 lies at the other end: wire it by pin number, not by side.
+- Battery: the pouch's mirror image is the pouch turned over, so the right half's lies with its other face up and its lead at the corner nearest its connector, the northeast in the left half's frame, which both halves' ribs leave free.
 
 ## The joint
 

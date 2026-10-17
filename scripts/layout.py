@@ -434,7 +434,7 @@ PCB_UNDERSIDE_Z_MM = 8.0  # also the standoff and ledge tops
 MINIMUM_PCB_UNDERSIDE_Z_MM = (
     BATTERY_THICKNESS_MM + MINIMUM_BATTERY_TO_SOCKET_CLEARANCE_MM + HOTSWAP_SOCKET_REACH_MM
 )  # 6.63
-FLOOR_UNDERSIDE_Z_MM = -TRAY_FLOOR_MM  # the 1.0 rubber sole goes under it
+FLOOR_UNDERSIDE_Z_MM = -TRAY_FLOOR_MM  # the 1.0 rubber sole goes under it, cut out under the hook
 BATTERY_TOP_Z_MM = BATTERY_THICKNESS_MM
 SOCKET_BOTTOM_Z_MM = PCB_UNDERSIDE_Z_MM - HOTSWAP_SOCKET_REACH_MM  # 5.98
 PCB_TOP_Z_MM = PCB_UNDERSIDE_Z_MM + PCB_THICKNESS_MM  # 9.6
@@ -444,7 +444,10 @@ STANDOFF_HEIGHT_MM = PCB_UNDERSIDE_Z_MM
 
 
 # The parts in the tray (DESIGN.md, "Parts in the tray"), as boxes:
-# bodies only, without leads, pins or posts, as DESIGN.md gives them.
+# the bodies DESIGN.md gives, then the leads, pins and posts from the
+# parts' datasheets and the battery header's mated plug, each a piece
+# of its part. The mounts that hold them and the room their wires need
+# come last in this module (work item 004).
 # `containment` says where a box must lie: CAVITY inside the cavity
 # wall and clear of the ledge (except where the ledge is cut away for
 # it, LEDGE_CUTAWAYS), THROUGH_WALL inside the tray's outer face (it
@@ -508,8 +511,11 @@ NANO_USB_SHELL = Envelope(
 # its north face against column 2's cavity wall (DESIGN.md: y 80.648).
 # The lever, 1.5 x 1.5 x 3 on the body's north face, swept over its 2
 # travel (doc/components.md) around the body's center, through a slot
-# in the wall. DESIGN.md does not place it on the face's height, so its
-# box takes the body's.
+# in the wall, centered on the face's 3.9 like the three pins on the
+# opposite face (the SOFNG drawing's end view,
+# work/research/downloads/ss12d00/sofng_SS-12D00-G3.pdf). The pins,
+# 0.5 along x and 0.3 thick, 2.5 apart along x around the center (its
+# side view and PCB layout), point south 3.0 from the body.
 POWER_SWITCH_CENTER_X_MM = 47.149
 POWER_SWITCH_BODY_X_MM = 8.8
 POWER_SWITCH_BODY_Y_MM = 3.5
@@ -532,6 +538,7 @@ POWER_SWITCH_BODY = Envelope(
 POWER_SWITCH_LEVER_REACH_X_MM = (
     POWER_SWITCH_LEVER_TRAVEL_MM / 2.0 + POWER_SWITCH_LEVER_WIDTH_MM / 2.0
 )
+POWER_SWITCH_LEVER_Z_MM = POWER_SWITCH_BODY_Z_MM / 2.0  # its middle
 POWER_SWITCH_LEVER = Envelope(
     "power switch",
     "lever, over its travel",
@@ -543,8 +550,33 @@ POWER_SWITCH_LEVER = Envelope(
         POWER_SWITCH_NORTH_FACE_Y_MM,
         POWER_SWITCH_NORTH_FACE_Y_MM + POWER_SWITCH_LEVER_LENGTH_MM,
     ),
-    (0.0, POWER_SWITCH_BODY_Z_MM),
+    (
+        POWER_SWITCH_LEVER_Z_MM - POWER_SWITCH_LEVER_WIDTH_MM / 2.0,
+        POWER_SWITCH_LEVER_Z_MM + POWER_SWITCH_LEVER_WIDTH_MM / 2.0,
+    ),
     PROUD,
+)
+POWER_SWITCH_PIN_PITCH_MM = 2.5
+POWER_SWITCH_PIN_WIDTH_MM = 0.5
+POWER_SWITCH_PIN_THICKNESS_MM = 0.3
+POWER_SWITCH_PIN_LENGTH_MM = 3.0
+POWER_SWITCH_PINS_REACH_X_MM = POWER_SWITCH_PIN_PITCH_MM + POWER_SWITCH_PIN_WIDTH_MM / 2.0
+POWER_SWITCH_PINS = Envelope(
+    "power switch",
+    "pins",
+    (
+        POWER_SWITCH_CENTER_X_MM - POWER_SWITCH_PINS_REACH_X_MM,
+        POWER_SWITCH_CENTER_X_MM + POWER_SWITCH_PINS_REACH_X_MM,
+    ),
+    (
+        POWER_SWITCH_BODY.y_range[0] - POWER_SWITCH_PIN_LENGTH_MM,
+        POWER_SWITCH_BODY.y_range[0],
+    ),
+    (
+        POWER_SWITCH_LEVER_Z_MM - POWER_SWITCH_PIN_THICKNESS_MM / 2.0,
+        POWER_SWITCH_LEVER_Z_MM + POWER_SWITCH_PIN_THICKNESS_MM / 2.0,
+    ),
+    CAVITY,
 )
 
 # Reset button, C&K PTS636 SL43 LFS (DESIGN.md), lying on its side:
@@ -552,14 +584,20 @@ POWER_SWITCH_LEVER = Envelope(
 # the stem's top along y, the stem ending 0.2 short of column 3's
 # cavity wall. Its housing is 3.3 of those 4.3 (doc/components.md, the
 # PTS636 datasheet), the 3 x 1.5 stem the rest, centered on the
-# housing along x. DESIGN.md does not place the stem on the housing's
-# height, so its box takes the housing's.
+# housing along x and, its 1.5 along z, on the housing's 3.5 (the
+# datasheet's end view, work/research/downloads/pts636/pts636_lcsc.pdf,
+# page 2). The two leads, 1 wide along z and centered on it too, leave
+# the housing's ends at its back, kink out to 7.7 across their outsides
+# 2.0 behind it and run on at 6.4 pitch to 3.9 behind it, each figure
+# +-0.2 (RESET_BUTTON_TOLERANCE_MM). Their thickness along x is not in
+# the datasheet: RESET_BUTTON_LEAD_THICKNESS_MM is assumed.
 RESET_BUTTON_CENTER_X_MM = 66.199
 RESET_BUTTON_BODY_X_MM = 6.0
 RESET_BUTTON_BODY_Z_MM = 3.5
 RESET_BUTTON_TO_STEM_TOP_MM = 4.3
 RESET_BUTTON_HOUSING_DEPTH_MM = 3.3
-RESET_BUTTON_STEM_WIDTH_MM = 3.0
+RESET_BUTTON_STEM_WIDTH_MM = 3.0  # along x
+RESET_BUTTON_STEM_THICKNESS_MM = 1.5  # along z
 RESET_BUTTON_STEM_SHORT_OF_WALL_MM = 0.2
 RESET_BUTTON_STEM_TOP_Y_MM = (
     cavity_wall_y(NORTH_EDGE_Y_OF_COLUMN_3_MM) - RESET_BUTTON_STEM_SHORT_OF_WALL_MM
@@ -584,14 +622,124 @@ RESET_BUTTON_STEM = Envelope(
         RESET_BUTTON_CENTER_X_MM + RESET_BUTTON_STEM_WIDTH_MM / 2.0,
     ),
     (RESET_BUTTON_BACK_Y_MM + RESET_BUTTON_HOUSING_DEPTH_MM, RESET_BUTTON_STEM_TOP_Y_MM),
-    (0.0, RESET_BUTTON_BODY_Z_MM),
+    (
+        (RESET_BUTTON_BODY_Z_MM - RESET_BUTTON_STEM_THICKNESS_MM) / 2.0,
+        (RESET_BUTTON_BODY_Z_MM + RESET_BUTTON_STEM_THICKNESS_MM) / 2.0,
+    ),
     CAVITY,
 )
+RESET_BUTTON_LEAD_PITCH_MM = 6.4
+RESET_BUTTON_LEAD_KINK_SPAN_MM = 7.7  # across the leads' outsides
+RESET_BUTTON_LEAD_WIDTH_MM = 1.0  # along z
+RESET_BUTTON_LEAD_LENGTH_MM = 3.9  # behind the housing
+RESET_BUTTON_LEAD_THICKNESS_MM = 0.4  # assumed
+RESET_BUTTON_TOLERANCE_MM = 0.2
+
+
+def reset_button_lead_band():
+    """(inside, outside) of either lead from the button's center along
+    x, over every place the datasheet's figures allow."""
+    inside = (
+        RESET_BUTTON_LEAD_PITCH_MM - RESET_BUTTON_TOLERANCE_MM - RESET_BUTTON_LEAD_THICKNESS_MM
+    ) / 2.0
+    outside = (RESET_BUTTON_LEAD_KINK_SPAN_MM + RESET_BUTTON_TOLERANCE_MM) / 2.0
+    return inside, outside
+
+
+def reset_button_lead_z_range():
+    half = (RESET_BUTTON_LEAD_WIDTH_MM + RESET_BUTTON_TOLERANCE_MM) / 2.0
+    middle = RESET_BUTTON_BODY_Z_MM / 2.0
+    return (middle - half, middle + half)
+
+
+def reset_button_lead(side, label):
+    """A lead's envelope, side -1 the west one and 1 the east one: from
+    its tip at the most the tolerance allows to RESET_BUTTON_HOUSING's
+    back, and on along the housing's end as far as the housing's back
+    third."""
+    inside, outside = reset_button_lead_band()
+    reach = sorted(
+        (RESET_BUTTON_CENTER_X_MM + side * inside, RESET_BUTTON_CENTER_X_MM + side * outside)
+    )
+    tip_y = RESET_BUTTON_BACK_Y_MM - RESET_BUTTON_LEAD_LENGTH_MM - RESET_BUTTON_TOLERANCE_MM
+    along_housing_y = RESET_BUTTON_BACK_Y_MM + RESET_BUTTON_HOUSING_DEPTH_MM / 3.0
+    return Envelope(
+        "reset button",
+        label,
+        tuple(reach),
+        (tip_y, along_housing_y),
+        reset_button_lead_z_range(),
+        CAVITY,
+    )
+
+
+RESET_BUTTON_WEST_LEAD = reset_button_lead(-1.0, "west lead")
+RESET_BUTTON_EAST_LEAD = reset_button_lead(1.0, "east lead")
 
 # Battery connector, JST PH B2B-PH-K-S laid on its side (DESIGN.md):
-# the header, 4.5 tall like the mated plug and header.
+# the header, 4.5 tall like the mated plug and header. Its two posts,
+# 0.64 square at 2.0 pitch along y around the header's middle, reach
+# 3.4 east of it, along z 1.78 from one of its 4.5 faces (JST's PH
+# catalogue, work/research/downloads/jst-ph/eph2.pdf, page 3: the
+# B2B-PH-K-S side view, measured on its drawing), so their box takes
+# that place from either face. Mated, the PHR-2 plug's housing (5.8
+# along y, 4.5 along z by the catalogue) stands 2.0 out of the
+# header's entry face: mated 8 tall against the header's 6.0. The
+# header's middle sits at y 74.6, far enough south that the wire room
+# behind its posts (wire_rooms()) keeps 0.35 from the ledge where the
+# north edge steps in to column 5's at x 94.774.
 BATTERY_CONNECTOR = Envelope(
-    "battery connector", "header", (85.0, 91.0), (72.55, 78.45), (0.0, 4.5), CAVITY
+    "battery connector", "header", (85.0, 91.0), (71.65, 77.55), (0.0, 4.5), CAVITY
+)
+BATTERY_CONNECTOR_MIDDLE_Y_MM = sum(BATTERY_CONNECTOR.y_range) / 2.0
+BATTERY_CONNECTOR_POST_PITCH_MM = 2.0
+BATTERY_CONNECTOR_POST_SIZE_MM = 0.64
+BATTERY_CONNECTOR_POST_LENGTH_MM = 3.4
+BATTERY_CONNECTOR_POST_FROM_FACE_MM = 1.78
+BATTERY_PLUG_WIDTH_MM = 5.8
+BATTERY_PLUG_DEPTH_MM = 4.5
+BATTERY_PLUG_OUT_OF_HEADER_MM = 8.0 - 6.0
+
+
+def battery_connector_posts_z_range():
+    height = BATTERY_CONNECTOR.z_range[1]
+    half = BATTERY_CONNECTOR_POST_SIZE_MM / 2.0
+    return (
+        BATTERY_CONNECTOR_POST_FROM_FACE_MM - half,
+        height - BATTERY_CONNECTOR_POST_FROM_FACE_MM + half,
+    )
+
+
+BATTERY_CONNECTOR_POSTS_REACH_Y_MM = (
+    BATTERY_CONNECTOR_POST_PITCH_MM + BATTERY_CONNECTOR_POST_SIZE_MM
+) / 2.0
+BATTERY_CONNECTOR_POSTS = Envelope(
+    "battery connector",
+    "posts",
+    (
+        BATTERY_CONNECTOR.x_range[1],
+        BATTERY_CONNECTOR.x_range[1] + BATTERY_CONNECTOR_POST_LENGTH_MM,
+    ),
+    (
+        BATTERY_CONNECTOR_MIDDLE_Y_MM - BATTERY_CONNECTOR_POSTS_REACH_Y_MM,
+        BATTERY_CONNECTOR_MIDDLE_Y_MM + BATTERY_CONNECTOR_POSTS_REACH_Y_MM,
+    ),
+    battery_connector_posts_z_range(),
+    CAVITY,
+)
+BATTERY_PLUG = Envelope(
+    "battery connector",
+    "mated plug",
+    (
+        BATTERY_CONNECTOR.x_range[0] - BATTERY_PLUG_OUT_OF_HEADER_MM,
+        BATTERY_CONNECTOR.x_range[0],
+    ),
+    (
+        BATTERY_CONNECTOR_MIDDLE_Y_MM - BATTERY_PLUG_WIDTH_MM / 2.0,
+        BATTERY_CONNECTOR_MIDDLE_Y_MM + BATTERY_PLUG_WIDTH_MM / 2.0,
+    ),
+    (0.0, BATTERY_PLUG_DEPTH_MM),
+    CAVITY,
 )
 
 # Battery (DESIGN.md): the 34.37 x 51.53 x 4.11 pouch.
@@ -615,9 +763,14 @@ PART_ENVELOPES = (
     NANO_USB_SHELL,
     POWER_SWITCH_BODY,
     POWER_SWITCH_LEVER,
+    POWER_SWITCH_PINS,
     RESET_BUTTON_HOUSING,
     RESET_BUTTON_STEM,
+    RESET_BUTTON_WEST_LEAD,
+    RESET_BUTTON_EAST_LEAD,
     BATTERY_CONNECTOR,
+    BATTERY_CONNECTOR_POSTS,
+    BATTERY_PLUG,
     BATTERY,
     PCB_CONNECTOR_CLEAR_ZONE,
 )
@@ -977,8 +1130,11 @@ JOINT_FACE_BOTTOM_CHAMFER_MM = 0.4
 # PCB mock's pull_in), so a hole or slot comes out that much smaller per
 # side than modelled. Each fit is modelled as the part's nominal size
 # plus the swelling on both sides plus the fit's clearance, so that it
-# prints as the nominal size plus the clearance.
+# prints as the nominal size plus the clearance. A 45 degree face swells
+# as much along its normal, which moves it PRINT_SWELLING_AT_45_DEGREES_MM
+# along x, y or z.
 PRINT_SWELLING_PER_SIDE_MM = 0.2
+PRINT_SWELLING_AT_45_DEGREES_MM = PRINT_SWELLING_PER_SIDE_MM * math.sqrt(2.0)
 SNUG_FIT_MM = 0.0  # holds a part pressed in by hand
 SLIP_FIT_MM = 0.1  # lets a part slide in, or leaves room for glue
 
@@ -1404,3 +1560,884 @@ def ledge_inner_polygon():
             JOINT_FACE_OUTWARD_MM - JOINT_BLOCK_THICKNESS_MM,
         ),
     )
+
+
+def west_ledge_face_x():
+    """The west ledge's inner face, which locates the nice!nano's west
+    edge."""
+    return min(x for x, _ in OUTLINE_VERTICES_MM) + ledge_reach()
+
+
+# The parts' mounts (DESIGN.md, "Parts in the tray", and work item 004).
+# Everything the tray adds to hold a part, and every void it cuts for
+# one, is an axis-aligned box in the left half's frame (MountBox), so
+# check_layout.py checks the mounts the way it checks the parts. Three
+# shapes are not boxes and lie inside theirs: the snap hook's lip, a
+# triangle across the blade (nano_hook_lip_profile()), the USB window
+# with its rounded corners and outer chamfer, and the reset pin hole, a
+# flat-topped teardrop. The right tray is built in the left half's frame
+# and mirrored (the module docstring), which is right for a mount
+# wherever its part maps onto itself under that mirror or lies mirrored
+# on the right half. DESIGN.md, "Parts in the tray", works that out for
+# each part: only the nice!nano's P1.01/P1.02/P1.07 row does neither, so
+# its groove takes the half.
+#
+# Every printed fit is printed_fit(): a pocket or slot as the part plus
+# the print's swelling on both sides plus the fit's clearance, so it
+# prints as the part plus the clearance. A fit split over two ends gives
+# each end half the difference.
+
+
+@dataclass(frozen=True)
+class MountBox:
+    """A box the tray adds (a mount body) or cuts (a mount void): in plan
+    x_range by y_range, over z_range. `part` is the part it serves."""
+
+    label: str
+    part: str
+    x_range: tuple
+    y_range: tuple
+    z_range: tuple
+
+
+def centered_range(middle, width):
+    return (middle - width / 2.0, middle + width / 2.0)
+
+
+def grown_range(value_range, by):
+    return (value_range[0] - by, value_range[1] + by)
+
+
+def half_fit_gap(nominal, fit):
+    """What a printed fit adds at each of its two ends."""
+    return (printed_fit(nominal, fit) - nominal) / 2.0
+
+
+# The nice!nano's figures the mounts rest on (doc/components.md, from
+# the manufacturer's render, +-0.1, NANO_RENDER_UNCERTAINTY_MM): the
+# board 33.3 x 18.0 x 1.6, its two pin rows of 12 at 2.54 pitch, pin 1
+# 3.91 from the USB end, the rows' centers 1.31 and 1.44 in from the
+# long edges (which is which the render leaves open, so a groove covers
+# both), pads 1.53 across, the B+ and B- pads 1.14 across in line with
+# the rows 1.38 from the USB end, the P1.01, P1.02 and P1.07 pads in a
+# row across the board 26.8 from the USB end, 2.54, 5.08 and 7.62 from
+# the B- row (taken as the pin pads' size), and the USB-C shell's tab
+# slots (the C168688 drawing, work/research/downloads/usbc-c168688/):
+# 0.65 x 1.40 and 1.70, their pairs 2.09 and 6.09 behind the shell's
+# front, 11.08 across, which the drawing leaves either between the
+# slots' centers or across their outsides, so a groove covers both.
+# Seen from above with the USB end north, B- is on the west (the
+# render's top view), and so are the P1 pads, on both halves, since the
+# right half's nano is the same part the same side up.
+NANO_LENGTH_MM = 33.3
+NANO_WIDTH_MM = 18.0
+NANO_RENDER_UNCERTAINTY_MM = 0.1
+NANO_PIN_PITCH_MM = 2.54
+NANO_PINS_PER_ROW = 12
+NANO_PIN_1_FROM_USB_END_MM = 3.91
+NANO_ROW_INSETS_MM = (1.31, 1.44)
+NANO_PIN_PAD_DIAMETER_MM = 1.53
+NANO_BATTERY_PADS_FROM_USB_END_MM = 1.38
+NANO_BATTERY_PAD_DIAMETER_MM = 1.14
+NANO_EXTRA_PADS_FROM_USB_END_MM = 26.8
+NANO_EXTRA_PADS_FROM_B_MINUS_ROW_MM = (2.54, 5.08, 7.62)
+NANO_SHELL_TAB_SLOTS_BEHIND_FRONT_MM = (2.09, 2.09 + 4.00)
+NANO_SHELL_TAB_SLOT_WIDTH_MM = 0.65
+NANO_SHELL_TAB_SLOT_LENGTH_MM = 1.70  # the longer of the drawing's two
+NANO_SHELL_TAB_SLOTS_ACROSS_MM = 11.08
+
+# The mounts' figures that wait on a caliper or the parts in hand (work
+# item 004). export_tray.py's key=value words override them for a test
+# print: the nano's length and width (the render's), the hook's lip onto
+# the board and the bar's clearance over the shell, which rest on them,
+# and the battery header's front lips (none by default, DESIGN.md says
+# why).
+NANO_HOOK_LIP_MM = 0.8
+NANO_BAR_CLEARANCE_MM = 0.1
+BATTERY_HEADER_SHOULDER_MM = 0.0
+
+
+@dataclass(frozen=True)
+class MountFits:
+    nano_length: float = NANO_LENGTH_MM
+    nano_width: float = NANO_WIDTH_MM
+    hook_lip: float = NANO_HOOK_LIP_MM
+    bar_clearance: float = NANO_BAR_CLEARANCE_MM
+    battery_shoulder: float = BATTERY_HEADER_SHOULDER_MM
+
+
+DEFAULT_MOUNT_FITS = MountFits()
+
+
+def nano_usb_end_y():
+    """The board's USB end, which stays put: the shell's mouth sits 0.5
+    behind the north wall's outer face whatever the board's length."""
+    return NANO_BOARD.y_range[1]
+
+
+def nano_south_end_y(fits):
+    return nano_usb_end_y() - fits.nano_length
+
+
+def nano_west_x():
+    """The board's west edge, 0.3 from the west ledge's face whatever
+    its width."""
+    return NANO_BOARD.x_range[0]
+
+
+def nano_east_x(fits):
+    return nano_west_x() + fits.nano_width
+
+
+def nano_center_x(fits):
+    """The board's center line, which the USB shell is centered on."""
+    return nano_west_x() + fits.nano_width / 2.0
+
+
+def nano_end_gap(fits):
+    """The pocket's gap at each end of the board along y, between the
+    bar's posts and the hook's blade: the board's slip fit."""
+    return half_fit_gap(fits.nano_length, SLIP_FIT_MM)
+
+
+# The USB window: kbdkid4's (its scripts/export_tray.py,
+# USB_WINDOW_WIDTH_MM, USB_WINDOW_CORNER_RADIUS_MM and
+# USB_WINDOW_CHAMFER_MM, and its tray_shape.py, USB_WINDOW_HEIGHT_MM,
+# measured there on the soldered left half), centered on the shell. It
+# opens the wall from the shell's mouth out, as far in as the plug's
+# overmold goes, its chamfer on the wall's outer face only. Between the
+# cavity face and the mouth the wall stands on over and beside the
+# shell, which passes it in a channel of its own: the shell's section as
+# a slip fit (the bar's posts' opening across, up to the bar's
+# underside), run on the board's end gap past the mouth. So the bar and
+# its posts reach on to the mouth, and wherever the posts let the shell
+# go, the window's corner rounds stay clear of it as printed.
+USB_WINDOW_WIDTH_MM = 10.5
+USB_WINDOW_HEIGHT_MM = 4.5
+USB_WINDOW_CORNER_RADIUS_MM = 1.95
+USB_WINDOW_CHAMFER_MM = 0.2
+
+
+def usb_window_center(fits=DEFAULT_MOUNT_FITS):
+    """(x, z) of the window's middle: the shell's."""
+    return (nano_center_x(fits), sum(NANO_USB_SHELL.z_range) / 2.0)
+
+
+def nano_usb_shell_mouth_y():
+    return NANO_USB_SHELL.y_range[1]
+
+
+def usb_window_box(fits=DEFAULT_MOUNT_FITS):
+    x, z = usb_window_center(fits)
+    return MountBox(
+        "USB window",
+        "nice!nano",
+        centered_range(x, USB_WINDOW_WIDTH_MM),
+        (nano_usb_shell_mouth_y(), outer_face_y(NORTH_EDGE_Y_OF_COLUMNS_0_AND_1_MM)),
+        centered_range(z, USB_WINDOW_HEIGHT_MM),
+    )
+
+
+def usb_shell_channel_box(fits=DEFAULT_MOUNT_FITS):
+    return MountBox(
+        "USB shell's channel",
+        "nice!nano",
+        centered_range(nano_center_x(fits), nano_bar_opening()),
+        (
+            cavity_wall_y(NORTH_EDGE_Y_OF_COLUMNS_0_AND_1_MM),
+            nano_usb_shell_mouth_y() + nano_end_gap(fits),
+        ),
+        (0.0, nano_bar_underside_z(fits)),
+    )
+
+
+def usb_opening_boxes(fits=DEFAULT_MOUNT_FITS):
+    """The shell's channel and the window, from the cavity out."""
+    return (usb_shell_channel_box(fits), usb_window_box(fits))
+
+
+# The hold-down bar over the shell's top, against the north wall's inner
+# face between the board's USB end and the wall, so it is over nothing
+# but the shell, B+ and B- included, its underside bar_clearance over
+# the shell's top as printed. It bridges between two posts on the floor
+# beside the shell, which are the board's north stop: the posts' opening
+# is the shell's slip fit, the shell plus 0.5, and their south faces lie
+# the board's end gap north of its USB end. The wall carries them on to
+# the shell's mouth (the USB window's comment).
+NANO_BAR_HEIGHT_MM = 1.5
+NANO_BAR_POST_WIDTH_MM = 1.0
+
+
+def nano_bar_opening():
+    return printed_fit(NANO_USB_SHELL_WIDTH_MM, SLIP_FIT_MM)
+
+
+def nano_bar_underside_z(fits=DEFAULT_MOUNT_FITS):
+    return NANO_USB_SHELL.z_range[1] + PRINT_SWELLING_PER_SIDE_MM + fits.bar_clearance
+
+
+def nano_bar_south_y(fits=DEFAULT_MOUNT_FITS):
+    return nano_usb_end_y() + nano_end_gap(fits)
+
+
+def nano_bar_depth(fits=DEFAULT_MOUNT_FITS):
+    """The bar's depth over the shell, from its south face to the
+    shell's mouth, where the window opens."""
+    return nano_usb_shell_mouth_y() - nano_bar_south_y(fits)
+
+
+def nano_bar_boxes(fits=DEFAULT_MOUNT_FITS):
+    center = nano_center_x(fits)
+    half_opening = nano_bar_opening() / 2.0
+    outside = half_opening + NANO_BAR_POST_WIDTH_MM
+    y_range = (nano_bar_south_y(fits), cavity_wall_y(NORTH_EDGE_Y_OF_COLUMNS_0_AND_1_MM))
+    underside = nano_bar_underside_z(fits)
+    return (
+        MountBox(
+            "hold-down bar",
+            "nice!nano",
+            (center - outside, center + outside),
+            y_range,
+            (underside, underside + NANO_BAR_HEIGHT_MM),
+        ),
+        MountBox(
+            "bar's west post",
+            "nice!nano",
+            (center - outside, center - half_opening),
+            y_range,
+            (0.0, underside),
+        ),
+        MountBox(
+            "bar's east post",
+            "nice!nano",
+            (center + half_opening, center + outside),
+            y_range,
+            (0.0, underside),
+        ),
+    )
+
+
+# The snap hook at the board's south end: a vertical blade along the
+# board's south edge, from the bed up, rooted in the west ledge and free
+# of the floor on its other three sides by slots through it, so it flexes
+# along y. Its north face is the board's south stop, the board's end gap
+# from it. Its lip sits on its last NANO_HOOK_LIP_WIDTH_MM, which starts
+# NANO_HOOK_BENDING_LENGTH_MM from the root, within the free middle of
+# the board's south end. The slots print NANO_HOOK_DEFLECTION_ROOM_MM
+# south of the blade, the room its free end swings through as the lip
+# passes the board's edge, and NANO_HOOK_FREE_SLOT_MM north of it and
+# past its end.
+NANO_HOOK_LIP_WIDTH_MM = 2.8
+NANO_HOOK_BENDING_LENGTH_MM = 11.0
+NANO_HOOK_BLADE_THICKNESS_MM = 0.8
+NANO_HOOK_CLEARANCE_MM = SLIP_FIT_MM  # over the board's top edge, as printed
+NANO_HOOK_DEFLECTION_ROOM_MM = 1.6  # as printed
+NANO_HOOK_FREE_SLOT_MM = 0.4  # as printed
+
+
+def nano_hook_root_x():
+    return west_ledge_face_x()
+
+
+def nano_hook_lip_x_range():
+    near = nano_hook_root_x() + NANO_HOOK_BENDING_LENGTH_MM
+    return (near, near + NANO_HOOK_LIP_WIDTH_MM)
+
+
+def nano_hook_face_y(fits=DEFAULT_MOUNT_FITS):
+    return nano_south_end_y(fits) - nano_end_gap(fits)
+
+
+def nano_hook_lip_profile(fits=DEFAULT_MOUNT_FITS):
+    """(y, z) corners of the lip's cross-section square to x: a triangle
+    on the blade's north face with 45 degree sides. Its underside rises
+    north over the board's south edge to its tip, hook_lip onto the
+    board, and its top falls back to the face as the lead-in, so the lip
+    prints floor down without support and lets go of a firm pull. The
+    underside passes over the board's top edge NANO_HOOK_CLEARANCE_MM
+    above it as printed, PRINT_SWELLING_AT_45_DEGREES_MM more as
+    modelled."""
+    face = nano_hook_face_y(fits)
+    edge = nano_south_end_y(fits)
+    edge_z = NANO_BOARD.z_range[1] + PRINT_SWELLING_AT_45_DEGREES_MM + NANO_HOOK_CLEARANCE_MM
+    tip = edge + fits.hook_lip
+    tip_z = edge_z + fits.hook_lip
+    return ((face, edge_z - (edge - face)), (tip, tip_z), (face, tip_z + (tip - face)))
+
+
+def nano_hook_top_z(fits=DEFAULT_MOUNT_FITS):
+    return nano_hook_lip_profile(fits)[2][1]
+
+
+def nano_hook_blade_box(fits=DEFAULT_MOUNT_FITS):
+    face = nano_hook_face_y(fits)
+    return MountBox(
+        "hook's blade",
+        "nice!nano",
+        (nano_hook_root_x(), nano_hook_lip_x_range()[1]),
+        (face - NANO_HOOK_BLADE_THICKNESS_MM, face),
+        (FLOOR_UNDERSIDE_Z_MM, nano_hook_top_z(fits)),
+    )
+
+
+def nano_hook_lip_box(fits=DEFAULT_MOUNT_FITS):
+    """The lip's bounding box."""
+    (face, low), (tip, _), (_, top) = nano_hook_lip_profile(fits)
+    return MountBox("hook's lip", "nice!nano", nano_hook_lip_x_range(), (face, tip), (low, top))
+
+
+def nano_hook_slot_boxes(fits=DEFAULT_MOUNT_FITS):
+    root = nano_hook_root_x()
+    end = nano_hook_lip_x_range()[1]
+    free = printed_fit(NANO_HOOK_FREE_SLOT_MM, SNUG_FIT_MM)
+    room = printed_fit(NANO_HOOK_DEFLECTION_ROOM_MM, SNUG_FIT_MM)
+    face = nano_hook_face_y(fits)
+    back = face - NANO_HOOK_BLADE_THICKNESS_MM
+    z_range = (FLOOR_UNDERSIDE_Z_MM, 0.0)
+    return (
+        MountBox("hook's deflection slot", "nice!nano", (root, end + free), (back - room, back),
+                 z_range),
+        MountBox("hook's north slot", "nice!nano", (root, end + free), (face, face + free),
+                 z_range),
+        MountBox("hook's end slot", "nice!nano", (end, end + free), (back, face), z_range),
+    )
+
+
+# The slots' floor edges and the blade's bottom edges are chamfered at
+# the bed at 45 degrees, like the joint face's bottom edge, so the first
+# layer squashed out past them cannot close the slots and fuse the
+# blade's free end to the floor: the floor's edges on the slots' south,
+# north and east sides (the west side is the root's) by
+# NANO_HOOK_SLOT_BED_CHAMFER_MM, the blade's south, north and end edges
+# by NANO_HOOK_BLADE_BED_CHAMFER_MM, which leaves the blade 0.4 on the
+# bed. The rubber sole is cut out under the slots' outline on the bed.
+NANO_HOOK_SLOT_BED_CHAMFER_MM = JOINT_FACE_BOTTOM_CHAMFER_MM
+NANO_HOOK_BLADE_BED_CHAMFER_MM = 0.2
+
+
+def nano_hook_slots_outline(fits=DEFAULT_MOUNT_FITS):
+    """(x range, y range) the slots fill together around the blade."""
+    slots = nano_hook_slot_boxes(fits)
+    return tuple(
+        (min(low for low, _ in ranges), max(high for _, high in ranges))
+        for ranges in ([box.x_range for box in slots], [box.y_range for box in slots])
+    )
+
+
+def nano_hook_sole_cutout_box(fits=DEFAULT_MOUNT_FITS):
+    """The slots' outline on the bed, their chamfers included: where the
+    sole is cut out, up to the chamfers' top."""
+    (low_x, high_x), (low_y, high_y) = nano_hook_slots_outline(fits)
+    chamfer = NANO_HOOK_SLOT_BED_CHAMFER_MM
+    return MountBox(
+        "sole's cut-out",
+        "nice!nano",
+        (low_x, high_x + chamfer),
+        (low_y - chamfer, high_y + chamfer),
+        (FLOOR_UNDERSIDE_Z_MM, FLOOR_UNDERSIDE_Z_MM + chamfer),
+    )
+
+
+def nano_hook_snap_deflection(fits=DEFAULT_MOUNT_FITS, printed=True):
+    """How far the lip's near end must move south for the board's edge
+    to pass its tip: the lip's reach onto the board, which the print's
+    swelling of its two 45 degree sides moves out by
+    PRINT_SWELLING_AT_45_DEGREES_MM."""
+    return fits.hook_lip + (PRINT_SWELLING_AT_45_DEGREES_MM if printed else 0.0)
+
+
+def nano_hook_blade_thickness(printed=True):
+    swelling = 2.0 * PRINT_SWELLING_PER_SIDE_MM if printed else 0.0
+    return NANO_HOOK_BLADE_THICKNESS_MM + swelling
+
+
+def cantilever_strain(deflection, thickness, length):
+    """The root's bending strain of a cantilever deflected at `length`
+    from its root by a point load there: 3 deflection thickness / (2
+    length squared)."""
+    return 3.0 * deflection * thickness / (2.0 * length**2)
+
+
+def nano_hook_strain(fits=DEFAULT_MOUNT_FITS, printed=True):
+    return cantilever_strain(
+        nano_hook_snap_deflection(fits, printed),
+        nano_hook_blade_thickness(printed),
+        NANO_HOOK_BENDING_LENGTH_MM,
+    )
+
+
+def nano_hook_end_deflection(fits=DEFAULT_MOUNT_FITS):
+    """How far the blade's free end swings, as printed, while the lip's
+    near end moves the snap deflection: beyond a point load the blade
+    turns straight, by 3/2 the deflection over the length per mm."""
+    slope = 1.5 * nano_hook_snap_deflection(fits) / NANO_HOOK_BENDING_LENGTH_MM
+    return nano_hook_snap_deflection(fits) + slope * NANO_HOOK_LIP_WIDTH_MM
+
+
+def nano_free_middle_x_range(fits=DEFAULT_MOUNT_FITS):
+    """The middle of the board's far end, between the last pins' pads of
+    both rows, at the larger of the render's row insets."""
+    clear = max(NANO_ROW_INSETS_MM) + NANO_PIN_PAD_DIAMETER_MM / 2.0
+    return (nano_west_x() + clear, nano_east_x(fits) - clear)
+
+
+# The east ribs: low ribs along the board's east edge, touching only its
+# side face, the board's width a slip fit between them and the west
+# ledge's face, near both ends of the board. They are 1.0 thick as
+# printed, so the north rib keeps out of the PCB connector's zone as
+# printed.
+NANO_RIB_HEIGHT_MM = 1.0
+NANO_RIB_THICKNESS_MM = 0.6
+NANO_RIB_LENGTH_MM = 3.0
+NANO_RIB_FROM_BOARD_ENDS_MM = 2.0
+
+
+def nano_rib_face_x(fits=DEFAULT_MOUNT_FITS):
+    return west_ledge_face_x() + printed_fit(fits.nano_width, SLIP_FIT_MM)
+
+
+def nano_rib_boxes(fits=DEFAULT_MOUNT_FITS):
+    face = nano_rib_face_x(fits)
+    x_range = (face, face + NANO_RIB_THICKNESS_MM)
+    z_range = (0.0, NANO_RIB_HEIGHT_MM)
+    south = nano_south_end_y(fits) + NANO_RIB_FROM_BOARD_ENDS_MM
+    north = nano_usb_end_y() - NANO_RIB_FROM_BOARD_ENDS_MM
+    return (
+        MountBox("nice!nano's south rib", "nice!nano", x_range,
+                 (south, south + NANO_RIB_LENGTH_MM), z_range),
+        MountBox("nice!nano's north rib", "nice!nano", x_range,
+                 (north - NANO_RIB_LENGTH_MM, north), z_range),
+    )
+
+
+# The solder grooves in the floor under the board: each over the
+# features' extents by the render's figures, grown by its uncertainty,
+# as a slip fit, NANO_GROOVE_DEPTH_MM deep.
+NANO_GROOVE_DEPTH_MM = 0.4
+
+
+def nano_groove_box(label, x_range, y_range):
+    grow = NANO_RENDER_UNCERTAINTY_MM + half_fit_gap(0.0, SLIP_FIT_MM)
+    return MountBox(
+        label,
+        "nice!nano",
+        grown_range(x_range, grow),
+        grown_range(y_range, grow),
+        (-NANO_GROOVE_DEPTH_MM, 0.0),
+    )
+
+
+def nano_row_x_range(fits, west):
+    """A pin row's pads across x, at either of the render's insets."""
+    pad = NANO_PIN_PAD_DIAMETER_MM / 2.0
+    near, far = min(NANO_ROW_INSETS_MM), max(NANO_ROW_INSETS_MM)
+    if west:
+        return (nano_west_x() + near - pad, nano_west_x() + far + pad)
+    return (nano_east_x(fits) - far - pad, nano_east_x(fits) - near + pad)
+
+
+def nano_row_y_range():
+    """From the B+ and B- pads' north edges to the last pins' south
+    edges."""
+    usb_end = nano_usb_end_y()
+    last_pin = NANO_PIN_1_FROM_USB_END_MM + (NANO_PINS_PER_ROW - 1) * NANO_PIN_PITCH_MM
+    return (
+        usb_end - last_pin - NANO_PIN_PAD_DIAMETER_MM / 2.0,
+        usb_end - NANO_BATTERY_PADS_FROM_USB_END_MM + NANO_BATTERY_PAD_DIAMETER_MM / 2.0,
+    )
+
+
+def nano_extra_pads_x_range(fits=DEFAULT_MOUNT_FITS, right=False):
+    """The P1.01/P1.02/P1.07 pads across x, on the B- row's side: the
+    west on the left half and, in the left half's frame, the east on the
+    right one (the section's comment)."""
+    pad = NANO_PIN_PAD_DIAMETER_MM / 2.0
+    near_inset, far_inset = min(NANO_ROW_INSETS_MM), max(NANO_ROW_INSETS_MM)
+    nearest = min(NANO_EXTRA_PADS_FROM_B_MINUS_ROW_MM)
+    farthest = max(NANO_EXTRA_PADS_FROM_B_MINUS_ROW_MM)
+    if not right:
+        west = nano_west_x()
+        return (west + near_inset + nearest - pad, west + far_inset + farthest + pad)
+    east = nano_east_x(fits)
+    return (east - far_inset - farthest - pad, east - near_inset - nearest + pad)
+
+
+def nano_extra_pads_y_range():
+    return centered_range(
+        nano_usb_end_y() - NANO_EXTRA_PADS_FROM_USB_END_MM, NANO_PIN_PAD_DIAMETER_MM
+    )
+
+
+def nano_shell_tab_x_ranges(fits=DEFAULT_MOUNT_FITS):
+    """(west, east) slots' extents across x, over both readings of the
+    drawing's 11.08."""
+    center = nano_center_x(fits)
+    half = NANO_SHELL_TAB_SLOTS_ACROSS_MM / 2.0
+    inside = half - NANO_SHELL_TAB_SLOT_WIDTH_MM  # across the slots' outsides
+    outside = half + NANO_SHELL_TAB_SLOT_WIDTH_MM / 2.0  # between their centers
+    return ((center - outside, center - inside), (center + inside, center + outside))
+
+
+def nano_shell_tab_y_range():
+    front = NANO_USB_SHELL.y_range[1]
+    nearest, farthest = min(NANO_SHELL_TAB_SLOTS_BEHIND_FRONT_MM), max(
+        NANO_SHELL_TAB_SLOTS_BEHIND_FRONT_MM
+    )
+    half = NANO_SHELL_TAB_SLOT_LENGTH_MM / 2.0
+    return (front - farthest - half, front - nearest + half)
+
+
+def nano_groove_boxes(fits=DEFAULT_MOUNT_FITS, right=False):
+    rows = nano_row_y_range()
+    west_tabs, east_tabs = nano_shell_tab_x_ranges(fits)
+    tabs = nano_shell_tab_y_range()
+    return (
+        nano_groove_box("west pin row's groove", nano_row_x_range(fits, True), rows),
+        nano_groove_box("east pin row's groove", nano_row_x_range(fits, False), rows),
+        nano_groove_box(
+            "P1.01/P1.02/P1.07 groove",
+            nano_extra_pads_x_range(fits, right),
+            nano_extra_pads_y_range(),
+        ),
+        nano_groove_box("west tab slots' groove", west_tabs, tabs),
+        nano_groove_box("east tab slots' groove", east_tabs, tabs),
+    )
+
+
+# The power switch: its lever's slot through the north wall, its swept
+# box's slip fit, and the cradle on the floor, which holds the body
+# snug between two end blocks against the 3.5 N slide force and against
+# the wall by two back arms beside the pins, against a push on the
+# lever's tip.
+POWER_SWITCH_CRADLE_TOP_Z_MM = 3.0
+POWER_SWITCH_CRADLE_END_MM = 1.2  # along x
+POWER_SWITCH_CRADLE_BACK_MM = 0.8  # along y
+
+
+def power_switch_lever_slot_box():
+    north_edge_y = NORTH_EDGE_Y_OF_COLUMN_2_MM
+    lever = POWER_SWITCH_LEVER
+    return MountBox(
+        "lever slot",
+        "power switch",
+        centered_range(
+            POWER_SWITCH_CENTER_X_MM,
+            printed_fit(lever.x_range[1] - lever.x_range[0], SLIP_FIT_MM),
+        ),
+        (cavity_wall_y(north_edge_y), outer_face_y(north_edge_y)),
+        centered_range(
+            POWER_SWITCH_LEVER_Z_MM, printed_fit(lever.z_range[1] - lever.z_range[0], SLIP_FIT_MM)
+        ),
+    )
+
+
+def power_switch_cradle_boxes():
+    center = POWER_SWITCH_CENTER_X_MM
+    half_inside = printed_fit(POWER_SWITCH_BODY_X_MM, SNUG_FIT_MM) / 2.0
+    outside = half_inside + POWER_SWITCH_CRADLE_END_MM
+    wall = cavity_wall_y(NORTH_EDGE_Y_OF_COLUMN_2_MM)
+    back_face = wall - printed_fit(POWER_SWITCH_BODY_Y_MM, SNUG_FIT_MM)
+    back = back_face - POWER_SWITCH_CRADLE_BACK_MM
+    pins = POWER_SWITCH_PINS.x_range
+    half_pin_slot = printed_fit(pins[1] - pins[0], SLIP_FIT_MM) / 2.0
+    z_range = (0.0, POWER_SWITCH_CRADLE_TOP_Z_MM)
+    return (
+        MountBox("cradle's west end", "power switch", (center - outside, center - half_inside),
+                 (back, wall), z_range),
+        MountBox("cradle's east end", "power switch", (center + half_inside, center + outside),
+                 (back, wall), z_range),
+        MountBox("cradle's west back arm", "power switch",
+                 (center - outside, center - half_pin_slot), (back, back_face), z_range),
+        MountBox("cradle's east back arm", "power switch",
+                 (center + half_pin_slot, center + outside), (back, back_face), z_range),
+    )
+
+
+# The reset button: the pin hole through the north wall over the stem
+# (DESIGN.md's 3.0, kbdkid4's plate reset hole, a passage for a SIM pin
+# rather than a fit, so it prints about 2.6), and the back wall behind
+# the housing, which takes the press. The button's depth with its stem
+# 0.2 short of the wall is a snug fit between the back wall and the
+# wall's inner face. The back wall is notched from its top for the
+# leads, each notch the slip fit of the band the lead may lie in, down
+# to the lead's band less the swelling and half the clearance.
+RESET_PIN_HOLE_DIAMETER_MM = 3.0
+RESET_BACK_WALL_MM = 1.2
+RESET_BACK_WALL_BEYOND_NOTCHES_MM = 1.0
+
+
+def reset_pin_hole_center():
+    """(x, z) of the hole's axis: the stem's middle."""
+    return (RESET_BUTTON_CENTER_X_MM, sum(RESET_BUTTON_STEM.z_range) / 2.0)
+
+
+def reset_pin_hole_box():
+    x, z = reset_pin_hole_center()
+    north_edge_y = NORTH_EDGE_Y_OF_COLUMN_3_MM
+    return MountBox(
+        "reset pin hole",
+        "reset button",
+        centered_range(x, RESET_PIN_HOLE_DIAMETER_MM),
+        (cavity_wall_y(north_edge_y), outer_face_y(north_edge_y)),
+        horizontal_hole_z_range(z, RESET_PIN_HOLE_DIAMETER_MM),
+    )
+
+
+def reset_back_wall_face_y():
+    depth = RESET_BUTTON_TO_STEM_TOP_MM + RESET_BUTTON_STEM_SHORT_OF_WALL_MM
+    return cavity_wall_y(NORTH_EDGE_Y_OF_COLUMN_3_MM) - printed_fit(depth, SNUG_FIT_MM)
+
+
+def reset_notch_x_range(side):
+    """The notch for the lead on `side` (-1 west, 1 east)."""
+    inside, outside = reset_button_lead_band()
+    middle = (inside + outside) / 2.0
+    half = printed_fit(outside - inside, SLIP_FIT_MM) / 2.0
+    ends = (RESET_BUTTON_CENTER_X_MM + side * (middle - half),
+            RESET_BUTTON_CENTER_X_MM + side * (middle + half))
+    return (min(ends), max(ends))
+
+
+def reset_notch_bottom_z():
+    return reset_button_lead_z_range()[0] - half_fit_gap(0.0, SLIP_FIT_MM)
+
+
+def reset_back_wall_boxes():
+    face = reset_back_wall_face_y()
+    y_range = (face - RESET_BACK_WALL_MM, face)
+    top = RESET_BUTTON_BODY_Z_MM
+    west_notch = reset_notch_x_range(-1.0)
+    east_notch = reset_notch_x_range(1.0)
+    west_end = west_notch[0] - RESET_BACK_WALL_BEYOND_NOTCHES_MM
+    east_end = east_notch[1] + RESET_BACK_WALL_BEYOND_NOTCHES_MM
+    return (
+        MountBox("back wall's middle", "reset button", (west_notch[1], east_notch[0]), y_range,
+                 (0.0, top)),
+        MountBox("back wall's west end", "reset button", (west_end, west_notch[0]), y_range,
+                 (0.0, top)),
+        MountBox("back wall's east end", "reset button", (east_notch[1], east_end), y_range,
+                 (0.0, top)),
+        MountBox("back wall under the notches", "reset button", (west_end, east_end), y_range,
+                 (0.0, reset_notch_bottom_z())),
+    )
+
+
+# The battery header's pocket: two side walls holding the header's 5.9
+# snug, a back wall behind its base, slotted from the top for the posts,
+# and the floor, open toward the plug. JST's figures leave the header's
+# front rim under the mated plug's housing (DESIGN.md), so the front
+# lips that would hold that rim against the plug's pull are left out
+# unless battery_shoulder asks for them: then they reach that far onto
+# the rim as printed, BATTERY_HEADER_LIP_MM thick along x.
+BATTERY_POCKET_WALL_MM = 1.2
+BATTERY_POCKET_TOP_Z_MM = BATTERY_CONNECTOR.z_range[1]
+BATTERY_HEADER_LIP_MM = 1.0
+
+
+def battery_pocket_y_range():
+    header = BATTERY_CONNECTOR.y_range
+    return centered_range(
+        BATTERY_CONNECTOR_MIDDLE_Y_MM, printed_fit(header[1] - header[0], SNUG_FIT_MM)
+    )
+
+
+def battery_pocket_x_range():
+    """From the lips' faces, half the fit's gap in front of the header's
+    entry face, to the back wall's face."""
+    header = BATTERY_CONNECTOR.x_range
+    west = header[0] - half_fit_gap(header[1] - header[0], SNUG_FIT_MM)
+    return (west, west + printed_fit(header[1] - header[0], SNUG_FIT_MM))
+
+
+def battery_post_slot_y_range():
+    posts = BATTERY_CONNECTOR_POSTS.y_range
+    return centered_range(
+        BATTERY_CONNECTOR_MIDDLE_Y_MM, printed_fit(posts[1] - posts[0], SLIP_FIT_MM)
+    )
+
+
+def battery_post_slot_bottom_z():
+    return BATTERY_CONNECTOR_POSTS.z_range[0] - half_fit_gap(0.0, SLIP_FIT_MM)
+
+
+def battery_pocket_boxes(fits=DEFAULT_MOUNT_FITS):
+    low_y, high_y = battery_pocket_y_range()
+    west, east = battery_pocket_x_range()
+    wall = BATTERY_POCKET_WALL_MM
+    z_range = (0.0, BATTERY_POCKET_TOP_Z_MM)
+    slot_low, slot_high = battery_post_slot_y_range()
+    back = (east, east + wall)
+    boxes = [
+        MountBox("pocket's south wall", "battery connector", (west, east), (low_y - wall, low_y),
+                 z_range),
+        MountBox("pocket's north wall", "battery connector", (west, east),
+                 (high_y, high_y + wall), z_range),
+        MountBox("back wall south of the post slot", "battery connector", back,
+                 (low_y - wall, slot_low), z_range),
+        MountBox("back wall north of the post slot", "battery connector", back,
+                 (slot_high, high_y + wall), z_range),
+        MountBox("back wall under the post slot", "battery connector", back,
+                 (slot_low, slot_high), (0.0, battery_post_slot_bottom_z())),
+    ]
+    if fits.battery_shoulder > 0.0:
+        header = BATTERY_CONNECTOR.y_range
+        opening = printed_fit(header[1] - header[0] - 2.0 * fits.battery_shoulder, SNUG_FIT_MM)
+        lips_x = (west - BATTERY_HEADER_LIP_MM, west)
+        middle = BATTERY_CONNECTOR_MIDDLE_Y_MM
+        boxes.append(MountBox("south front lip", "battery connector", lips_x,
+                              (low_y - wall, middle - opening / 2.0), z_range))
+        boxes.append(MountBox("north front lip", "battery connector", lips_x,
+                              (middle + opening / 2.0, high_y + wall), z_range))
+    return tuple(boxes)
+
+
+# The battery's corner ribs: an L at three corners, the pouch a fit with
+# 0.5 per side as modelled (0.3 as printed, since pouches vary), and
+# none at the corner its lead leaves, the northeast (DESIGN.md).
+BATTERY_RIB_FIT_MM = 0.6
+BATTERY_RIB_HEIGHT_MM = 1.0
+BATTERY_RIB_THICKNESS_MM = 0.8
+BATTERY_RIB_ARM_MM = 6.0
+BATTERY_LEAD_CORNER = (1, 1)  # (east, north)
+
+
+def battery_rib_pocket():
+    """(x range, y range) the ribs' inner faces bound."""
+    return tuple(
+        centered_range(sum(value_range) / 2.0,
+                       printed_fit(value_range[1] - value_range[0], BATTERY_RIB_FIT_MM))
+        for value_range in (BATTERY.x_range, BATTERY.y_range)
+    )
+
+
+def corner_name(east, north):
+    return ("north" if north > 0 else "south") + ("east" if east > 0 else "west")
+
+
+def battery_rib_boxes():
+    (low_x, high_x), (low_y, high_y) = battery_rib_pocket()
+    thickness = BATTERY_RIB_THICKNESS_MM
+    z_range = (0.0, BATTERY_RIB_HEIGHT_MM)
+    boxes = []
+    for east in (-1, 1):
+        for north in (-1, 1):
+            if (east, north) == BATTERY_LEAD_CORNER:
+                continue
+            corner_x = high_x if east > 0 else low_x
+            corner_y = high_y if north > 0 else low_y
+            outer_x = corner_x + east * thickness
+            outer_y = corner_y + north * thickness
+            name = corner_name(east, north)
+            boxes.append(MountBox(
+                f"battery's {name} rib along x",
+                "battery",
+                tuple(sorted((outer_x, corner_x - east * BATTERY_RIB_ARM_MM))),
+                tuple(sorted((corner_y, outer_y))),
+                z_range,
+            ))
+            boxes.append(MountBox(
+                f"battery's {name} rib along y",
+                "battery",
+                tuple(sorted((corner_x, outer_x))),
+                tuple(sorted((outer_y, corner_y - north * BATTERY_RIB_ARM_MM))),
+                z_range,
+            ))
+    return tuple(boxes)
+
+
+def mount_bodies(fits=DEFAULT_MOUNT_FITS):
+    """Every box of plastic the mounts add, the hook's lip as its
+    bounding box, in the order the tray builder fuses them."""
+    return (
+        nano_bar_boxes(fits)
+        + (nano_hook_blade_box(fits), nano_hook_lip_box(fits))
+        + nano_rib_boxes(fits)
+        + power_switch_cradle_boxes()
+        + reset_back_wall_boxes()
+        + battery_pocket_boxes(fits)
+        + battery_rib_boxes()
+    )
+
+
+def wall_openings(fits=DEFAULT_MOUNT_FITS):
+    """The openings through the north wall, each as its boxes from the
+    cavity out: the shell's channel and the window, the lever slot, the
+    pin hole."""
+    return (usb_opening_boxes(fits), (power_switch_lever_slot_box(),), (reset_pin_hole_box(),))
+
+
+def mount_voids(fits=DEFAULT_MOUNT_FITS, right=False):
+    """Every box the mounts cut, the window and the pin hole as their
+    bounding boxes, in the order the tray builder cuts them. The hook's
+    bed chamfers are left out: they lie in the floor's underside around
+    the slots, within the sole's cut-out."""
+    openings = tuple(box for opening in wall_openings(fits) for box in opening)
+    return openings + nano_groove_boxes(fits, right) + nano_hook_slot_boxes(fits)
+
+
+# The room the wires need (DESIGN.md: wires need room behind every
+# lead): WIRE_ROOM_BEHIND_LEADS_MM beyond each lead's tip, its row's
+# width and WIRE_ROOM_BESIDE_LEADS_MM to either side, from the floor to
+# WIRE_ROOM_ABOVE_LEADS_MM over the lead, and WIRE_ROOM_ABOVE_PADS_MM
+# above the nice!nano's pads, WIRE_ROOM_BESIDE_PADS_MM beyond them,
+# since its wires are soldered on its top side. The battery's lead
+# leaves its northeast corner, along either edge.
+WIRE_ROOM_BEHIND_LEADS_MM = 3.0
+WIRE_ROOM_BESIDE_LEADS_MM = 1.0
+WIRE_ROOM_ABOVE_LEADS_MM = 1.5
+WIRE_ROOM_ABOVE_PADS_MM = 3.0
+WIRE_ROOM_BESIDE_PADS_MM = 0.5
+
+
+def wire_room(part, label, x_range, y_range, z_range):
+    return Envelope(part, f"wire room {label}", x_range, y_range, z_range, CAVITY)
+
+
+def lead_wire_rooms():
+    behind = WIRE_ROOM_BEHIND_LEADS_MM
+    beside = WIRE_ROOM_BESIDE_LEADS_MM
+    above = WIRE_ROOM_ABOVE_LEADS_MM
+    pins = POWER_SWITCH_PINS
+    west_lead, east_lead = RESET_BUTTON_WEST_LEAD, RESET_BUTTON_EAST_LEAD
+    posts = BATTERY_CONNECTOR_POSTS
+    plug = BATTERY_PLUG
+    battery = BATTERY
+    corner_x, corner_y = battery.x_range[1], battery.y_range[1]
+    return (
+        wire_room("power switch", "behind the pins", grown_range(pins.x_range, beside),
+                  (pins.y_range[0] - behind, pins.y_range[0]), (0.0, pins.z_range[1] + above)),
+        wire_room("reset button", "behind the leads",
+                  (west_lead.x_range[0] - beside, east_lead.x_range[1] + beside),
+                  (west_lead.y_range[0] - behind, west_lead.y_range[0]),
+                  (0.0, west_lead.z_range[1] + above)),
+        wire_room("battery connector", "behind the posts",
+                  (posts.x_range[1], posts.x_range[1] + behind), grown_range(posts.y_range, beside),
+                  (0.0, posts.z_range[1] + above)),
+        wire_room("battery connector", "behind the plug", (plug.x_range[0] - behind,
+                  plug.x_range[0]), plug.y_range, plug.z_range),
+        wire_room("battery", "north of its lead's corner",
+                  (corner_x - BATTERY_RIB_ARM_MM, corner_x + beside),
+                  (corner_y, corner_y + behind), battery.z_range),
+        wire_room("battery", "east of its lead's corner", (corner_x, corner_x + behind),
+                  (corner_y - BATTERY_RIB_ARM_MM, corner_y + beside), battery.z_range),
+    )
+
+
+def nano_wire_rooms(fits=DEFAULT_MOUNT_FITS, right=False):
+    beside = WIRE_ROOM_BESIDE_PADS_MM
+    top = NANO_BOARD.z_range[1]
+    z_range = (top, top + WIRE_ROOM_ABOVE_PADS_MM)
+    rows = grown_range(nano_row_y_range(), beside)
+    return (
+        wire_room("nice!nano", "over the west pin row",
+                  grown_range(nano_row_x_range(fits, True), beside), rows, z_range),
+        wire_room("nice!nano", "over the east pin row",
+                  grown_range(nano_row_x_range(fits, False), beside), rows, z_range),
+        wire_room("nice!nano", "over the P1.01/P1.02/P1.07 pads",
+                  grown_range(nano_extra_pads_x_range(fits, right), beside),
+                  grown_range(nano_extra_pads_y_range(), beside), z_range),
+    )
+
+
+def wire_rooms(fits=DEFAULT_MOUNT_FITS, right=False):
+    return lead_wire_rooms() + nano_wire_rooms(fits, right)
