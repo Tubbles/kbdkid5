@@ -274,13 +274,15 @@ class Finger:
     strip's frame: the face's y and the direction toward the socket
     along y, then x of its ends, all relative to the key center: the
     free end (the lip's far end), the root (where the blade meets the
-    plate and its block), and the slots' end past the free end."""
+    plate and its block), and the slots' end past the free end, None
+    where the slots reach into the wall along lobe A's step and end past
+    its inner face at the pocket's fit (finger_slots_end_x())."""
 
     face_y: float
     toward_socket: float
     free_end_x: float
     root_x: float
-    slots_end_x: float
+    slots_end_x: float | None
 
 
 FINGERS = (
@@ -299,12 +301,28 @@ FINGERS = (
     # 0.75 fill inside the step meets the face's straight part, with the
     # lip on that part (set 0.2 west of the cover's square over the
     # fill, the second), the root block's far end 0.2 past the previous
-    # cell's east tab's wire room. The slots' end lies 0.01 past the
-    # walls' inner face along the outline's step (x -2.68 less the gap at
-    # the lip strip's fit), so they take the wall between and leave no
-    # skin of it.
-    Finger(-6.023, 1.0, -3.64, -10.98, -2.77),
+    # cell's east tab's wire room. The slots end SLOTS_PAST_STEP_WALL_MM
+    # past the walls' inner face along the outline's step at the pocket's
+    # fit (x -2.77 at the lip strip's -0.20), so they take the wall
+    # between and leave no skin of it at any fit.
+    Finger(-6.023, 1.0, -3.64, -10.98, None),
 )
+
+# Lobe A's step, the outline's face at footprint-local y 2.68
+# (layout.HOTSWAP_SOCKET_OUTLINE_MM), lies at this x from the key center
+# in the strip's frame; the walls' inner face there stands the pocket's
+# gap farther west.
+STEP_X_MM = -2.68
+SLOTS_PAST_STEP_WALL_MM = 0.01
+
+
+def finger_slots_end_x(finger, fit):
+    """Where a finger's slots end, x from the key center: past the free
+    end, or past the inner face of the wall along lobe A's step at the
+    pocket's fit for the finger whose slots take that wall."""
+    if finger.slots_end_x is None:
+        return STEP_X_MM - pocket_gap(fit) + SLOTS_PAST_STEP_WALL_MM
+    return finger.slots_end_x
 
 # The fingers' slots may open into the center post's hole and keep this
 # much from every other footprint hole as modelled, below their bed
@@ -317,9 +335,10 @@ FINGER_SLOT_HOLE_WEB_MM = 0.15
 
 # The bosses: the tray's standoff diameter and insert bore, on every
 # boundary between cells and at both ends of the strip, north and south
-# of the key row (the north row 0.5 clear of the walls around the fill
-# at the body's north west corner in a +0.15 pocket, the first pocket
-# strip's loosest, the south row past the lip strip's fingers' slots,
+# of the key row (the north row set 0.5 clear of the cover's walls
+# around the fill at the body's north west corner in a +0.15 pocket, the
+# first pocket strip's loosest, 0.584 from the outline's walls on the
+# hole strip, the south row past the lip strip's fingers' slots,
 # which fill the cells' south edge, 0.5 clear of them). The bore's floor
 # keeps the plate's top face whole, three layers.
 BOSS_DIAMETER_MM = layout.STANDOFF_DIAMETER_MM
@@ -344,9 +363,9 @@ PAD_CLEARANCE_TO_LIPS_MM = 0.3
 # The pads' rectangles before pad_inset(), in footprint-local
 # coordinates (x range, y range): the cover's lobes
 # (layout.HOTSWAP_SOCKET_LOBES_MM) cut back to the body's ends, which the
-# third backing was printed with, their long faces at the outline's
-# (0.003 from the cover's rounded ones) so the pads keep their distance
-# from the lips, which sit on those faces. Lobe B's reaches down to the
+# third backing was printed with, the faces the lips sit on (the
+# lobes' north and south faces) at the outline's, 0.003 from the cover's
+# rounded ones, so the pads keep their distance from the lips. Lobe B's reaches down to the
 # cover's y 2.25, so on the outline its pad's corner beside the 1.5 fill
 # lies 0.534 inside the body, the nearest the pads come to its edge,
 # where the pockets' walls follow it.
@@ -672,8 +691,13 @@ def outline_face(key_center):
 
 def pocket_face(key_center, distance):
     """The outline moved out by distance, its corners extended to their
-    intersections, as a plan face."""
+    intersections, as a plan face. Inward (a negative pocket gap, a fit
+    under -0.40) is refused: makeOffset2D returns nothing for this
+    outline moved inward with sharp joins, and the pocket strip tests no
+    such fit."""
     wire = outline_wire(key_center)
+    if distance < -LENGTH_TOLERANCE_MM:
+        raise ValueError(f"the outline cannot be moved inward ({distance:.4f} mm)")
     if distance < LENGTH_TOLERANCE_MM:
         return Part.Face(wire)
     return Part.Face(offset_outline(wire, distance))
@@ -836,7 +860,7 @@ def finger_slots_box(key_center, finger, fit):
     inner, outer, inward = finger_faces(key_center, finger, fit)
     key_x, _ = key_center
     sides = (inner + inward * FINGER_FREE_SLOT_MM, outer - inward * finger_room_modelled())
-    return ordered(key_x + finger.slots_end_x, key_x + finger.root_x), ordered(*sides)
+    return ordered(key_x + finger_slots_end_x(finger, fit), key_x + finger.root_x), ordered(*sides)
 
 
 def finger_slots(kind, key_center, lip_fit=LIP_POCKET_FIT_MM):

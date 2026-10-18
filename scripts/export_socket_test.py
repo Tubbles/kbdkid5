@@ -39,7 +39,8 @@ result, -0.20, by default); the walls, fingers and lips move together,
 so the lips keep their reach past the walls' inner faces and the
 fingers their strain as counted (socket_test_shape.py's
 LIP_POCKET_FIT_MM says what a press fit adds). The pocket's size is
-then printed rather than checked against DESIGN.md.
+then printed rather than checked against DESIGN.md. A fit under -0.40
+(the walls inside the socket's outline) is refused.
 
 A frame strip is checked for one valid solid of its analytic volume,
 each pocket's walls at its fit's gap outside every straight face of the
@@ -175,7 +176,9 @@ usage: freecadcmd scripts/export_socket_test.py --pass <strip.stl> pocket|lip|ba
                  {shape.longest_insert_length():.3f}
   lip_fit        the lip strip's pocket fit, mm, as the pocket strip's cells
                  step it (default {shape.LIP_POCKET_FIT_MM:.2f}, the pocket strip's
-                 result); the backing is stacked under the lip strip at it\
+                 result), at least {-2.0 * layout.PRINT_SWELLING_PER_SIDE_MM:.2f}, the
+                 walls on the body; the backing is stacked under the lip
+                 strip at it\
 """
 
 
@@ -212,6 +215,9 @@ def parse_arguments(argument_list):
             positionals.append(argument)
     if len(positionals) != 1 or arguments.kind is None:
         raise SystemExit(USAGE)
+    if shape.pocket_gap(arguments.lip_fit) < 0.0:
+        raise SystemExit(f"error: lip_fit {arguments.lip_fit} puts the walls inside the socket's "
+                         f"outline; the tightest fit is {-2.0 * layout.PRINT_SWELLING_PER_SIDE_MM}")
     arguments.stl_file = positionals[0]
     return arguments
 
@@ -505,7 +511,7 @@ def finger_probe_points(key_center, finger, lip_fit):
     near_root = root - toward * WINDOW_MM
     room = shape.finger_room_modelled()
     middle = (inner + outer) / 2.0
-    slot_end = (key_center[0] + finger.slots_end_x + free) / 2.0
+    slot_end = (key_center[0] + shape.finger_slots_end_x(finger, lip_fit) + free) / 2.0
     plate_z = layout.PCB_THICKNESS_MM / 2.0
     wall_z = -shape.lip_band_bottom_depth() / 2.0
     open_points = [
