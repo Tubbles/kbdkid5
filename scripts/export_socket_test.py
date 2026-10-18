@@ -145,6 +145,11 @@ MEASURE_TOLERANCE_MM = 1e-6
 # A thickness measured between two edges, each found by bisection
 # within isInside()'s tolerance.
 THICKNESS_TOLERANCE_MM = 3.0 * MEASURE_TOLERANCE_MM
+# Where a hole leaves no sliver of a wall, the probe that the hole is
+# open at the wall's inner face sits this far inside the hole: on the
+# face itself it would lie on the hole's edge at a sliver of exactly
+# zero, which isInside counts as solid.
+OPEN_PROBE_STEP_MM = 0.01
 WINDOW_MM = 0.5
 
 USAGE = f"""\
@@ -799,10 +804,13 @@ def measured_sliver(frame, at, inner, hole_center, radius, expected):
 def check_holes_through_walls(kind, frame, pull_in, lip_fit):
     """The footprint holes through the walls: the switch's post and pegs
     at their holes' size clear of the frame, the west peg's hole open
-    through lobe B's north wall at its mid depth, on the hole's axis and
-    in the wall's middle, the wall whole along it, and the sliver of its
+    through lobe B's north wall at its mid depth in the wall's middle on
+    the hole's center line (the hole's axis itself lies outside the
+    wall's outer face), the wall whole along it, and the sliver of its
     inner side the hole leaves, measured where it is thinnest, or the
-    hole open past the inner face where none is left."""
+    hole open OPEN_PROBE_STEP_MM past the inner face where none is left
+    (on the face itself the probe would sit on the hole's edge at a
+    sliver of exactly zero)."""
     overlap = frame.common(Part.makeCompound(switch_hole_columns(kind, pull_in))).Volume
     if overlap > MEASURE_TOLERANCE_MM:
         raise SystemExit(f"error: the switch's post and pegs overlap the {kind} strip by "
@@ -824,8 +832,7 @@ def check_holes_through_walls(kind, frame, pull_in, lip_fit):
         inner = lobe_x + shape.pocket_gap(shape.cell_pocket_fit(kind, index, lip_fit))
         wall_middle = inner + shape.WALL_THICKNESS_MM / 2.0
         what = f"cell {index + 1}'s lobe B north wall"
-        for point in (at(*peg), at(wall_middle, peg[1])):
-            require_open(frame, point, f"{what} on the west peg's hole")
+        require_open(frame, at(wall_middle, peg[1]), f"{what} on the west peg's hole")
         for local_y in WALL_PROBE_LOCAL_YS_MM:
             require_solid(frame, at(wall_middle, local_y), what)
         expected = peg[0] - radius - inner
@@ -835,7 +842,8 @@ def check_holes_through_walls(kind, frame, pull_in, lip_fit):
                 raise SystemExit(f"error: {what}'s sliver is {sliver:.6f}, expected "
                                  f"{expected:.6f}")
         else:
-            require_open(frame, at(inner, peg[1]), f"{what}'s inner face on the west peg's hole")
+            require_open(frame, at(inner + OPEN_PROBE_STEP_MM, peg[1]),
+                         f"{what}'s inner face on the west peg's hole")
             sliver = expected
         slivers.append(sliver)
         area = shape.cell_wall_bores(kind, index, pull_in, lip_fit)
@@ -846,8 +854,8 @@ def check_holes_through_walls(kind, frame, pull_in, lip_fit):
           f"plate, overlap the frame by {overlap:.1e} mm3; cells 1 to {shape.CELL_COUNT}'s walls "
           "bored " + ", ".join(f"{peg_area:.3f}" for peg_area, _ in bores) + " mm2 by the west "
           "peg's hole, " + ", ".join(f"{post_area:.3f}" for _, post_area in bores) + " mm2 by "
-          f"the center post's; lobe B's north wall open on the peg's axis and through its "
-          f"middle there, solid at footprint-local y {probes}, all at its mid depth")
+          f"the center post's; lobe B's north wall open through its middle on the peg's hole, "
+          f"solid at footprint-local y {probes}, all at its mid depth")
     print(f"sliver:     lobe B's north wall's inner face to the west peg's hole, cells 1 to "
           f"{shape.CELL_COUNT} " + ", ".join(f"{sliver:.3f}" for sliver in slivers)
           + " (measured where positive; negative, the hole reaches past the face into the "

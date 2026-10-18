@@ -25,8 +25,8 @@ plate, pass them: the west peg's hole bores through lobe B's north wall
 (the socket's lobe passes that hole by 0.42), leaving a sliver of the
 wall's inner side at the tighter fits and none at the hole strip's,
 and the center post's hole nibbles the same wall's outer corner where
-it turns along lobe B's south face (WALL_BORING_HOLE_CENTERS_MM; no
-other hole meets a wall). The walls are slotted through their full
+it turns down lobe B's east face, toward lobe A
+(WALL_BORING_HOLE_CENTERS_MM; no other hole meets a wall). The walls are slotted through their full
 depth where the socket's two metal end tabs leave the body's ends.
 
 The tabs: the user solders a wire to each tab before pressing the
@@ -494,18 +494,25 @@ def edge_circle_points(start, end, radius):
     return points
 
 
+def within_circle(point, radius):
+    return math.hypot(*point) <= radius + LENGTH_TOLERANCE_MM
+
+
 def circle_triangle_area(start, end, radius):
     """The signed area the circle around the origin shares with the
     triangle from the origin to an edge: a triangle over each piece of
-    the edge inside the circle, a sector over each piece outside."""
+    the edge inside the circle, a sector over each piece outside. The
+    pieces are split where the edge crosses the circle, so a piece is
+    inside when both its ends are. (A test on the piece's midpoint
+    counted an edge that only touches the circle there as inside: a
+    square of side 2 around a unit circle came out as 4, not pi.)"""
     if start == end:
         return 0.0
     points = edge_circle_points(start, end, radius)
     area = 0.0
     for first, second in zip(points, points[1:]):
         cross_product = first[0] * second[1] - first[1] * second[0]
-        middle = ((first[0] + second[0]) / 2.0, (first[1] + second[1]) / 2.0)
-        if math.hypot(*middle) <= radius:
+        if within_circle(first, radius) and within_circle(second, radius):
             area += cross_product / 2.0
         else:
             dot_product = first[0] * second[0] + first[1] * second[1]
@@ -1370,9 +1377,11 @@ def walls_bored_volume(kind, pull_in, lip_fit=LIP_POCKET_FIT_MM):
 
 def bore_footprint_holes(frame, kind, pull_in, lip_fit=LIP_POCKET_FIT_MM):
     """The frame with its footprint holes run on through the walls, the
-    plate's already cut, checked to take exactly the walls' share, so the
-    holes meet no boss, finger, block or lip: the smallest lip is 0.002
-    mm3, far above VOLUME_RELATIVE_TOLERANCE of the share."""
+    plate's already cut, checked to take the walls' share within
+    VOLUME_RELATIVE_TOLERANCE of it (about 2e-5 mm3 at the defaults), so
+    the holes take no boss, finger, block or lip (the smallest lip is
+    0.002 mm3) nor more than a graze of one; the export checks the
+    switch's post and pegs clear of the frame."""
     bored = frame.cut(Part.makeCompound(footprint_hole_bores(kind, pull_in)))
     require_one_valid_solid(bored, "boring the footprint holes through the walls")
     removed = frame.Volume - bored.Volume
