@@ -181,14 +181,17 @@ FIRST_PAD_OFFSET_MM = -0.10
 PAD_OFFSET_STEP_MM = 0.05
 
 # The lip strip's pockets, unless the export's lip_fit overrides it: the
-# second pocket strip's cell 5, which the user found the best fit, "nice
-# satisfying snap and good press fit" (doc/log/2026-10-18.md). By the
-# print model its walls press the socket 0.1 a side, which bends the
-# fingers before a lip does, 0.1 that finger_strain() leaves out: with
-# it the north finger would strain 2.09, 2.32 and 2.55 % in cells 4 to
-# 6, over the hook's 2 %. The reaches stay, since both pocket strips
-# printed larger than the model says, so the press is less than 0.1.
-LIP_POCKET_FIT_MM = -0.20
+# fourth pocket strip's cell 6, the first with the walls on the body's
+# outline, "number 6 is good", where the socket barely went into cell 5's
+# -0.20 (doc/log/2026-10-18.md). On the third strip, around the cover
+# that stood 0.43 off the body at the step, -0.20 had been the snap fit.
+# By the print model these walls press the socket 0.075 a side, which
+# bends the fingers before a lip does, a press that finger_strain()
+# leaves out: with it the north finger would strain 1.95, 2.18 and
+# 2.40 % in cells 4 to 6 (2.09, 2.32 and 2.55 at -0.20), the last two
+# over the hook's 2 %. The reaches stay, since every pocket strip
+# printed larger than the model says, so the press is less than 0.075.
+LIP_POCKET_FIT_MM = -0.15
 
 # The pocket strip's two pin holes (layout.CHOC_FOOTPRINT_PIN_HOLE_CENTERS_MM),
 # which the socket's 2.90 bosses sit in, as modelled whatever pull_in.
@@ -303,7 +306,7 @@ FINGERS = (
     # fill, the second), the root block's far end 0.2 past the previous
     # cell's east tab's wire room. The slots end SLOTS_PAST_STEP_WALL_MM
     # past the walls' inner face along the outline's step at the pocket's
-    # fit (x -2.77 at the lip strip's -0.20), so they take the wall
+    # fit (x -2.795 at the lip strip's -0.15), so they take the wall
     # between and leave no skin of it at any fit.
     Finger(-6.023, 1.0, -3.64, -10.98, None),
 )
@@ -359,6 +362,11 @@ SCREW_CLEARANCE_HOLE_DIAMETER_MM = layout.printed_fit(
     layout.MOUNTING_DRILL_DIAMETER_MM, layout.SNUG_FIT_MM
 )
 PAD_CLEARANCE_TO_LIPS_MM = 0.3
+# The lip strip's fit the pads' inset was set for (pad_inset()): the
+# third backing's, kept when the fourth pocket strip moved the fit to
+# -0.15 so that backing stays, its pads then 0.325 inside the largest
+# lip as printed instead of 0.3.
+PAD_INSET_LIP_FIT_MM = -0.20
 
 # The pads' rectangles before pad_inset(), in footprint-local
 # coordinates (x range, y range): the cover's lobes
@@ -375,17 +383,18 @@ PAD_LOBE_RECTANGLES_MM = (
 )
 
 # The notches that number the cells, as on the slit test strip, through
-# each strip from its south edge, and the lip strip's mark in its north
-# edge. The pocket strip's five marks are the lip strip's size, at cell
-# boundaries like it, so each lies over a boss, 2.0 north of it. The
-# third backing has the second pocket strip's two, the second backing
-# had the lip strip's one.
+# each strip from its south edge, and the marks in each strip's north
+# edge, 3.0 wide at cell boundaries, so each lies over a boss, 2.0 north
+# of it: the lip strip at -0.15 has two at the outer boundaries, where
+# the first lip strip, at -0.20, had one in the middle; the pocket strip
+# five; the third backing the second pocket strip's two, the second
+# backing the first lip strip's one.
 NOTCH_WIDTH_MM = 1.0
 NOTCH_DEPTH_MM = 0.8
 NOTCH_PITCH_MM = 2.0
 LIP_STRIP_MARK_WIDTH_MM = 3.0
 LIP_STRIP_MARK_DEPTH_MM = 1.5
-LIP_STRIP_MARK_X_MM = 3 * layout.KEY_PITCH_MM
+LIP_STRIP_MARK_XS_MM = (1 * layout.KEY_PITCH_MM, 5 * layout.KEY_PITCH_MM)
 POCKET_STRIP_MARK_XS_MM = tuple(boundary * layout.KEY_PITCH_MM for boundary in range(1, CELL_COUNT))
 HOLE_STRIP_MARK_XS_MM = (1 * layout.KEY_PITCH_MM, 3 * layout.KEY_PITCH_MM,
                          5 * layout.KEY_PITCH_MM)
@@ -624,10 +633,10 @@ def pad_height(index):
 def pad_inset():
     """How far a pad lies inside its socket lobe as modelled: the
     largest lip's reach past the walls' inner faces as printed, how far
-    those faces lie inside the lobe as printed at the lip strip's fit,
+    those faces lie inside the lobe as printed at PAD_INSET_LIP_FIT_MM,
     the pad's swelling and the clearance, so it passes inside every lip
     as printed."""
-    walls_inside_lobe = layout.PRINT_SWELLING_PER_SIDE_MM - pocket_gap(LIP_POCKET_FIT_MM)
+    walls_inside_lobe = layout.PRINT_SWELLING_PER_SIDE_MM - pocket_gap(PAD_INSET_LIP_FIT_MM)
     return (
         cell_lip_reach(CELL_COUNT - 1)
         + walls_inside_lobe
@@ -1001,7 +1010,7 @@ def notch_rectangles():
 
 def strip_mark_xs(kind):
     """The x centers of a strip's marks in its north edge."""
-    marks = {LIP: (LIP_STRIP_MARK_X_MM,), POCKET: POCKET_STRIP_MARK_XS_MM,
+    marks = {LIP: LIP_STRIP_MARK_XS_MM, POCKET: POCKET_STRIP_MARK_XS_MM,
              HOLES: HOLE_STRIP_MARK_XS_MM, BACKING: BACKING_MARK_XS_MM}
     return marks.get(kind, ())
 

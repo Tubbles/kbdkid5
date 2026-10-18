@@ -8,7 +8,7 @@ docstring has the design):
   pocket   the pocket's fit steps across the cells, -0.40 to -0.15 in
            0.05 steps, the two pin holes 3.5 across as modelled so the
            pocket alone locates the socket; any pocket can be glued
-  lip      every pocket at -0.20, the pocket strip's result (or at
+  lip      every pocket at -0.15, the pocket strip's result (or at
            lip_fit), with lips at its mouth on fingers that the socket
            bends aside as it snaps past, their reach past the walls'
            inner faces as printed 0.15 to 0.35 in 0.04 steps
@@ -35,7 +35,7 @@ invocation):
         [pull_in=0.2] [insert_length=<mm>] [lip_fit=<mm>]
 
 lip_fit overrides the lip strip's pocket fit (the pocket strip's
-result, -0.20, by default); the walls, fingers and lips move together,
+result, -0.15, by default); the walls, fingers and lips move together,
 so the lips keep their reach past the walls' inner faces and the
 fingers their strain as counted (socket_test_shape.py's
 LIP_POCKET_FIT_MM says what a press fit adds). The pocket's size is
@@ -92,7 +92,7 @@ DESIGN_POCKET_PIN_HOLE_DIAMETER_MM = 3.50
 DESIGN_HOLE_STRIP_HOLES_MM = (3.50, 3.40, 3.30, 3.20, 3.10, 3.00)
 DESIGN_HOLE_STRIP_POCKET_FIT_MM = 0.15
 DESIGN_HOLE_STRIP_POCKET_PRINTED_MM = (9.70, 7.00)
-DESIGN_LIP_POCKET_PRINTED_MM = (9.35, 6.65)
+DESIGN_LIP_POCKET_PRINTED_MM = (9.40, 6.70)
 DESIGN_LIP_REACHES_MM = (0.15, 0.19, 0.23, 0.27, 0.31, 0.35)
 DESIGN_LIP_LENGTH_MM = 1.00
 DESIGN_PAD_OFFSETS_MM = (-0.10, -0.05, 0.00, 0.05, 0.10, 0.15)
@@ -111,7 +111,7 @@ DESIGN_FINGER_BED_CHAMFERS_MM = {"slots": 0.40, "blade": 0.20}
 DESIGN_LIP_STRAIN_PERCENT = (0.85, 1.08, 1.30, 1.53, 1.75, 1.98)  # the largest of a cell's
 DESIGN_LIP_MAXIMUM_STRAIN_PERCENT = 2.0
 DESIGN_STRIP_MARK_XS_MM = {shape.POCKET: (19.05, 38.10, 57.15, 76.20, 95.25),
-                           shape.LIP: (57.15,), shape.HOLES: (19.05, 57.15, 95.25)}
+                           shape.LIP: (19.05, 95.25), shape.HOLES: (19.05, 57.15, 95.25)}
 DESIGN_FIGURE_DECIMALS = 2
 
 # Clearances the checks ask for, as modelled: the bosses from the walls,
