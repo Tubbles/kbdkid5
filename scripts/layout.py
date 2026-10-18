@@ -247,6 +247,13 @@ def default_slit_length(pull_in):
 # -2.86). Mapped onto the board they span x from center - 9.28 to
 # center + 3.87 and y from center - 8.22 to center - 1.37 (DESIGN.md,
 # "Keys"). Each socket hangs HOTSWAP_SOCKET_REACH_MM below the PCB.
+# These polygons are a cover of the body, not its outline: the lobes
+# meet at y 2.25, 0.43 short of the real step between them at y 2.68
+# (HOTSWAP_SOCKET_OUTLINE_MM below), so the second lobe's corner there,
+# a 0.75 round, is squared off, and the fills cover the radii with
+# rectangles. The tray's socket cuts and check_layout.py use them as
+# such a cover. The socket test strips' pockets follow
+# HOTSWAP_SOCKET_OUTLINE_MM instead.
 HOTSWAP_SOCKET_LOBES_MM = (
     ((-8.22, -2.25), (-3.57, -2.25), (-3.57, 2.25), (-8.22, 2.25)),
     ((-6.02, 2.25), (-1.37, 2.25), (-1.37, 7.60), (-5.47, 7.60), (-6.02, 7.05)),
@@ -272,6 +279,45 @@ HOTSWAP_SOCKET_TAB_TIP_MM = (-3.70, 9.28)
 # 7.60, over the tabs' roots.
 HOTSWAP_SOCKET_BODY_ENDS_MM = (-2.07, 7.48)
 HOTSWAP_SOCKET_REACH_MM = 2.02
+
+# The socket's plastic body as it is, in the same footprint-local frame:
+# the outline of that STEP's body (solid 1 of
+# library/pkg/23d245ff-14f8-48ad-af68-56ebb3a76786/
+# 0c4954f5-24c7-4f36-a4b7-4bbd2ff10646.step) sectioned at mid-height,
+# the two tabs left out and the body's ends straight across their
+# roots. A start point, then lines to their end and arcs through a
+# point on them to their end, clockwise. The first lobe is 4.75 long
+# along the tabs' axis (y), from the body's end at -2.07 to the step at
+# 2.68 (Kailh's plan view's 4.75 from the end), the second 4.80, from
+# the step to the other end at 7.48. The arcs' centers and radii,
+# recovered from the section (three points of each lie on the circle
+# within 0.002): the 0.75 fill inside the step at (-6.773, 3.430), the
+# second lobe's 0.75 rounds at (-5.273, 6.730) and (-2.123, 3.430), and
+# the 1.5 fill between the second lobe and the first lobe's side at
+# (-2.073, 1.180), tangent to y 2.68 at x -2.073. The STEP has a 0.05
+# flat between that round and that fill, which the arc from the round's
+# end absorbs within 0.001.
+HOTSWAP_SOCKET_OUTLINE_MM = (
+    (-4.323, -2.070),
+    (
+        ("line", (-7.473, -2.070)),  # the body's end, y -2.07
+        ("line", (-8.223, -1.320)),  # a 0.75 chamfer
+        ("line", (-8.223, 1.930)),  # the first lobe's west face
+        ("line", (-7.473, 2.680)),  # a 0.75 chamfer
+        ("line", (-6.773, 2.680)),  # the first lobe's north face, the step
+        ("arc", (-6.243, 2.900), (-6.023, 3.430)),  # the 0.75 fill
+        ("line", (-6.023, 6.730)),  # the second lobe's west face
+        ("arc", (-5.803, 7.260), (-5.273, 7.480)),  # a 0.75 round
+        ("line", (-2.115, 7.480)),  # the body's end, y 7.48
+        ("line", (-2.115, 7.680)),  # a 0.2 step on that end
+        ("line", (-1.373, 7.680)),
+        ("line", (-1.373, 3.430)),  # the second lobe's east face
+        ("arc", (-1.593, 2.900), (-2.123, 2.680)),  # a 0.75 round
+        ("arc", (-3.134, 2.241), (-3.573, 1.180)),  # the 1.5 fill
+        ("line", (-3.573, -1.320)),  # the first lobe's east face
+        ("line", (-4.323, -2.070)),  # a 0.75 chamfer, back to the start
+    ),
+)
 
 # The socket body's height, from its bottom to the bumps on its top face
 # that bear on a board: Kailh's drawing (CPG135001S30 data sheet,

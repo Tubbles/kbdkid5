@@ -10,24 +10,34 @@ PCB and the socket's two bosses sit in the 3.0 pin holes, as on a PCB.
 On the pocket strip those two holes are POCKET_STRIP_PIN_HOLE_DIAMETER_MM
 as modelled instead, so they leave the bosses free and the pocket alone
 locates the socket, and on the hole strip they step across the cells.
-Under each cell, pocket walls around the socket's plastic body
-(pocket_pieces(): its two lobes cut back to the body's ends and the
-fills at its inside corners, layout.py), open at the bottom, against
-which the socket's top face rests on the plate's underside (the
-ceiling). The walls are layout.HOTSWAP_SOCKET_BODY_HEIGHT_MM deep, the
-socket body's height on Kailh's drawing (1.80, to the bumps on its top
-that bear on a board), not layout.HOTSWAP_SOCKET_REACH_MM: kbdkid4's
-STEP hangs its 1.85 body 0.17 below the PCB, which a socket pressed
-against a printed ceiling does not do. The walls are built whole, and
-every footprint hole runs on from the plate down through them to their
-mouth, so the switch's center post and side pegs, which reach below the
-plate, pass them: the west peg's hole bores through lobe B's north wall
-(the socket's lobe passes that hole by 0.42), leaving a sliver of the
-wall's inner side at the tighter fits and none at the hole strip's,
-and the center post's hole nibbles the same wall's outer corner where
-it turns down lobe B's east face, toward lobe A
-(WALL_BORING_HOLE_CENTERS_MM; no other hole meets a wall). The walls are slotted through their full
-depth where the socket's two metal end tabs leave the body's ends.
+Under each cell, pocket walls around the socket's plastic body, open
+at the bottom, against which the socket's top face rests on the
+plate's underside (the ceiling). They follow the body's outline,
+curves and all (layout.HOTSWAP_SOCKET_OUTLINE_MM, from the socket's
+STEP, not the cover layout.HOTSWAP_SOCKET_LOBES_MM and
+HOTSWAP_SOCKET_FILLS_MM give the tray): in plan they are the region
+between the outline moved out by the pocket's gap (pocket_gap(), their
+inner face) and by the gap plus WALL_THICKNESS_MM (their outer face),
+corners extended to their intersections. The walls are
+layout.HOTSWAP_SOCKET_BODY_HEIGHT_MM deep, the socket body's height on
+Kailh's drawing (1.80, to the bumps on its top that bear on a board),
+not layout.HOTSWAP_SOCKET_REACH_MM: kbdkid4's STEP hangs its 1.85 body
+0.17 below the PCB, which a socket pressed against a printed ceiling
+does not do. The walls are built whole, and every footprint hole runs
+on from the plate down through them to their mouth, so the switch's
+center post and side pegs, which reach below the plate, pass them: the
+west peg's hole bores through lobe B's north wall (the socket's lobe
+passes that hole by 0.42), leaving a sliver of the wall's inner side at
+the tighter fits and none at the hole strip's. No other hole meets a
+wall (cell_wall_bores() finds the ones that do in the walls' plan): the
+center post's hole, 1.9 in radius at the default pull_in, keeps 2.38
+from its center to the walls' outer face around lobe B's round toward
+lobe A at the lip strip's fit. The walls are slotted through their full
+depth where the socket's two metal end tabs leave the body's ends. The
+slots are wider than the straight part of either end between its
+chamfers or its round and step, so they take the walls' inner face
+along those parts, but for at most 0.1 of the east end's beside each
+slot at the looser fits.
 
 The tabs: the user solders a wire to each tab before pressing the
 socket in from below, since an iron on a tab in its pocket would melt
@@ -97,9 +107,10 @@ strip's walls. The plate reaches BOSS_EDGE_MARGIN_MM past the bosses.
 
 BACKING: a plate BACKING_THICKNESS_MM thick with clearance holes for
 M2 screws under the bosses and, under each of the body's lobes, a pad of
-the lobe's rectangle moved in by pad_inset() (so it passes inside the largest lip as
-printed), whose top relative to the socket's bottom steps across the
-cells (cell_pad_offset()). The backing prints bottom down, so its top
+the cover's lobe rectangle (PAD_LOBE_RECTANGLES_MM) moved in by
+pad_inset() (so it passes inside the largest lip as printed), whose top
+relative to the socket's bottom steps across the cells
+(cell_pad_offset()). The backing prints bottom down, so its top
 and its pads' tops rise together and the pads stand where they are
 modelled relative to the bosses' ends and so to the ceiling.
 
@@ -108,10 +119,11 @@ strip, as on the slit test strip, the frame strips' through the plate
 south of the pockets and the backing's in line with them. The lip
 strip also has one notch (LIP_STRIP_MARK_*) in the middle of its north
 edge, between cells 3 and 4, clear of the bosses and the switches, and
-the pocket strip four of that size (POCKET_STRIP_MARK_XS_MM), between
-cells 1 and 2, 2 and 3, 4 and 5 and 5 and 6, which tell it from the
-first pocket strip, which had none, and the second, which had the two
-between cells 2 and 3 and between cells 4 and 5. The hole strip has
+the pocket strip five of that size (POCKET_STRIP_MARK_XS_MM), one at
+every cell boundary, which tell it from the first pocket strip, which
+had none, the second, which had the two between cells 2 and 3 and
+between cells 4 and 5, and the third, which had four, at every
+boundary but the middle one. The hole strip has
 three (HOLE_STRIP_MARK_XS_MM), between cells 1 and 2, 3 and 4 (where
 the lip strip has its one) and 5 and 6. The backing has two
 (BACKING_MARK_XS_MM), between cells 2 and 3 and between cells 4 and 5,
@@ -139,7 +151,9 @@ import Part
 
 import layout
 import pcb_shape
-from tray_shape import CUT_EXTRA_MM, UP, plan_prism, rectangle_wire, require_one_valid_solid
+from freecad_common import offset_outline
+from tray_shape import (CUT_EXTRA_MM, UP, layout_polygon_wire, plan_prism, rectangle_wire,
+                        require_one_valid_solid)
 
 POCKET = "pocket"
 LIP = "lip"
@@ -199,12 +213,8 @@ HOLE_STRIP_PIN_HOLE_STEP_MM = 0.10
 # The pocket walls, as thick as the tray's (two lines). The switch's
 # center post and side pegs, whose holes are
 # layout.CHOC_FOOTPRINT_HOLES_MM's first three, reach below the plate.
-# Of all the footprint holes, which run on through the walls, only the
-# center post's and the west peg's (their footprint-local centers) meet
-# them, both lobe B's wall.
 WALL_THICKNESS_MM = layout.TRAY_WALL_MM
 SWITCH_PROTRUDING_HOLE_COUNT = 3
-WALL_BORING_HOLE_CENTERS_MM = ((0.0, 0.0), (0.0, 5.5))
 
 # The tabs' slots and recesses: the tab with this much solder on each
 # side passes its slot at the slip fit, and the recess reaches this far
@@ -214,12 +224,16 @@ TAB_SOLDER_PER_SIDE_MM = 0.5
 TAB_RECESS_PAST_TIP_MM = 0.5
 TAB_RECESS_DEPTH_MM = 0.5
 
-# The lips: under the faces (lobe, edge) of layout.HOTSWAP_SOCKET_LOBES_MM
-# whose fingers find room clear of the tab slots and the switch's holes:
-# lobe A's north and south faces and lobe B's south face, in board
-# coordinates (lobe B's north face is bored by the west peg's hole).
-# LIP_LENGTH_MM is short so that lobe A's north finger, boxed in by the
-# next cell's wire room, still bends far enough from its root.
+# The lips: under the socket's lobe faces whose fingers find room clear
+# of the tab slots and the switch's holes: lobe A's north and south faces
+# and lobe B's south face, in board coordinates (lobe B's north face is
+# bored by the west peg's hole). Each finger runs along its face as the
+# outline gives it (layout.HOTSWAP_SOCKET_OUTLINE_MM: y -3.573, -8.223
+# and -6.023 from the key center, straight from x -1.18 to 1.32, -1.93
+# to 1.32 and -6.73 to -3.43), which the lips lie on, so a blade's inner
+# face is the wall's. LIP_LENGTH_MM is short so that lobe A's north
+# finger, boxed in by the next cell's wire room, still bends far enough
+# from its root.
 LIP_LENGTH_MM = 1.0
 LIP_TIP_GROWTH_AS_PRINTED_MM = (
     layout.PRINT_SWELLING_AT_45_DEGREES_MM - layout.PRINT_SWELLING_PER_SIDE_MM
@@ -257,36 +271,39 @@ FINGER_BLADE_BED_CHAMFER_MM = layout.NANO_HOOK_BLADE_BED_CHAMFER_MM
 @dataclass(frozen=True)
 class Finger:
     """A finger along its lip's lobe face, which runs along x in the
-    strip's frame, so its ends are x relative to the key center: the
+    strip's frame: the face's y and the direction toward the socket
+    along y, then x of its ends, all relative to the key center: the
     free end (the lip's far end), the root (where the blade meets the
     plate and its block), and the slots' end past the free end."""
 
-    lip_edge: tuple
+    face_y: float
+    toward_socket: float
     free_end_x: float
     root_x: float
     slots_end_x: float
 
 
 FINGERS = (
-    # Lobe A's north face: the free end 0.2 east of the fill at the
-    # lobes' 1.5 radius (layout.HOTSWAP_SOCKET_FILLS_MM's third), so as
-    # printed it stands on the fill's face, with the lip on the face's
-    # straight part (the STEP's from x -1.18 to 1.32). The root block's
-    # far end lies 0.2 short of the next cell's west tab's wire room. The
-    # room opens into the center post's hole.
-    Finger((0, 1), -1.07, 5.57, -1.57),
+    # Lobe A's north face: the free end 0.11 east of where the outline's
+    # 1.5 fill meets the face's straight part, with the lip on that part
+    # (set 0.2 east of the cover's square over the fill,
+    # layout.HOTSWAP_SOCKET_FILLS_MM's third). The root block's far end
+    # lies 0.2 short of the next cell's west tab's wire room. The room
+    # opens into the center post's hole.
+    Finger(-3.573, -1.0, -1.07, 5.57, -1.57),
     # Lobe A's south face: the free end as the north finger's, so the two
-    # lips face each other on the face's straight part (the STEP's from
-    # x -1.93 to 1.32), the root block's far end 0.5 short of the next
-    # cell's lobe B finger's slots.
-    Finger((0, 3), -1.07, 6.57, -1.57),
-    # Lobe B's south face: the free end 0.2 west of the fill at the
-    # lobes' 0.75 radius (the second), the lip on the face's straight part
-    # (the STEP's from x -6.73 to -3.43), the slots' end 0.1 inside the
-    # pocket's face around the first fill, so they take the wall between,
-    # the root block's far end 0.2 past the previous cell's east tab's
-    # wire room.
-    Finger((1, 4), -3.64, -10.98, -2.79),
+    # lips face each other on the face's straight part, the root block's
+    # far end 0.5 short of the next cell's lobe B finger's slots.
+    Finger(-8.223, 1.0, -1.07, 6.57, -1.57),
+    # Lobe B's south face: the free end 0.21 west of where the outline's
+    # 0.75 fill inside the step meets the face's straight part, with the
+    # lip on that part (set 0.2 west of the cover's square over the
+    # fill, the second), the root block's far end 0.2 past the previous
+    # cell's east tab's wire room. The slots' end lies 0.01 past the
+    # walls' inner face along the outline's step (x -2.68 less the gap at
+    # the lip strip's fit), so they take the wall between and leave no
+    # skin of it.
+    Finger(-6.023, 1.0, -3.64, -10.98, -2.77),
 )
 
 # The fingers' slots may open into the center post's hole and keep this
@@ -324,9 +341,23 @@ SCREW_CLEARANCE_HOLE_DIAMETER_MM = layout.printed_fit(
 )
 PAD_CLEARANCE_TO_LIPS_MM = 0.3
 
+# The pads' rectangles before pad_inset(), in footprint-local
+# coordinates (x range, y range): the cover's lobes
+# (layout.HOTSWAP_SOCKET_LOBES_MM) cut back to the body's ends, which the
+# third backing was printed with, their long faces at the outline's
+# (0.003 from the cover's rounded ones) so the pads keep their distance
+# from the lips, which sit on those faces. Lobe B's reaches down to the
+# cover's y 2.25, so on the outline its pad's corner beside the 1.5 fill
+# lies 0.534 inside the body, the nearest the pads come to its edge,
+# where the pockets' walls follow it.
+PAD_LOBE_RECTANGLES_MM = (
+    ((-8.223, -3.573), (-2.07, 2.25)),
+    ((-6.023, -1.373), (2.25, 7.48)),
+)
+
 # The notches that number the cells, as on the slit test strip, through
 # each strip from its south edge, and the lip strip's mark in its north
-# edge. The pocket strip's four marks are the lip strip's size, at cell
+# edge. The pocket strip's five marks are the lip strip's size, at cell
 # boundaries like it, so each lies over a boss, 2.0 north of it. The
 # third backing has the second pocket strip's two, the second backing
 # had the lip strip's one.
@@ -336,7 +367,7 @@ NOTCH_PITCH_MM = 2.0
 LIP_STRIP_MARK_WIDTH_MM = 3.0
 LIP_STRIP_MARK_DEPTH_MM = 1.5
 LIP_STRIP_MARK_X_MM = 3 * layout.KEY_PITCH_MM
-POCKET_STRIP_MARK_XS_MM = tuple(boundary * layout.KEY_PITCH_MM for boundary in (1, 2, 4, 5))
+POCKET_STRIP_MARK_XS_MM = tuple(boundary * layout.KEY_PITCH_MM for boundary in range(1, CELL_COUNT))
 HOLE_STRIP_MARK_XS_MM = (1 * layout.KEY_PITCH_MM, 3 * layout.KEY_PITCH_MM,
                          5 * layout.KEY_PITCH_MM)
 BACKING_MARK_XS_MM = tuple(boundary * layout.KEY_PITCH_MM for boundary in (2, 4))
@@ -362,8 +393,8 @@ def cross(origin, point_a, point_b):
 def clip_convex(subject, clip):
     """The part of a convex counter-clockwise polygon inside another
     (Sutherland-Hodgman), possibly empty. A point on a clip edge's line
-    (within rounding, as where the body's pieces meet) counts as inside,
-    so an edge along that line is kept whole rather than crossed."""
+    (within rounding, as where two cutters meet) counts as inside, so an
+    edge along that line is kept whole rather than crossed."""
     output = list(subject)
     for index in range(len(clip)):
         edge_start, edge_end = clip[index], clip[(index + 1) % len(clip)]
@@ -413,24 +444,6 @@ def covered_area(cutters, measure):
 
     visit(0, None, 1.0)
     return total
-
-
-def region_area(polygon, cutter=None, hole=None):
-    """A convex polygon's area within a convex cutter and a circle
-    (center, radius), each if given."""
-    if cutter is not None:
-        polygon = clip_convex(polygon, cutter)
-        if len(polygon) < 3:
-            return 0.0
-    if hole is None:
-        return layout.polygon_signed_area(polygon)
-    return circle_polygon_area(*hole, polygon)
-
-
-def union_area(convex_pieces, cutter=None, hole=None):
-    """The area of convex polygons' union, within a convex cutter and a
-    circle (center, radius), each if given."""
-    return covered_area(convex_pieces, lambda piece: region_area(piece, cutter, hole))
 
 
 def rectangle(x_range, y_range):
@@ -491,61 +504,6 @@ def circle_box_area(center, radius, box):
     return circle_area_below(y_high - center[1], x_range, radius) - circle_area_below(
         y_low - center[1], x_range, radius
     )
-
-
-def edge_circle_points(start, end, radius):
-    """An edge's ends and where it crosses the circle around the origin
-    in between, in order along it."""
-    direction = (end[0] - start[0], end[1] - start[1])
-    quadratic = direction[0] ** 2 + direction[1] ** 2
-    linear = 2.0 * (start[0] * direction[0] + start[1] * direction[1])
-    constant = start[0] ** 2 + start[1] ** 2 - radius**2
-    discriminant = linear**2 - 4.0 * quadratic * constant
-    points = [start]
-    if discriminant > 0.0:
-        root = math.sqrt(discriminant)
-        for parameter in ((-linear - root) / (2.0 * quadratic),
-                          (-linear + root) / (2.0 * quadratic)):
-            if 0.0 < parameter < 1.0:
-                points.append((start[0] + parameter * direction[0],
-                               start[1] + parameter * direction[1]))
-    points.append(end)
-    return points
-
-
-def within_circle(point, radius):
-    return math.hypot(*point) <= radius + LENGTH_TOLERANCE_MM
-
-
-def circle_triangle_area(start, end, radius):
-    """The signed area the circle around the origin shares with the
-    triangle from the origin to an edge: a triangle over each piece of
-    the edge inside the circle, a sector over each piece outside. The
-    pieces are split where the edge crosses the circle, so a piece is
-    inside when both its ends are. (A test on the piece's midpoint
-    counted an edge that only touches the circle there as inside: a
-    square of side 2 around a unit circle came out as 4, not pi.)"""
-    if start == end:
-        return 0.0
-    points = edge_circle_points(start, end, radius)
-    area = 0.0
-    for first, second in zip(points, points[1:]):
-        cross_product = first[0] * second[1] - first[1] * second[0]
-        if within_circle(first, radius) and within_circle(second, radius):
-            area += cross_product / 2.0
-        else:
-            dot_product = first[0] * second[0] + first[1] * second[1]
-            area += radius**2 * math.atan2(cross_product, dot_product) / 2.0
-    return area
-
-
-def circle_polygon_area(center, radius, polygon):
-    """The area a circle and a counter-clockwise polygon share, summed
-    over the triangles from the circle's center to the polygon's
-    edges."""
-    points = [(x - center[0], y - center[1]) for x, y in polygon]
-    return sum(circle_triangle_area(points[index - 1], points[index], radius)
-               for index in range(len(points)))
 
 
 def simpson_integral(function, low, high, steps=CHAMFER_INTEGRATION_STEPS):
@@ -679,34 +637,54 @@ def backing_thickness_limit(socket_bottom_z=None):
 # The socket and its pocket in plan.
 
 
-def socket_lobes(key_center):
-    """The socket's two lobes (layout.HOTSWAP_SOCKET_LOBES_MM) in board
-    coordinates, which reach past the body's ends over the tabs' roots."""
-    return tuple(layout.footprint_polygon(key_center, lobe)
-                 for lobe in layout.HOTSWAP_SOCKET_LOBES_MM)
+def outline_local_points():
+    """The outline's points in footprint-local coordinates: its start
+    and every line's and arc's points."""
+    start, segments = layout.HOTSWAP_SOCKET_OUTLINE_MM
+    return [start] + [point for _, *points in segments for point in points]
 
 
-def body_lobes_local():
-    """The lobes in footprint-local coordinates, cut back along y to the
-    plastic body's ends (layout.HOTSWAP_SOCKET_BODY_ENDS_MM)."""
-    low, high = layout.HOTSWAP_SOCKET_BODY_ENDS_MM
-    lobes = layout.HOTSWAP_SOCKET_LOBES_MM
-    xs = [x for lobe in lobes for x, _ in lobe]
-    band = rectangle((min(xs), max(xs)), (low, high))
-    return tuple(clip_convex(lobe, band) for lobe in lobes)
+def board_vector(key_center, local_point):
+    return App.Vector(*layout.footprint_point(key_center, local_point), 0.0)
 
 
-def body_lobes(key_center):
-    return tuple(layout.footprint_polygon(key_center, lobe) for lobe in body_lobes_local())
+def outline_wire(key_center):
+    """The socket's plastic body's outline (layout.HOTSWAP_SOCKET_OUTLINE_MM)
+    in board coordinates, a closed wire on z = 0."""
+    start, segments = layout.HOTSWAP_SOCKET_OUTLINE_MM
+    current = board_vector(key_center, start)
+    edges = []
+    for kind, *points in segments:
+        through = [board_vector(key_center, point) for point in points]
+        curve = (Part.LineSegment(current, *through) if kind == "line"
+                 else Part.Arc(current, *through))
+        edges.append(curve.toShape())
+        current = through[-1]
+    wire = Part.Wire(edges)
+    if not wire.isClosed():
+        raise SystemExit("error: the socket's outline does not close")
+    return wire
 
 
-def pocket_pieces(key_center):
-    """The socket's plastic body as convex polygons in board coordinates,
-    which the pocket walls go around: the lobes cut back to the body's
-    ends and the fills (layout.HOTSWAP_SOCKET_FILLS_MM)."""
-    fills = tuple(layout.footprint_polygon(key_center, fill)
-                  for fill in layout.HOTSWAP_SOCKET_FILLS_MM)
-    return body_lobes(key_center) + fills
+def outline_face(key_center):
+    return Part.Face(outline_wire(key_center))
+
+
+def pocket_face(key_center, distance):
+    """The outline moved out by distance, its corners extended to their
+    intersections, as a plan face."""
+    wire = outline_wire(key_center)
+    if distance < LENGTH_TOLERANCE_MM:
+        return Part.Face(wire)
+    return Part.Face(offset_outline(wire, distance))
+
+
+def plan_face(polygon):
+    return Part.Face(layout_polygon_wire(polygon, 0.0))
+
+
+def circle_face(center, radius):
+    return Part.Face(Part.Wire(Part.makeCircle(radius, App.Vector(center[0], center[1], 0.0))))
 
 
 def socket_tab_specs():
@@ -768,21 +746,12 @@ def wall_cutters(key_center):
     return cutters
 
 
-def pocket_offsets(key_center, fit):
-    """(inner, outer): the socket's body pieces moved out to the walls'
-    inner and outer faces, each tuple's union the face's outline."""
+def wall_ring(key_center, fit):
+    """A cell's pocket walls in plan before their cuts: between the
+    outline moved out by the pocket's gap (the walls' inner face) and by
+    the gap plus WALL_THICKNESS_MM (their outer face)."""
     gap = pocket_gap(fit)
-    pieces = pocket_pieces(key_center)
-    inner = tuple(layout.offset_polygon(piece, gap) for piece in pieces)
-    outer = tuple(layout.offset_polygon(piece, gap + WALL_THICKNESS_MM) for piece in pieces)
-    return inner, outer
-
-
-def ring_area(key_center, fit, cutter=None, hole=None):
-    """The walls' area in plan before their cuts, within a cutter and a
-    footprint hole (center, radius), each if given."""
-    inner, outer = pocket_offsets(key_center, fit)
-    return union_area(outer, cutter, hole) - union_area(inner, cutter, hole)
+    return pocket_face(key_center, gap + WALL_THICKNESS_MM).cut(pocket_face(key_center, gap))
 
 
 def cell_wall_cutters(kind, key_center, lip_fit=LIP_POCKET_FIT_MM):
@@ -791,31 +760,26 @@ def cell_wall_cutters(kind, key_center, lip_fit=LIP_POCKET_FIT_MM):
     return wall_cutters(key_center) + finger_slots(kind, key_center, lip_fit)
 
 
-def cut_wall_area(kind, index, lip_fit=LIP_POCKET_FIT_MM, hole=None):
-    """Cell index's walls in plan less their cutters, within a footprint
-    hole if given."""
+def cell_walls_plan(kind, index, lip_fit=LIP_POCKET_FIT_MM):
+    """Cell index's walls in plan less their cutters, before the
+    footprint holes bore them."""
     key_center = cell_key_center(index)
-    fit = cell_pocket_fit(kind, index, lip_fit)
-    return ring_area(key_center, fit, hole=hole) - covered_area(
-        cell_wall_cutters(kind, key_center, lip_fit),
-        lambda cutter: ring_area(key_center, fit, cutter, hole),
-    )
+    cutters = [plan_face(cutter) for cutter in cell_wall_cutters(kind, key_center, lip_fit)]
+    ring = wall_ring(key_center, cell_pocket_fit(kind, index, lip_fit))
+    return ring.cut(Part.makeCompound(cutters))
 
 
 def cell_wall_bores(kind, index, pull_in, lip_fit=LIP_POCKET_FIT_MM):
     """{footprint-local center: the area its hole bores out of cell
-    index's walls} for every footprint hole that meets them, which must
-    be one of WALL_BORING_HOLE_CENTERS_MM's. The holes do not overlap,
-    so their shares add up."""
+    index's walls} for every footprint hole that meets their plan. The
+    holes do not overlap, so their shares add up."""
+    walls = cell_walls_plan(kind, index, lip_fit)
     bores = {}
-    for (local_center, _), hole in zip(layout.CHOC_FOOTPRINT_HOLES_MM,
-                                       cell_holes(kind, index, pull_in)):
-        area = cut_wall_area(kind, index, lip_fit, hole)
+    for (local_center, _), (center, radius) in zip(layout.CHOC_FOOTPRINT_HOLES_MM,
+                                                   cell_holes(kind, index, pull_in)):
+        area = walls.common(circle_face(center, radius)).Area
         if area > AREA_TOLERANCE_MM2:
             bores[local_center] = area
-    others = sorted(set(bores) - set(WALL_BORING_HOLE_CENTERS_MM))
-    if others:
-        raise SystemExit(f"error: cell {index + 1}'s footprint holes at {others} meet its walls")
     return bores
 
 
@@ -823,7 +787,7 @@ def wall_area(kind, index, pull_in, lip_fit=LIP_POCKET_FIT_MM):
     """Cell index's walls in plan as built: less their cutters and the
     footprint holes."""
     bores = cell_wall_bores(kind, index, pull_in, lip_fit)
-    return cut_wall_area(kind, index, lip_fit) - sum(bores.values())
+    return cell_walls_plan(kind, index, lip_fit).Area - sum(bores.values())
 
 
 # The lip strip's fingers.
@@ -832,13 +796,8 @@ def wall_area(kind, index, pull_in, lip_fit=LIP_POCKET_FIT_MM):
 def finger_faces(key_center, finger, fit):
     """(its inner face's y, its outer face's y, the inward direction
     along y) of a finger on its lip's wall line."""
-    lobe_index, edge_index = finger.lip_edge
-    lobe = socket_lobes(key_center)[lobe_index]
-    start, end = lobe[edge_index], lobe[(edge_index + 1) % len(lobe)]
-    if abs(start[1] - end[1]) > LENGTH_TOLERANCE_MM:
-        raise SystemExit("error: a finger's lobe face does not run along x")
-    inward = math.copysign(1.0, end[0] - start[0])
-    inner = start[1] - inward * pocket_gap(fit)
+    inward = finger.toward_socket
+    inner = key_center[1] + finger.face_y - inward * pocket_gap(fit)
     return inner, inner - inward * FINGER_THICKNESS_MM, inward
 
 
@@ -1037,7 +996,10 @@ def edge_cut_rectangles(kind):
     return notch_rectangles() + [mark_rectangle(x) for x in strip_mark_xs(kind)]
 
 
-# Analytic volumes, from the plan geometry above alone.
+# Analytic volumes, from the plan geometry above alone: the walls' areas
+# from 2D booleans of their plan faces (wall_area()), the rest from
+# plain Python, so the solids' 3D fuses and cuts are checked against
+# them.
 
 
 def strip_finger_slots(kind, lip_fit=LIP_POCKET_FIT_MM):
@@ -1216,16 +1178,16 @@ def frame_analytic_volume(kind, pull_in, insert_length, lip_fit=LIP_POCKET_FIT_M
 
 
 def pad_polygons(key_center):
-    """The pads: each lobe's bounding rectangle moved in by pad_inset().
-    The rectangle rather than lobe B's chamfered outline, whose 0.608
+    """The pads: each of PAD_LOBE_RECTANGLES_MM moved in by pad_inset().
+    The rectangle rather than the cover's chamfered lobe B, whose 0.608
     chamfer edge collapses under an inset past 0.73 and turned the pad
-    inside out at 0.85. The rectangle's corner there lies 0.9 inside the
-    chamfer at that inset, farther than the straight sides."""
+    inside out at 0.85."""
     inset = pad_inset()
     pads = []
-    for lobe in body_lobes(key_center):
-        xs = [x for x, _ in lobe]
-        ys = [y for _, y in lobe]
+    for local_range in PAD_LOBE_RECTANGLES_MM:
+        corners = layout.footprint_polygon(key_center, rectangle(*local_range))
+        xs = [x for x, _ in corners]
+        ys = [y for _, y in corners]
         pads.append(rectangle((min(xs) + inset, max(xs) - inset),
                               (min(ys) + inset, max(ys) - inset)))
     return pads
@@ -1290,15 +1252,21 @@ def build_plate(kind, pull_in, lip_fit=LIP_POCKET_FIT_MM):
     return plate.Solids[0]
 
 
-def union_prism(convex_pieces, depth):
-    first, *others = (plan_prism(polygon, -depth, 0.0) for polygon in convex_pieces)
-    return first.fuse(others).removeSplitter()
+def face_prism(face, depth):
+    """A plan face extruded from the ceiling down to depth."""
+    prism = face.extrude(UP * depth)
+    prism.translate(UP * -depth)
+    return prism
 
 
 def build_cell_walls(kind, key_center, fit, depth, lip_fit=LIP_POCKET_FIT_MM):
-    """A cell's pocket walls below the ceiling, in pieces."""
-    inner, outer = pocket_offsets(key_center, fit)
-    ring = union_prism(outer, depth).cut(union_prism(inner, depth))
+    """A cell's pocket walls below the ceiling, in pieces: the prism of
+    the walls' outer face less that of their inner face, then their
+    cutters."""
+    gap = pocket_gap(fit)
+    outer, inner = (face_prism(pocket_face(key_center, distance), depth)
+                    for distance in (gap + WALL_THICKNESS_MM, gap))
+    ring = outer.cut(inner)
     cutters = [vertical_cutter(cutter, -depth, 0.0)
                for cutter in cell_wall_cutters(kind, key_center, lip_fit)]
     return ring.cut(Part.makeCompound(cutters)).removeSplitter()
@@ -1400,11 +1368,12 @@ def walls_bored_volume(kind, pull_in, lip_fit=LIP_POCKET_FIT_MM):
 
 def bore_footprint_holes(frame, kind, pull_in, lip_fit=LIP_POCKET_FIT_MM):
     """The frame with its footprint holes run on through the walls, the
-    plate's already cut, checked to take the walls' share within
-    VOLUME_RELATIVE_TOLERANCE of it (about 2e-5 mm3 at the defaults), so
-    the holes take no boss, finger, block or lip (the smallest lip is
-    0.002 mm3) nor more than a graze of one; the export checks the
-    switch's post and pegs clear of the frame."""
+    plate's already cut, checked to take the walls' share from their
+    plan (cell_wall_bores()) within VOLUME_RELATIVE_TOLERANCE of it (1e-5
+    to 1.5e-5 mm3 at the defaults), so the holes take no boss, finger,
+    block or lip (the smallest lip is 0.002 mm3) nor more than a graze of
+    one; the export checks the switch's post and pegs clear of the
+    frame."""
     bored = frame.cut(Part.makeCompound(footprint_hole_bores(kind, pull_in)))
     require_one_valid_solid(bored, "boring the footprint holes through the walls")
     removed = frame.Volume - bored.Volume

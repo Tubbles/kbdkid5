@@ -22,10 +22,10 @@ docstring has the design):
 
 Cell k (from 1, west to east) has k notches in its south edge on every
 strip; the lip strip also has a notch in the middle of its north edge,
-the pocket strip four, between cells 1 and 2, 2 and 3, 4 and 5, and 5
-and 6, the hole strip three, between cells 1 and 2, 3 and 4, and 5 and
-6. The frame strips print upside down, the plate's top face on z = 0;
-the backing prints bottom down.
+the pocket strip five, one at every cell boundary, the hole strip
+three, between cells 1 and 2, 3 and 4, and 5 and 6. The frame strips
+print upside down, the plate's top face on z = 0; the backing prints
+bottom down.
 
 Runs headless under FreeCAD's console interpreter (see
 freecad_common.py for the freecadcmd quirks that shape the
@@ -42,24 +42,27 @@ LIP_POCKET_FIT_MM says what a press fit adds). The pocket's size is
 then printed rather than checked against DESIGN.md.
 
 A frame strip is checked for one valid solid of its analytic volume,
-each pocket centered on its key's socket at its fit as printed, the
-walls' depth, each lip's reach as printed, length and place, each
-finger's bending length and thickness from its faces, its strain as
-printed (failing above 2 %), its slots open and its room against its
-swing, its root plastic over the finger's whole height, the slots' and
-blades' bed chamfers, the tab slots' width, the pin holes' size, the
-footprint holes through the walls (the switch's post and pegs clear of
-the frame, lobe B's north wall open on the west peg's hole and whole
-beside it, the sliver of the wall the hole leaves), every bore on its
-boss at the insert's depth, the bosses', walls', fingers', blocks' and
-slots' clearances, the notches and the marks, and a closed mesh. The
-backing is checked for one valid solid of its analytic volume, each
-pad's height against the socket's bottom, the screw holes, and stacked
-under both frame strips: nothing overlapping, the backing touching only
-the bosses' ends (and the lip strip's walls', fingers' and blocks'
-ends), the pads inside the lips as printed, every bore over its screw
-hole, the tabs' wire rooms clear, and the battery clearance in the real
-tray.
+each pocket's walls at its fit's gap outside every straight face of the
+socket's outline they keep, on all four sides, so the pocket is its fit
+as printed around the body, the walls' depth, each lip's reach as
+printed, length and place, each finger's bending length and thickness
+from its faces, its strain as printed (failing above 2 %), its slots
+open and its room against its swing, its root plastic over the finger's
+whole height, the slots' and blades' bed chamfers, the tab slots' width,
+the pin holes' size, the footprint holes through the walls (the
+switch's post and pegs clear of the frame, only the west peg's hole
+boring a wall, lobe B's north wall open on it and whole beside it, the
+sliver of the wall the hole leaves), every bore on its boss at the
+insert's depth, the bosses', walls', fingers', blocks' and slots'
+clearances, the notches and the marks, and a closed mesh. The backing
+is checked for one valid solid of its analytic volume, each pad's
+height against the socket's bottom and its place under the socket's
+outline, the screw holes, and stacked under both frame strips: nothing
+overlapping, the backing touching only the bosses' ends (and the lip
+strip's walls', fingers' and blocks' ends), the pads' distance to the
+walls and the lips, inside the lips as printed by the pads' clearance
+and clear of the walls as printed, every bore over its screw hole, the
+tabs' wire rooms clear, and the battery clearance in the real tray.
 Every strip's mesh must have its lowest point on z = 0, the bed.
 """
 
@@ -76,7 +79,7 @@ import layout
 import pcb_shape
 import socket_test_shape as shape
 from freecad_common import check_closed_mesh, export_stl, run_and_exit, script_arguments
-from tray_shape import UP, plan_prism
+from tray_shape import UP, layout_polygon_wire, plan_prism
 
 # DESIGN.md's figures ("Hand-wired frame test"), transcribed
 # independently of the constants the strips are built from, each
@@ -106,8 +109,8 @@ DESIGN_FINGER_ROOT_BLOCK_MM = (1.00, 0.30)  # past the root, out from the blade'
 DESIGN_FINGER_BED_CHAMFERS_MM = {"slots": 0.40, "blade": 0.20}
 DESIGN_LIP_STRAIN_PERCENT = (0.85, 1.08, 1.30, 1.53, 1.75, 1.98)  # the largest of a cell's
 DESIGN_LIP_MAXIMUM_STRAIN_PERCENT = 2.0
-DESIGN_STRIP_MARK_XS_MM = {shape.POCKET: (19.05, 38.10, 76.20, 95.25), shape.LIP: (57.15,),
-                           shape.HOLES: (19.05, 57.15, 95.25)}
+DESIGN_STRIP_MARK_XS_MM = {shape.POCKET: (19.05, 38.10, 57.15, 76.20, 95.25),
+                           shape.LIP: (57.15,), shape.HOLES: (19.05, 57.15, 95.25)}
 DESIGN_FIGURE_DECIMALS = 2
 
 # Clearances the checks ask for, as modelled: the bosses from the walls,
@@ -133,10 +136,14 @@ ROOT_PROBE_HEIGHTS = 12
 # (DESIGN.md, "Fused mock").
 SWITCH_PARTS_BELOW_PLATE_MM = 1.4
 
-# Lobe B's north wall, which the west peg's hole bores through, is
-# probed solid at these footprint-local y at its mid depth: beside the
-# hole, where the wall was cut back before the holes ran through it
-# (4.0, 7.0), and farther along (3.0, 7.3).
+# The center post's and the west peg's holes, by their footprint-local
+# centers (layout.CHOC_FOOTPRINT_HOLES_MM): the peg's bores lobe B's
+# north wall, and DESIGN.md says no other hole meets a wall. That wall
+# is probed solid at these footprint-local y at its mid depth: beside
+# the hole, where the wall was cut back before the holes ran through it
+# (4.0, 7.0), and farther along (3.0, around lobe B's round, and 7.3).
+CENTER_POST_HOLE_MM = layout.CHOC_FOOTPRINT_HOLES_MM[0][0]
+WEST_PEG_HOLE_MM = layout.CHOC_FOOTPRINT_HOLES_MM[1][0]
 WALL_PROBE_LOCAL_YS_MM = (3.0, 4.0, 7.0, 7.3)
 
 # The stack's contact check sinks the frame this far into the backing.
@@ -238,49 +245,92 @@ def face_coordinate(face, axis_index):
     return (center.x, center.y, center.z)[axis_index]
 
 
-def upward(face):
+def face_normal(face):
+    """A face's normal at its parameter range's middle, out of the
+    solid."""
     u_low, u_high, v_low, v_high = face.ParameterRange
-    return face.normalAt((u_low + u_high) / 2.0, (v_low + v_high) / 2.0).z > 0.0
+    return face.normalAt((u_low + u_high) / 2.0, (v_low + v_high) / 2.0)
+
+
+def upward(face):
+    return face_normal(face).z > 0.0
+
+
+def vertical_planar_faces(solid):
+    return [face for face in solid.Faces
+            if isinstance(face.Surface, Part.Plane) and abs(face.Surface.Axis.z) < 1e-6]
 
 
 def socket_extents(key_center):
-    """(x range, y range) of the socket's plastic body's lobes."""
-    points = [point for lobe in shape.body_lobes(key_center) for point in lobe]
-    xs = [x for x, _ in points]
-    ys = [y for _, y in points]
+    """(x range, y range) of the socket's plastic body: between its end
+    faces (layout.HOTSWAP_SOCKET_BODY_ENDS_MM) and between its outline's
+    two outermost faces across them."""
+    local_xs = [x for x, _ in shape.outline_local_points()]
+    corners = [layout.footprint_point(key_center, (x, end))
+               for x in (min(local_xs), max(local_xs))
+               for end in layout.HOTSWAP_SOCKET_BODY_ENDS_MM]
+    xs = [x for x, _ in corners]
+    ys = [y for _, y in corners]
     return (min(xs), max(xs)), (min(ys), max(ys))
 
 
-def wall_face_plane(frame_faces, key_center, axis_index, socket_face, outward):
-    """The plane of the pocket walls' inner faces nearest outside or on
-    a socket face (a pocket at the -0.40 fit is modelled on the body),
-    from the faces below the ceiling within the cell (past the body's
-    west end a fill's walls lie farther out)."""
-    planes = set()
-    for face in frame_faces[axis_index]:
-        center = face.CenterOfMass
-        if center.z >= 0.0 or abs(center.x - key_center[0]) > layout.KEY_PITCH_MM / 2.0:
+def outline_straight_edges(key_center):
+    """The socket outline's straight edges in plan as (start, unit
+    direction, length, unit normal out of the body)."""
+    outline = shape.outline_face(key_center)
+    edges = []
+    for edge in outline.Edges:
+        if not isinstance(edge.Curve, Part.Line):
             continue
-        offset = (face_coordinate(face, axis_index) - socket_face) * outward
-        if -MEASURE_TOLERANCE_MM <= offset <= WINDOW_MM:
-            planes.add(round(face_coordinate(face, axis_index), 6))
-    if not planes:
-        raise SystemExit(f"error: found no wall plane outside the socket face at "
-                         f"{socket_face:.3f} near {key_center}")
-    return min(planes, key=lambda plane: (plane - socket_face) * outward)
+        start, end = edge.Vertexes[0].Point, edge.Vertexes[-1].Point
+        length = (end - start).Length
+        along = (end - start) * (1.0 / length)
+        outward = App.Vector(along.y, -along.x, 0.0)
+        if outline.isInside((start + end) * 0.5 + outward * OPEN_PROBE_STEP_MM,
+                            MEASURE_TOLERANCE_MM, True):
+            outward = outward * -1.0
+        edges.append((start, along, length, outward))
+    return edges
 
 
-def measured_pocket(frame_faces, key_center):
-    """(center offset from the socket's, x size, y size) of a cell's
-    pocket as modelled."""
-    (x_low, x_high), (y_low, y_high) = socket_extents(key_center)
-    west = wall_face_plane(frame_faces, key_center, 0, x_low, -1.0)
-    east = wall_face_plane(frame_faces, key_center, 0, x_high, 1.0)
-    south = wall_face_plane(frame_faces, key_center, 1, y_low, -1.0)
-    north = wall_face_plane(frame_faces, key_center, 1, y_high, 1.0)
-    offset = math.dist(((west + east) / 2.0, (south + north) / 2.0),
-                       ((x_low + x_high) / 2.0, (y_low + y_high) / 2.0))
-    return offset, east - west, north - south
+def wall_face_gap(faces, key_center, edge):
+    """How far the pocket walls' inner face along a straight edge of the
+    socket's outline lies outside it, None where the cuts took that face
+    whole: the nearest of the frame's vertical planar faces below the
+    ceiling within the cell that face the edge from its outer side,
+    within WINDOW_MM of it, and lie along it within WINDOW_MM of its ends
+    (a finger's face runs on past them)."""
+    start, along, length, outward = edge
+    gaps = []
+    for face in faces:
+        center = face.CenterOfMass
+        if (center.z >= 0.0 or abs(center.x - key_center[0]) > layout.KEY_PITCH_MM / 2.0
+                or face_normal(face).dot(outward) > -0.999):
+            continue
+        gap = (center - start).dot(outward)
+        positions = [(vertex.Point - start).dot(along) for vertex in face.Vertexes]
+        if (-MEASURE_TOLERANCE_MM <= gap <= WINDOW_MM and min(positions) >= -WINDOW_MM
+                and max(positions) <= length + WINDOW_MM):
+            gaps.append(gap)
+    return min(gaps) if gaps else None
+
+
+def measured_pocket(faces, key_center):
+    """[(the edge's outward normal, the gap)] of each straight edge of a
+    cell's socket outline whose walls' inner face is left."""
+    measured = []
+    for edge in outline_straight_edges(key_center):
+        gap = wall_face_gap(faces, key_center, edge)
+        if gap is not None:
+            measured.append((edge[3], gap))
+    return measured
+
+
+def faces_every_side(measured):
+    """Whether the measured faces bound the pocket on all four sides."""
+    normals = [normal for normal, _ in measured]
+    return all(any(normal.x * side_x + normal.y * side_y > 0.5 for normal in normals)
+               for side_x, side_y in ((1.0, 0.0), (-1.0, 0.0), (0.0, 1.0), (0.0, -1.0)))
 
 
 def design_pocket_size(kind, index, lip_fit):
@@ -293,20 +343,29 @@ def design_pocket_size(kind, index, lip_fit):
     return DESIGN_POCKET_PRINTED_X_MM[index], DESIGN_POCKET_PRINTED_Y_MM[index]
 
 
-def check_pockets(kind, frame, frame_faces, lip_fit):
+def check_pockets(kind, frame, lip_fit):
+    """Each pocket's walls from their inner faces: at the fit's gap
+    outside every straight face of the socket's outline the cuts leave
+    them, on all four sides, so the pocket is the fit's size around the
+    body between its end faces and its outermost faces across them."""
     swelling = 2.0 * layout.PRINT_SWELLING_PER_SIDE_MM
+    faces = vertical_planar_faces(frame)
+    edge_count = len(outline_straight_edges(shape.cell_key_center(0)))
     for index in range(shape.CELL_COUNT):
         key_center = shape.cell_key_center(index)
-        offset, x_size, y_size = measured_pocket(frame_faces, key_center)
-        if offset > MEASURE_TOLERANCE_MM:
-            raise SystemExit(f"error: cell {index + 1}'s pocket lies {offset:.6f} off its socket")
         fit = shape.cell_pocket_fit(kind, index, lip_fit)
-        expected = layout.printed_fit(0.0, fit)
+        measured = measured_pocket(faces, key_center)
+        if not faces_every_side(measured):
+            raise SystemExit(f"error: cell {index + 1}'s walls keep their inner face on only "
+                             f"{len(measured)} of the outline's straight faces, not on all sides")
+        expected = shape.pocket_gap(fit)
+        worst = max(abs(gap - expected) for _, gap in measured)
+        if worst > MEASURE_TOLERANCE_MM:
+            raise SystemExit(f"error: cell {index + 1}'s walls stand up to {worst:.6f} off the "
+                             f"gap {expected:.4f} of the fit {fit:+.2f}")
+        gap = sum(gap for _, gap in measured) / len(measured)
         (x_low, x_high), (y_low, y_high) = socket_extents(key_center)
-        for what, size, body in (("x", x_size, x_high - x_low), ("y", y_size, y_high - y_low)):
-            if abs(size - body - expected) > MEASURE_TOLERANCE_MM:
-                raise SystemExit(f"error: cell {index + 1}'s pocket along {what} is {size:.4f} "
-                                 f"around the body's {body:.4f} at the fit {fit:+.2f}")
+        x_size, y_size = x_high - x_low + 2.0 * gap, y_high - y_low + 2.0 * gap
         design = design_pocket_size(kind, index, lip_fit)
         if design is not None:
             require_design(f"cell {index + 1}'s pocket along x as printed", x_size - swelling,
@@ -317,9 +376,10 @@ def check_pockets(kind, frame, frame_faces, lip_fit):
             require_design(f"cell {index + 1}'s fit", fit, DESIGN_POCKET_FITS_MM[index])
         if kind == shape.HOLES:
             require_design(f"cell {index + 1}'s fit", fit, DESIGN_HOLE_STRIP_POCKET_FIT_MM)
-        print(f"cell {index + 1}:     pocket fit {fit:+.2f}, {x_size:.3f} x {y_size:.3f} modelled, "
-              f"{x_size - swelling:.3f} x {y_size - swelling:.3f} printed, centered within "
-              f"{offset:.1e}")
+        print(f"cell {index + 1}:     pocket fit {fit:+.2f}, walls {gap:.4f} outside the outline "
+              f"on {len(measured)} of its {edge_count} straight faces (within {worst:.1e}), "
+              f"{x_size:.3f} x {y_size:.3f} modelled, {x_size - swelling:.3f} x "
+              f"{y_size - swelling:.3f} printed")
 
 
 def check_wall_depth(kind, frame):
@@ -804,20 +864,20 @@ def measured_sliver(frame, at, inner, hole_center, radius, expected):
 
 def check_holes_through_walls(kind, frame, pull_in, lip_fit):
     """The footprint holes through the walls: the switch's post and pegs
-    at their holes' size clear of the frame, the west peg's hole open
-    through lobe B's north wall at its mid depth in the wall's middle on
-    the hole's center line (the hole's axis itself lies outside the
-    wall's outer face), the wall whole along it, and the sliver of its
-    inner side the hole leaves, measured where it is thinnest, or the
-    hole open OPEN_PROBE_STEP_MM past the inner face where none is left
-    (on the face itself the probe would sit on the hole's edge at a
-    sliver of exactly zero)."""
+    at their holes' size clear of the frame, only the west peg's hole
+    boring a wall in the walls' plan, open through lobe B's north wall
+    at its mid depth in the wall's middle on the hole's center line (the
+    hole's axis itself lies outside the wall's outer face), the wall
+    whole along it, and the sliver of its inner side the hole leaves,
+    measured where it is thinnest, or the hole open OPEN_PROBE_STEP_MM
+    past the inner face where none is left (on the face itself the probe
+    would sit on the hole's edge at a sliver of exactly zero)."""
     overlap = frame.common(Part.makeCompound(switch_hole_columns(kind, pull_in))).Volume
     if overlap > MEASURE_TOLERANCE_MM:
         raise SystemExit(f"error: the switch's post and pegs overlap the {kind} strip by "
                          f"{overlap:.6f} mm3")
-    post, peg = shape.WALL_BORING_HOLE_CENTERS_MM
-    lobe_x = max(x for x, _ in shape.body_lobes_local()[1])
+    post, peg = CENTER_POST_HOLE_MM, WEST_PEG_HOLE_MM
+    lobe_x = max(x for x, _ in shape.outline_local_points())
     middle_z = -shape.wall_depth(kind) / 2.0
     slivers = []
     bores = []
@@ -848,15 +908,22 @@ def check_holes_through_walls(kind, frame, pull_in, lip_fit):
             sliver = expected
         slivers.append(sliver)
         area = shape.cell_wall_bores(kind, index, pull_in, lip_fit)
-        bores.append((area.get(peg, 0.0), area.get(post, 0.0)))
+        if set(area) != {peg}:
+            raise SystemExit(f"error: cell {index + 1}'s walls are bored by the holes at "
+                             f"{sorted(area)}, not by the west peg's alone")
+        post_hole = shape.circle_face(*holes[post])
+        post_gap = shape.cell_walls_plan(kind, index, lip_fit).distToShape(post_hole)[0]
+        bores.append((area[peg], area.get(post, 0.0), post_gap))
     probes = ", ".join(f"{local_y:.1f}" for local_y in WALL_PROBE_LOCAL_YS_MM)
     print(f"holes:      every footprint hole through the plate and the walls to their mouth; the "
           f"switch's post and pegs at their holes' size, {SWITCH_PARTS_BELOW_PLATE_MM} below the "
           f"plate, overlap the frame by {overlap:.1e} mm3; cells 1 to {shape.CELL_COUNT}'s walls "
-          "bored " + ", ".join(f"{peg_area:.3f}" for peg_area, _ in bores) + " mm2 by the west "
-          "peg's hole, " + ", ".join(f"{post_area:.3f}" for _, post_area in bores) + " mm2 by "
-          f"the center post's; lobe B's north wall open through its middle on the peg's hole, "
-          f"solid at footprint-local y {probes}, all at its mid depth")
+          "bored " + ", ".join(f"{peg_area:.3f}" for peg_area, _, _ in bores) + " mm2 by the "
+          "west peg's hole and by no other, " + ", ".join(
+              f"{post_area:.3f}" for _, post_area, _ in bores) + " mm2 by the center post's, "
+          "which keeps " + ", ".join(f"{post_gap:.3f}" for _, _, post_gap in bores) + " from "
+          f"them; lobe B's north wall open through its middle on the peg's hole, solid at "
+          f"footprint-local y {probes}, all at its mid depth")
     print(f"sliver:     lobe B's north wall's inner face to the west peg's hole, cells 1 to "
           f"{shape.CELL_COUNT} " + ", ".join(f"{sliver:.3f}" for sliver in slivers)
           + " (measured where positive; negative, the hole reaches past the face into the "
@@ -953,11 +1020,12 @@ def blocks_from_other_slots(kind, lip_fit, blocks, slot_prisms):
     return least
 
 
-def socket_prisms(kind, lip_fit):
-    """Every cell's socket body from the ceiling down to its bottom."""
-    return [plan_prism(piece, -shape.socket_height(), 0.0)
-            for index in range(shape.CELL_COUNT)
-            for piece in shape.pocket_pieces(shape.cell_key_center(index))]
+def socket_prisms():
+    """Every cell's socket body, its outline from the ceiling down to its
+    bottom."""
+    return [shape.face_prism(shape.outline_face(shape.cell_key_center(index)),
+                             shape.socket_height())
+            for index in range(shape.CELL_COUNT)]
 
 
 def check_finger_clearances(kind, pull_in, lip_fit, frame, bodies, columns, slots, rooms,
@@ -983,11 +1051,11 @@ def check_finger_clearances(kind, pull_in, lip_fit, frame, bodies, columns, slot
           "the bed")
     socket_gap = min(shape.pocket_gap(lip_fit), layout.PRINT_SWELLING_PER_SIDE_MM)
     socket = require_clearance("the fingers from the socket's body",
-                               least_distance(blades, socket_prisms(kind, lip_fit)), socket_gap)
+                               least_distance(blades, socket_prisms()), socket_gap)
     in_rooms = require_clearance("the fingers' blocks from the wire rooms",
                                  least_distance(blocks, rooms), WIRE_ROOM_PRINTED_CLEARANCE_MM)
-    print(f"fingers:    {socket:.3f} from the socket's body (each blade's free end and inner "
-          f"face), blocks {in_rooms:.3f} from the wire rooms")
+    print(f"fingers:    {socket:.3f} from the socket's body (the nearest blade's inner face), "
+          f"blocks {in_rooms:.3f} from the wire rooms")
     return [
         ("fingers from the tab slots", least_distance(blades, slots)),
         ("fingers from the wire rooms", least_distance(blades, rooms)),
@@ -1085,7 +1153,7 @@ def export_frame(arguments):
           f"holes grown by {arguments.pull_in}{fit_text}")
     print(f"volume:     {frame.Volume:.3f} mm3 (analytic {expected:.3f} mm3)")
     frame_faces = [planar_faces_along(frame, axis) for axis in range(3)]
-    check_pockets(kind, frame, frame_faces, lip_fit)
+    check_pockets(kind, frame, lip_fit)
     check_wall_depth(kind, frame)
     if kind == shape.LIP:
         check_lips(frame, lip_fit)
@@ -1113,8 +1181,7 @@ def check_pads(backing):
         key_center = shape.cell_key_center(index)
         cell_tops = [face for face in tops
                      if abs(face.CenterOfMass.x - key_center[0]) < layout.KEY_PITCH_MM / 2.0]
-        lobes = shape.body_lobes(key_center)
-        if len(cell_tops) != len(lobes):
+        if len(cell_tops) != len(shape.PAD_LOBE_RECTANGLES_MM):
             raise SystemExit(f"error: cell {index + 1} has {len(cell_tops)} pads")
         heights = {round(face_coordinate(face, 2) - thickness, 6) for face in cell_tops}
         if len(heights) != 1:
@@ -1123,15 +1190,14 @@ def check_pads(backing):
         offset = round(height - (shape.lip_band_bottom_depth() - shape.socket_height()), 6) + 0.0
         require_design(f"cell {index + 1}'s pads against the socket's bottom", offset,
                        DESIGN_PAD_OFFSETS_MM[index])
+        outline = shape.outline_face(key_center)
         for face in cell_tops:
             point = face.CenterOfMass
-            lobe_boxes = [((min(x for x, _ in lobe), max(x for x, _ in lobe)),
-                           (min(y for _, y in lobe), max(y for _, y in lobe))) for lobe in lobes]
-            if not any(face.BoundBox.XMin > x_range[0] and face.BoundBox.XMax < x_range[1]
-                       and face.BoundBox.YMin > y_range[0] and face.BoundBox.YMax < y_range[1]
-                       for x_range, y_range in lobe_boxes):
+            flat = face.copy()
+            flat.translate(App.Vector(0.0, 0.0, -point.z))
+            if flat.cut(outline).Area > MEASURE_TOLERANCE_MM:
                 raise SystemExit(f"error: a pad of cell {index + 1} at ({point.x:.3f}, "
-                                 f"{point.y:.3f}) is not under a socket lobe")
+                                 f"{point.y:.3f}) is not under the socket's outline")
         print(f"cell {index + 1}:     pads {height:.3f} tall, top {offset:+.3f} against the "
               "socket's bottom")
 
@@ -1167,39 +1233,64 @@ def stacked_pads():
     ]
 
 
-def expected_pad_distance(kind, lip_fit):
-    """(distance, its horizontal part) from the pads to the nearest of
-    the frame: the lips' tips, which span the pads' height, or the
-    pocket walls, which the lowest pads pass under."""
-    nearest = None
+def pads_to_outline(key_center):
+    """The least distance in plan from a cell's pads to its socket's
+    outline, which they lie inside."""
+    outline = shape.outline_wire(key_center)
+    return min(Part.Face(layout_polygon_wire(pad, 0.0)).distToShape(outline)[0]
+               for pad in shape.pad_polygons(key_center))
+
+
+def expected_pad_distances(kind, lip_fit):
+    """{"walls": .., "lips": ..} of (distance, its horizontal part) from
+    the pads to the nearest of the pocket walls, which the lowest pads
+    pass under, their inner faces the pocket's gap outside the socket's
+    outline, and on the lip strip of the lips' tips, which span the
+    pads' height."""
+    nearest = {}
     for index in range(shape.CELL_COUNT):
+        key_center = shape.cell_key_center(index)
         gap = shape.pocket_gap(shape.cell_pocket_fit(kind, index, lip_fit))
+        candidates = {"walls": (pads_to_outline(key_center) + gap,
+                                max(0.0, shape.pad_top_depth(index) - shape.wall_depth(kind)))}
         if kind == shape.LIP:
-            horizontal = shape.pad_inset() + gap - shape.lip_protrusion(shape.cell_lip_reach(index))
-            vertical = 0.0
-        else:
-            horizontal = shape.pad_inset() + gap
-            vertical = max(0.0, shape.pad_top_depth(index) - shape.wall_depth(kind))
-        candidate = (math.hypot(horizontal, vertical), horizontal)
-        nearest = candidate if nearest is None else min(nearest, candidate)
+            candidates["lips"] = (
+                shape.pad_inset() + gap - shape.lip_protrusion(shape.cell_lip_reach(index)), 0.0)
+        for what, (horizontal, vertical) in candidates.items():
+            candidate = (math.hypot(horizontal, vertical), horizontal)
+            nearest[what] = min(nearest.get(what, candidate), candidate)
     return nearest
 
 
 def check_pads_clear(kind, frame, lip_fit):
-    distance = frame.distToShape(Part.makeCompound(stacked_pads()))[0]
-    expected, horizontal = expected_pad_distance(kind, lip_fit)
-    if abs(distance - expected) > MEASURE_TOLERANCE_MM:
-        raise SystemExit(f"error: the pads come {distance:.4f} from the {kind} strip, "
-                         f"expected {expected:.4f}")
+    """{what: (distance, across as printed)} from the pads to the walls
+    and the lips, each measured on its own bodies and the nearest on the
+    frame: the pads keep PAD_CLEARANCE_TO_LIPS_MM inside the lips as
+    printed and stay clear of the walls as printed, beside which they
+    lie under the socket."""
+    pads = Part.makeCompound(stacked_pads())
+    walls, _, _, lips, _ = shape.frame_bodies(kind, lip_fit)
+    bodies = {"walls": walls, "lips": lips}
+    expected = expected_pad_distances(kind, lip_fit)
+    for what, (distance, _) in list(expected.items()) + [("frame", min(expected.values()))]:
+        body = frame if what == "frame" else Part.makeCompound(bodies[what])
+        measured = body.distToShape(pads)[0]
+        if abs(measured - distance) > MEASURE_TOLERANCE_MM:
+            raise SystemExit(f"error: the pads come {measured:.4f} from the {kind} strip's "
+                             f"{what}, expected {distance:.4f}")
     # The pad's face and the wall's swell toward each other; a lip's tip
     # grows the lead-in's swelling along the axis.
-    nearest_growth = layout.PRINT_SWELLING_PER_SIDE_MM
-    if kind == shape.LIP:
-        nearest_growth += shape.LIP_TIP_GROWTH_AS_PRINTED_MM
-    printed = horizontal - layout.PRINT_SWELLING_PER_SIDE_MM - nearest_growth
-    if printed < shape.PAD_CLEARANCE_TO_LIPS_MM - MEASURE_TOLERANCE_MM:
-        raise SystemExit(f"error: the pads come {printed:.4f} from the {kind} strip as printed")
-    return distance, printed
+    swelling = layout.PRINT_SWELLING_PER_SIDE_MM
+    growth = {"walls": swelling, "lips": swelling + shape.LIP_TIP_GROWTH_AS_PRINTED_MM}
+    least = {"walls": 0.0, "lips": shape.PAD_CLEARANCE_TO_LIPS_MM}
+    figures = {}
+    for what, (distance, horizontal) in expected.items():
+        printed = horizontal - swelling - growth[what]
+        if printed < least[what] - MEASURE_TOLERANCE_MM:
+            raise SystemExit(f"error: the pads come {printed:.4f} from the {kind} strip's {what} "
+                             "as printed")
+        figures[what] = (distance, printed)
+    return figures
 
 
 def check_bores_over_holes(frame, holes):
@@ -1270,15 +1361,16 @@ def export_backing(arguments):
         frame, _ = shape.build_frame(kind, arguments.pull_in, arguments.insert_length,
                                      arguments.lip_fit)
         contact = check_stack(kind, stacked, frame, arguments.pull_in, arguments.lip_fit)
-        distance, printed = check_pads_clear(kind, frame, arguments.lip_fit)
+        pads = check_pads_clear(kind, frame, arguments.lip_fit)
         bores = check_bores_over_holes(frame, holes)
         rooms = check_wire_rooms(kind, frame, stacked, arguments.lip_fit)
         touching = ("the bosses', walls', fingers' and blocks' ends" if kind == shape.LIP
                     else "the bosses' ends")
         print(f"stack:      under the {kind} strip nothing overlaps, contact {contact:.3f} mm2 "
-              f"({touching}), "
-              f"pads {distance:.3f} from it ({printed:.3f} across as printed), {bores} bores over "
-              f"their screw holes, wire rooms {rooms:.3f} clear")
+              f"({touching}), pads " + ", ".join(
+                  f"{distance:.3f} from its {what} ({printed:.3f} across as printed)"
+                  for what, (distance, printed) in pads.items())
+              + f", {bores} bores over their screw holes, wire rooms {rooms:.3f} clear")
     check_battery()
     check_notches(backing, shape.BACKING_THICKNESS_MM / 2.0)
     print("notches:    cell k has k in the south edge")
