@@ -90,7 +90,7 @@ strip's walls. The plate reaches BOSS_EDGE_MARGIN_MM past the bosses.
 
 BACKING: a plate BACKING_THICKNESS_MM thick with clearance holes for
 M2 screws under the bosses and, under each of the body's lobes, a pad of
-the lobe moved in by pad_inset() (so it passes inside the largest lip as
+the lobe's rectangle moved in by pad_inset() (so it passes inside the largest lip as
 printed), whose top relative to the socket's bottom steps across the
 cells (cell_pad_offset()). The backing prints bottom down, so its top
 and its pads' tops rise together and the pads stand where they are
@@ -105,7 +105,9 @@ the pocket strip two of that size (POCKET_STRIP_MARK_XS_MM), between
 cells 2 and 3 and between cells 4 and 5, which tell it from the first
 pocket strip, which had none. The hole strip has three
 (HOLE_STRIP_MARK_XS_MM), between cells 1 and 2, 3 and 4 (where the lip
-strip has its one) and 5 and 6.
+strip has its one) and 5 and 6. The backing has the lip strip's one
+(BACKING_MARK_XS_MM), which tells it from the first backing, which had
+none and whose pads were 0.2 larger each way.
 
 A switch is the same on both halves, so is the frame: the footprint is
 the left half's (layout.footprint_holes() at FOOTPRINT_ROTATION_DEGREES).
@@ -289,17 +291,20 @@ BOSS_EDGE_MARGIN_MM = 0.5
 # The backing: its thickness (the battery clearance in the real tray
 # allows backing_thickness_limit(), four layers fit under it), the
 # screws' clearance holes (the PCB's mounting drills, printed), and how
-# far the pads stay inside the largest lip as printed.
+# far the pads stay inside the largest lip as printed: 0.3, up from the
+# first backing's 0.1 at the user's request after its pads stood off
+# under the pocket strip (doc/log/2026-10-18.md), no perfect fit wanted.
 BACKING_THICKNESS_MM = 0.8
 SCREW_CLEARANCE_HOLE_DIAMETER_MM = layout.printed_fit(
     layout.MOUNTING_DRILL_DIAMETER_MM, layout.SNUG_FIT_MM
 )
-PAD_CLEARANCE_TO_LIPS_MM = 0.1
+PAD_CLEARANCE_TO_LIPS_MM = 0.3
 
 # The notches that number the cells, as on the slit test strip, through
 # each strip from its south edge, and the lip strip's mark in its north
 # edge. The pocket strip's two marks are the lip strip's size, at cell
-# boundaries like it, so each lies over a boss, 2.0 north of it.
+# boundaries like it, so each lies over a boss, 2.0 north of it. The
+# second backing has the lip strip's one.
 NOTCH_WIDTH_MM = 1.0
 NOTCH_DEPTH_MM = 0.8
 NOTCH_PITCH_MM = 2.0
@@ -309,6 +314,7 @@ LIP_STRIP_MARK_X_MM = 3 * layout.KEY_PITCH_MM
 POCKET_STRIP_MARK_XS_MM = (2 * layout.KEY_PITCH_MM, 4 * layout.KEY_PITCH_MM)
 HOLE_STRIP_MARK_XS_MM = (1 * layout.KEY_PITCH_MM, 3 * layout.KEY_PITCH_MM,
                          5 * layout.KEY_PITCH_MM)
+BACKING_MARK_XS_MM = (LIP_STRIP_MARK_X_MM,)
 
 VOLUME_RELATIVE_TOLERANCE = pcb_shape.VOLUME_RELATIVE_TOLERANCE
 AREA_TOLERANCE_MM2 = 1e-9
@@ -911,7 +917,7 @@ def notch_rectangles():
 def strip_mark_xs(kind):
     """The x centers of a strip's marks in its north edge."""
     marks = {LIP: (LIP_STRIP_MARK_X_MM,), POCKET: POCKET_STRIP_MARK_XS_MM,
-             HOLES: HOLE_STRIP_MARK_XS_MM}
+             HOLES: HOLE_STRIP_MARK_XS_MM, BACKING: BACKING_MARK_XS_MM}
     return marks.get(kind, ())
 
 
@@ -1111,14 +1117,25 @@ def frame_analytic_volume(kind, pull_in, insert_length, lip_fit=LIP_POCKET_FIT_M
 
 
 def pad_polygons(key_center):
-    """The pads: the body's lobes moved in by pad_inset()."""
-    return [layout.offset_polygon(lobe, -pad_inset()) for lobe in body_lobes(key_center)]
+    """The pads: each lobe's bounding rectangle moved in by pad_inset().
+    The rectangle rather than lobe B's chamfered outline, whose 0.608
+    chamfer edge collapses under an inset past 0.73 and turned the pad
+    inside out at 0.85. The rectangle's corner there lies 0.9 inside the
+    chamfer at that inset, farther than the straight sides."""
+    inset = pad_inset()
+    pads = []
+    for lobe in body_lobes(key_center):
+        xs = [x for x, _ in lobe]
+        ys = [y for _, y in lobe]
+        pads.append(rectangle((min(xs) + inset, max(xs) - inset),
+                              (min(ys) + inset, max(ys) - inset)))
+    return pads
 
 
 def backing_analytic_volume():
     hole_area = math.pi * (SCREW_CLEARANCE_HOLE_DIAMETER_MM / 2.0) ** 2
-    notch_area = sum(layout.polygon_signed_area(cut) for cut in notch_rectangles())
-    plate = (plate_area() - len(boss_centers()) * hole_area - notch_area) * BACKING_THICKNESS_MM
+    edge_cuts = sum(layout.polygon_signed_area(cut) for cut in edge_cut_rectangles(BACKING))
+    plate = (plate_area() - len(boss_centers()) * hole_area - edge_cuts) * BACKING_THICKNESS_MM
     pads = sum(
         layout.polygon_signed_area(polygon) * pad_height(index)
         for index in range(CELL_COUNT)
@@ -1296,7 +1313,7 @@ def build_backing():
                           App.Vector(x, y, -CUT_EXTRA_MM), UP)
         for x, y in boss_centers()
     ]
-    cutters.extend(vertical_cutter(cut, 0.0, thickness) for cut in notch_rectangles())
+    cutters.extend(vertical_cutter(cut, 0.0, thickness) for cut in edge_cut_rectangles(BACKING))
     plate = plate.cut(Part.makeCompound(cutters))
     pads = [
         plan_prism(polygon, thickness, thickness + pad_height(index))
