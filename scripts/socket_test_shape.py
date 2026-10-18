@@ -18,10 +18,15 @@ ceiling). The walls are layout.HOTSWAP_SOCKET_BODY_HEIGHT_MM deep, the
 socket body's height on Kailh's drawing (1.80, to the bumps on its top
 that bear on a board), not layout.HOTSWAP_SOCKET_REACH_MM: kbdkid4's
 STEP hangs its 1.85 body 0.17 below the PCB, which a socket pressed
-against a printed ceiling does not do. The walls step aside wherever
-they would come within SWITCH_WALL_CLEARANCE_MM of the switch's center
-post and side pegs, which reach below the plate (the socket's lobe
-passes the west peg's hole by 0.42), and are slotted through their full
+against a printed ceiling does not do. The walls are built whole, and
+every footprint hole runs on from the plate down through them to their
+mouth, so the switch's center post and side pegs, which reach below the
+plate, pass them: the west peg's hole bores through lobe B's north wall
+(the socket's lobe passes that hole by 0.42), leaving a sliver of the
+wall's inner side at the tighter fits and none at the hole strip's,
+and the center post's hole nibbles the same wall's outer corner where
+it turns along lobe B's south face (WALL_BORING_HOLE_CENTERS_MM; no
+other hole meets a wall). The walls are slotted through their full
 depth where the socket's two metal end tabs leave the body's ends.
 
 The tabs: the user solders a wire to each tab before pressing the
@@ -101,13 +106,14 @@ strip, as on the slit test strip, the frame strips' through the plate
 south of the pockets and the backing's in line with them. The lip
 strip also has one notch (LIP_STRIP_MARK_*) in the middle of its north
 edge, between cells 3 and 4, clear of the bosses and the switches, and
-the pocket strip two of that size (POCKET_STRIP_MARK_XS_MM), between
-cells 2 and 3 and between cells 4 and 5, which tell it from the first
-pocket strip, which had none. The hole strip has three
-(HOLE_STRIP_MARK_XS_MM), between cells 1 and 2, 3 and 4 (where the lip
-strip has its one) and 5 and 6. The backing has the lip strip's one
-(BACKING_MARK_XS_MM), which tells it from the first backing, which had
-none and whose pads were 0.2 larger each way.
+the pocket strip four of that size (POCKET_STRIP_MARK_XS_MM), between
+cells 1 and 2, 2 and 3, 4 and 5 and 5 and 6, which tell it from the
+first pocket strip, which had none, and the second, which had the two
+between cells 2 and 3 and between cells 4 and 5. The hole strip has
+three (HOLE_STRIP_MARK_XS_MM), between cells 1 and 2, 3 and 4 (where
+the lip strip has its one) and 5 and 6. The backing has the lip
+strip's one (BACKING_MARK_XS_MM), which tells it from the first
+backing, which had none and whose pads were 0.2 larger each way.
 
 A switch is the same on both halves, so is the frame: the footprint is
 the left half's (layout.footprint_holes() at FOOTPRINT_ROTATION_DEGREES).
@@ -178,14 +184,15 @@ POCKET_STRIP_PIN_HOLE_DIAMETER_MM = 3.5
 HOLE_STRIP_POCKET_FIT_MM = 0.15
 HOLE_STRIP_PIN_HOLE_STEP_MM = 0.10
 
-# The pocket walls, as thick as the tray's (two lines), and their
-# clearance as modelled from the holes of the switch's center post and
-# side pegs (layout.CHOC_FOOTPRINT_HOLES_MM's first three), whose parts
-# reach below the plate, the holes taken at their nominal size plus the
-# walls' swelling.
+# The pocket walls, as thick as the tray's (two lines). The switch's
+# center post and side pegs, whose holes are
+# layout.CHOC_FOOTPRINT_HOLES_MM's first three, reach below the plate.
+# Of all the footprint holes, which run on through the walls, only the
+# center post's and the west peg's (their footprint-local centers) meet
+# them, both lobe B's wall.
 WALL_THICKNESS_MM = layout.TRAY_WALL_MM
 SWITCH_PROTRUDING_HOLE_COUNT = 3
-SWITCH_WALL_CLEARANCE_MM = 0.5
+WALL_BORING_HOLE_CENTERS_MM = ((0.0, 0.0), (0.0, 5.5))
 
 # The tabs' slots and recesses: the tab with this much solder on each
 # side passes its slot at the slip fit, and the recess reaches this far
@@ -198,10 +205,9 @@ TAB_RECESS_DEPTH_MM = 0.5
 # The lips: under the faces (lobe, edge) of layout.HOTSWAP_SOCKET_LOBES_MM
 # whose fingers find room clear of the tab slots and the switch's holes:
 # lobe A's north and south faces and lobe B's south face, in board
-# coordinates (lobe B's north face is broken up by the west peg's and
-# the center post's gaps). LIP_LENGTH_MM is short so that lobe A's north
-# finger, boxed in by the next cell's wire room, still bends far enough
-# from its root.
+# coordinates (lobe B's north face is bored by the west peg's hole).
+# LIP_LENGTH_MM is short so that lobe A's north finger, boxed in by the
+# next cell's wire room, still bends far enough from its root.
 LIP_LENGTH_MM = 1.0
 LIP_TIP_GROWTH_AS_PRINTED_MM = (
     layout.PRINT_SWELLING_AT_45_DEGREES_MM - layout.PRINT_SWELLING_PER_SIDE_MM
@@ -302,7 +308,7 @@ PAD_CLEARANCE_TO_LIPS_MM = 0.3
 
 # The notches that number the cells, as on the slit test strip, through
 # each strip from its south edge, and the lip strip's mark in its north
-# edge. The pocket strip's two marks are the lip strip's size, at cell
+# edge. The pocket strip's four marks are the lip strip's size, at cell
 # boundaries like it, so each lies over a boss, 2.0 north of it. The
 # second backing has the lip strip's one.
 NOTCH_WIDTH_MM = 1.0
@@ -311,7 +317,7 @@ NOTCH_PITCH_MM = 2.0
 LIP_STRIP_MARK_WIDTH_MM = 3.0
 LIP_STRIP_MARK_DEPTH_MM = 1.5
 LIP_STRIP_MARK_X_MM = 3 * layout.KEY_PITCH_MM
-POCKET_STRIP_MARK_XS_MM = (2 * layout.KEY_PITCH_MM, 4 * layout.KEY_PITCH_MM)
+POCKET_STRIP_MARK_XS_MM = tuple(boundary * layout.KEY_PITCH_MM for boundary in (1, 2, 4, 5))
 HOLE_STRIP_MARK_XS_MM = (1 * layout.KEY_PITCH_MM, 3 * layout.KEY_PITCH_MM,
                          5 * layout.KEY_PITCH_MM)
 BACKING_MARK_XS_MM = (LIP_STRIP_MARK_X_MM,)
@@ -390,12 +396,22 @@ def covered_area(cutters, measure):
     return total
 
 
-def union_area(convex_pieces, cutter=None):
-    """The area of convex polygons' union, within a convex cutter if one
-    is given."""
-    if cutter is None:
-        return covered_area(convex_pieces, layout.polygon_signed_area)
-    return covered_area(convex_pieces, lambda piece: convex_area((piece, cutter)))
+def region_area(polygon, cutter=None, hole=None):
+    """A convex polygon's area within a convex cutter and a circle
+    (center, radius), each if given."""
+    if cutter is not None:
+        polygon = clip_convex(polygon, cutter)
+        if len(polygon) < 3:
+            return 0.0
+    if hole is None:
+        return layout.polygon_signed_area(polygon)
+    return circle_polygon_area(*hole, polygon)
+
+
+def union_area(convex_pieces, cutter=None, hole=None):
+    """The area of convex polygons' union, within a convex cutter and a
+    circle (center, radius), each if given."""
+    return covered_area(convex_pieces, lambda piece: region_area(piece, cutter, hole))
 
 
 def rectangle(x_range, y_range):
@@ -404,13 +420,6 @@ def rectangle(x_range, y_range):
         (x_range[1], y_range[0]),
         (x_range[1], y_range[1]),
         (x_range[0], y_range[1]),
-    )
-
-
-def square_around(center, half_side):
-    return rectangle(
-        (center[0] - half_side, center[0] + half_side),
-        (center[1] - half_side, center[1] + half_side),
     )
 
 
@@ -463,6 +472,54 @@ def circle_box_area(center, radius, box):
     return circle_area_below(y_high - center[1], x_range, radius) - circle_area_below(
         y_low - center[1], x_range, radius
     )
+
+
+def edge_circle_points(start, end, radius):
+    """An edge's ends and where it crosses the circle around the origin
+    in between, in order along it."""
+    direction = (end[0] - start[0], end[1] - start[1])
+    quadratic = direction[0] ** 2 + direction[1] ** 2
+    linear = 2.0 * (start[0] * direction[0] + start[1] * direction[1])
+    constant = start[0] ** 2 + start[1] ** 2 - radius**2
+    discriminant = linear**2 - 4.0 * quadratic * constant
+    points = [start]
+    if discriminant > 0.0:
+        root = math.sqrt(discriminant)
+        for parameter in ((-linear - root) / (2.0 * quadratic),
+                          (-linear + root) / (2.0 * quadratic)):
+            if 0.0 < parameter < 1.0:
+                points.append((start[0] + parameter * direction[0],
+                               start[1] + parameter * direction[1]))
+    points.append(end)
+    return points
+
+
+def circle_triangle_area(start, end, radius):
+    """The signed area the circle around the origin shares with the
+    triangle from the origin to an edge: a triangle over each piece of
+    the edge inside the circle, a sector over each piece outside."""
+    if start == end:
+        return 0.0
+    points = edge_circle_points(start, end, radius)
+    area = 0.0
+    for first, second in zip(points, points[1:]):
+        cross_product = first[0] * second[1] - first[1] * second[0]
+        middle = ((first[0] + second[0]) / 2.0, (first[1] + second[1]) / 2.0)
+        if math.hypot(*middle) <= radius:
+            area += cross_product / 2.0
+        else:
+            dot_product = first[0] * second[0] + first[1] * second[1]
+            area += radius**2 * math.atan2(cross_product, dot_product) / 2.0
+    return area
+
+
+def circle_polygon_area(center, radius, polygon):
+    """The area a circle and a counter-clockwise polygon share, summed
+    over the triangles from the circle's center to the polygon's
+    edges."""
+    points = [(x - center[0], y - center[1]) for x, y in polygon]
+    return sum(circle_triangle_area(points[index - 1], points[index], radius)
+               for index in range(len(points)))
 
 
 def simpson_integral(function, low, high, steps=CHAMFER_INTEGRATION_STEPS):
@@ -670,23 +727,10 @@ def tab_wire_room(key_center, tab):
     return footprint_span_rectangle(key_center, x_center, room_width, tip, end)
 
 
-def switch_wall_gaps(key_center):
-    """Squares the walls keep out of, around the holes of the switch's
-    center post and side pegs."""
-    gaps = []
-    for center, diameter in layout.footprint_holes(key_center)[:SWITCH_PROTRUDING_HOLE_COUNT]:
-        half_side = (
-            diameter / 2.0 + layout.PRINT_SWELLING_PER_SIDE_MM + SWITCH_WALL_CLEARANCE_MM
-        )
-        gaps.append(square_around(center, half_side))
-    return gaps
-
-
 def wall_cutters(key_center):
-    """The tab slots and the switch's gaps, cut out of every cell's
-    pocket walls, which do not overlap."""
+    """The tab slots, cut out of every cell's pocket walls, which do not
+    overlap."""
     cutters = [tab_slot(key_center, tab) for tab in socket_tab_specs()]
-    cutters.extend(switch_wall_gaps(key_center))
     for first in range(len(cutters)):
         for second in range(first + 1, len(cutters)):
             if convex_area((cutters[first], cutters[second])) > AREA_TOLERANCE_MM2:
@@ -704,24 +748,52 @@ def pocket_offsets(key_center, fit):
     return inner, outer
 
 
-def ring_area(key_center, fit, cutter=None):
-    """The walls' area in plan before their cuts, within a cutter if
-    given."""
+def ring_area(key_center, fit, cutter=None, hole=None):
+    """The walls' area in plan before their cuts, within a cutter and a
+    footprint hole (center, radius), each if given."""
     inner, outer = pocket_offsets(key_center, fit)
-    return union_area(outer, cutter) - union_area(inner, cutter)
+    return union_area(outer, cutter, hole) - union_area(inner, cutter, hole)
 
 
 def cell_wall_cutters(kind, key_center, lip_fit=LIP_POCKET_FIT_MM):
-    """Everything cut out of a cell's walls: the tab slots, the switch's
-    gaps and, on the lip strip, the fingers' slots."""
+    """Everything cut out of a cell's walls but the footprint holes: the
+    tab slots and, on the lip strip, the fingers' slots."""
     return wall_cutters(key_center) + finger_slots(kind, key_center, lip_fit)
 
 
-def wall_area(kind, key_center, fit, lip_fit=LIP_POCKET_FIT_MM):
-    return ring_area(key_center, fit) - covered_area(
+def cut_wall_area(kind, index, lip_fit=LIP_POCKET_FIT_MM, hole=None):
+    """Cell index's walls in plan less their cutters, within a footprint
+    hole if given."""
+    key_center = cell_key_center(index)
+    fit = cell_pocket_fit(kind, index, lip_fit)
+    return ring_area(key_center, fit, hole=hole) - covered_area(
         cell_wall_cutters(kind, key_center, lip_fit),
-        lambda cutter: ring_area(key_center, fit, cutter),
+        lambda cutter: ring_area(key_center, fit, cutter, hole),
     )
+
+
+def cell_wall_bores(kind, index, pull_in, lip_fit=LIP_POCKET_FIT_MM):
+    """{footprint-local center: the area its hole bores out of cell
+    index's walls} for every footprint hole that meets them, which must
+    be one of WALL_BORING_HOLE_CENTERS_MM's. The holes do not overlap,
+    so their shares add up."""
+    bores = {}
+    for (local_center, _), hole in zip(layout.CHOC_FOOTPRINT_HOLES_MM,
+                                       cell_holes(kind, index, pull_in)):
+        area = cut_wall_area(kind, index, lip_fit, hole)
+        if area > AREA_TOLERANCE_MM2:
+            bores[local_center] = area
+    others = sorted(set(bores) - set(WALL_BORING_HOLE_CENTERS_MM))
+    if others:
+        raise SystemExit(f"error: cell {index + 1}'s footprint holes at {others} meet its walls")
+    return bores
+
+
+def wall_area(kind, index, pull_in, lip_fit=LIP_POCKET_FIT_MM):
+    """Cell index's walls in plan as built: less their cutters and the
+    footprint holes."""
+    bores = cell_wall_bores(kind, index, pull_in, lip_fit)
+    return cut_wall_area(kind, index, lip_fit) - sum(bores.values())
 
 
 # The lip strip's fingers.
@@ -1068,12 +1140,10 @@ def box_area(box):
     return (x_high - x_low) * (y_high - y_low)
 
 
-def frame_mouth_area(kind, lip_fit=LIP_POCKET_FIT_MM):
+def frame_mouth_area(kind, pull_in, lip_fit=LIP_POCKET_FIT_MM):
     """The walls', fingers' and root blocks' ends at the walls' mouth in
     plan."""
-    walls = sum(wall_area(kind, cell_key_center(index), cell_pocket_fit(kind, index, lip_fit),
-                          lip_fit)
-                for index in range(CELL_COUNT))
+    walls = sum(wall_area(kind, index, pull_in, lip_fit) for index in range(CELL_COUNT))
     fingers = strip_fingers(kind, lip_fit) + strip_root_blocks(kind, lip_fit)
     return walls + sum(box_area(box) for box in fingers)
 
@@ -1085,8 +1155,7 @@ def frame_analytic_volume(kind, pull_in, insert_length, lip_fit=LIP_POCKET_FIT_M
     walls = 0.0
     lips = 0.0
     for index in range(CELL_COUNT):
-        key_center = cell_key_center(index)
-        walls += wall_area(kind, key_center, cell_pocket_fit(kind, index, lip_fit), lip_fit)
+        walls += wall_area(kind, index, pull_in, lip_fit)
         if kind == LIP:
             lips += len(FINGERS) * lip_volume(cell_lip_reach(index))
     blades = strip_fingers(kind, lip_fit)
@@ -1261,8 +1330,8 @@ def build_bores(depth, insert_length):
 
 def frame_bodies(kind, lip_fit=LIP_POCKET_FIT_MM):
     """(walls of every cell, fingers' blades, their root blocks, lips of
-    every cell, bosses) before fusing, for the build and for clearance
-    probes."""
+    every cell, bosses) before fusing and before the footprint holes run
+    on through the walls, for the build and for clearance probes."""
     depth = wall_depth(kind)
     walls = []
     lips = []
@@ -1279,6 +1348,43 @@ def frame_bodies(kind, lip_fit=LIP_POCKET_FIT_MM):
     return walls, blades, blocks, lips, build_bosses(lip_band_bottom_depth())
 
 
+def footprint_hole_bores(kind, pull_in):
+    """Every cell's footprint holes from the plate's top face down to the
+    walls' mouth, overshooting both."""
+    depth = wall_depth(kind)
+    bores = []
+    for center, radius in strip_holes(kind, pull_in):
+        bore = hole_cutter(center, radius, layout.PCB_THICKNESS_MM + depth)
+        bore.translate(App.Vector(0.0, 0.0, -depth))
+        bores.append(bore)
+    return bores
+
+
+def walls_bored_volume(kind, pull_in, lip_fit=LIP_POCKET_FIT_MM):
+    """What the footprint holes bore out of every cell's walls."""
+    return wall_depth(kind) * sum(
+        sum(cell_wall_bores(kind, index, pull_in, lip_fit).values())
+        for index in range(CELL_COUNT)
+    )
+
+
+def bore_footprint_holes(frame, kind, pull_in, lip_fit=LIP_POCKET_FIT_MM):
+    """The frame with its footprint holes run on through the walls, the
+    plate's already cut, checked to take exactly the walls' share, so the
+    holes meet no boss, finger, block or lip: the smallest lip is 0.002
+    mm3, far above VOLUME_RELATIVE_TOLERANCE of the share."""
+    bored = frame.cut(Part.makeCompound(footprint_hole_bores(kind, pull_in)))
+    require_one_valid_solid(bored, "boring the footprint holes through the walls")
+    removed = frame.Volume - bored.Volume
+    expected = walls_bored_volume(kind, pull_in, lip_fit)
+    if abs(removed - expected) > VOLUME_RELATIVE_TOLERANCE * expected:
+        raise SystemExit(
+            f"error: the footprint holes take {removed:.6f} mm3 below the plate, the walls' "
+            f"share is {expected:.6f} mm3"
+        )
+    return bored
+
+
 def build_frame(kind, pull_in, insert_length, lip_fit=LIP_POCKET_FIT_MM):
     """(frame strip, its analytic volume), checked to be one valid solid
     of that volume."""
@@ -1291,6 +1397,7 @@ def build_frame(kind, pull_in, insert_length, lip_fit=LIP_POCKET_FIT_MM):
     walls, blades, blocks, lips, bosses = frame_bodies(kind, lip_fit)
     frame = plate.fuse(walls + blades + blocks + lips + bosses).removeSplitter()
     require_one_valid_solid(frame, "fusing the walls, fingers, lips and bosses to the plate")
+    frame = bore_footprint_holes(frame, kind, pull_in, lip_fit)
     frame = frame.cut(Part.makeCompound(build_bores(lip_band_bottom_depth(), insert_length)))
     require_one_valid_solid(frame, "boring the bosses")
     expected = frame_analytic_volume(kind, pull_in, insert_length, lip_fit)

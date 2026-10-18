@@ -22,10 +22,10 @@ docstring has the design):
 
 Cell k (from 1, west to east) has k notches in its south edge on every
 strip; the lip strip also has a notch in the middle of its north edge,
-the pocket strip two, between cells 2 and 3 and between cells 4 and 5,
-the hole strip three, between cells 1 and 2, 3 and 4, and 5 and 6.
-The frame strips print upside down, the plate's top face on z = 0; the
-backing prints bottom down.
+the pocket strip four, between cells 1 and 2, 2 and 3, 4 and 5, and 5
+and 6, the hole strip three, between cells 1 and 2, 3 and 4, and 5 and
+6. The frame strips print upside down, the plate's top face on z = 0;
+the backing prints bottom down.
 
 Runs headless under FreeCAD's console interpreter (see
 freecad_common.py for the freecadcmd quirks that shape the
@@ -46,16 +46,19 @@ walls' depth, each lip's reach as printed, length and place, each
 finger's bending length and thickness from its faces, its strain as
 printed (failing above 2 %), its slots open and its room against its
 swing, its root plastic over the finger's whole height, the slots' and
-blades' bed chamfers, the tab slots' width, the pin holes' size, every
-bore on its boss at the insert's depth, the bosses', walls', fingers',
-blocks' and slots' clearances, the notches and the marks, and a closed
-mesh. The backing is checked for one valid solid of its analytic
-volume, each pad's height against the socket's bottom, the screw holes,
-and stacked under both frame strips: nothing overlapping, the backing
-touching only the bosses' ends (and the lip strip's walls', fingers'
-and blocks' ends), the pads inside the lips as printed, every bore over
-its screw hole, the tabs' wire rooms clear, and the battery clearance
-in the real tray.
+blades' bed chamfers, the tab slots' width, the pin holes' size, the
+footprint holes through the walls (the switch's post and pegs clear of
+the frame, lobe B's north wall open on the west peg's hole and whole
+beside it, the sliver of the wall the hole leaves), every bore on its
+boss at the insert's depth, the bosses', walls', fingers', blocks' and
+slots' clearances, the notches and the marks, and a closed mesh. The
+backing is checked for one valid solid of its analytic volume, each
+pad's height against the socket's bottom, the screw holes, and stacked
+under both frame strips: nothing overlapping, the backing touching only
+the bosses' ends (and the lip strip's walls', fingers' and blocks'
+ends), the pads inside the lips as printed, every bore over its screw
+hole, the tabs' wire rooms clear, and the battery clearance in the real
+tray.
 Every strip's mesh must have its lowest point on z = 0, the bed.
 """
 
@@ -102,6 +105,8 @@ DESIGN_FINGER_ROOT_BLOCK_MM = (1.00, 0.40)  # past the root, out from the blade'
 DESIGN_FINGER_BED_CHAMFERS_MM = {"slots": 0.40, "blade": 0.20}
 DESIGN_LIP_STRAIN_PERCENT = (0.85, 1.08, 1.30, 1.53, 1.75, 1.98)  # the largest of a cell's
 DESIGN_LIP_MAXIMUM_STRAIN_PERCENT = 2.0
+DESIGN_STRIP_MARK_XS_MM = {shape.POCKET: (19.05, 38.10, 76.20, 95.25), shape.LIP: (57.15,),
+                           shape.HOLES: (19.05, 57.15, 95.25)}
 DESIGN_FIGURE_DECIMALS = 2
 
 # Clearances the checks ask for, as modelled: the bosses from the walls,
@@ -109,10 +114,10 @@ DESIGN_FIGURE_DECIMALS = 2
 # holes, the fingers and their root blocks from the tab slots, the
 # switch's protruding parts and the footprint holes, the fingers from
 # the wire rooms, the blocks from the bosses and the other fingers'
-# slots, the fingers' slots from the bosses, the lips from the tab slots
-# and the walls' gaps. The tabs' recesses in the ceiling start at the
-# body's ends, where the tabs, 0.05 taller than the body's bumps, leave
-# it, which brings the south tab's within 0.5 of its pin hole: they keep
+# slots, the fingers' slots from the bosses and the lips from the tab
+# slots. The tabs' recesses in the ceiling start at the body's ends,
+# where the tabs, 0.05 taller than the body's bumps, leave it, which
+# brings the south tab's within 0.5 of its pin hole: they keep
 # RECESS_HOLE_CLEARANCE_MM, more as printed, where the hole and the
 # recess each print 0.2 smaller. The walls, blocks and bosses beside the
 # wire rooms must stay out of them as printed.
@@ -127,10 +132,19 @@ ROOT_PROBE_HEIGHTS = 12
 # (DESIGN.md, "Fused mock").
 SWITCH_PARTS_BELOW_PLATE_MM = 1.4
 
+# Lobe B's north wall, which the west peg's hole bores through, is
+# probed solid at these footprint-local y at its mid depth: beside the
+# hole, where the wall was cut back before the holes ran through it
+# (4.0, 7.0), and farther along (3.0, 7.3).
+WALL_PROBE_LOCAL_YS_MM = (3.0, 4.0, 7.0, 7.3)
+
 # The stack's contact check sinks the frame this far into the backing.
 CONTACT_PROBE_DEPTH_MM = 0.01
 CONTACT_VOLUME_RELATIVE_TOLERANCE = 1e-4
 MEASURE_TOLERANCE_MM = 1e-6
+# A thickness measured between two edges, each found by bisection
+# within isInside()'s tolerance.
+THICKNESS_TOLERANCE_MM = 3.0 * MEASURE_TOLERANCE_MM
 WINDOW_MM = 0.5
 
 USAGE = f"""\
@@ -754,6 +768,92 @@ def switch_part_columns(key_center):
     return columns
 
 
+def switch_hole_columns(kind, pull_in):
+    """The switch's center post and side pegs at their holes' size as
+    modelled, from SWITCH_PARTS_BELOW_PLATE_MM below the plate up
+    through it."""
+    height = SWITCH_PARTS_BELOW_PLATE_MM + layout.PCB_THICKNESS_MM
+    return [
+        Part.makeCylinder(radius, height, App.Vector(x, y, -SWITCH_PARTS_BELOW_PLATE_MM), UP)
+        for index in range(shape.CELL_COUNT)
+        for (x, y), radius in shape.cell_holes(kind, index, pull_in)[
+            : shape.SWITCH_PROTRUDING_HOLE_COUNT]
+    ]
+
+
+def measured_sliver(frame, at, inner, hole_center, radius, expected):
+    """The sliver of a wall's inner side between its inner face, at
+    footprint-local x `inner`, and a hole's edge, along the footprint's
+    x through the hole's center, where it is thinnest: from the pocket
+    to the face and from the hole's center to its edge. at(local x,
+    local y) gives the probe point."""
+    local_x, local_y = hole_center
+    start = at(inner - WINDOW_MM, local_y)
+    outward = at(inner, local_y) - start
+    outward.normalize()
+    face = first_solid(frame, start, outward, WINDOW_MM + expected / 2.0)
+    edge = first_solid(frame, at(local_x, local_y), outward * -1.0, radius + expected / 2.0)
+    return (local_x - edge) - (inner - WINDOW_MM + face)
+
+
+def check_holes_through_walls(kind, frame, pull_in, lip_fit):
+    """The footprint holes through the walls: the switch's post and pegs
+    at their holes' size clear of the frame, the west peg's hole open
+    through lobe B's north wall at its mid depth, on the hole's axis and
+    in the wall's middle, the wall whole along it, and the sliver of its
+    inner side the hole leaves, measured where it is thinnest, or the
+    hole open past the inner face where none is left."""
+    overlap = frame.common(Part.makeCompound(switch_hole_columns(kind, pull_in))).Volume
+    if overlap > MEASURE_TOLERANCE_MM:
+        raise SystemExit(f"error: the switch's post and pegs overlap the {kind} strip by "
+                         f"{overlap:.6f} mm3")
+    post, peg = shape.WALL_BORING_HOLE_CENTERS_MM
+    lobe_x = max(x for x, _ in shape.body_lobes_local()[1])
+    middle_z = -shape.wall_depth(kind) / 2.0
+    slivers = []
+    bores = []
+    for index in range(shape.CELL_COUNT):
+        key_center = shape.cell_key_center(index)
+
+        def at(local_x, local_y):
+            return App.Vector(*layout.footprint_point(key_center, (local_x, local_y)), middle_z)
+
+        holes = {local_center: hole for (local_center, _), hole in zip(
+            layout.CHOC_FOOTPRINT_HOLES_MM, shape.cell_holes(kind, index, pull_in))}
+        radius = holes[peg][1]
+        inner = lobe_x + shape.pocket_gap(shape.cell_pocket_fit(kind, index, lip_fit))
+        wall_middle = inner + shape.WALL_THICKNESS_MM / 2.0
+        what = f"cell {index + 1}'s lobe B north wall"
+        for point in (at(*peg), at(wall_middle, peg[1])):
+            require_open(frame, point, f"{what} on the west peg's hole")
+        for local_y in WALL_PROBE_LOCAL_YS_MM:
+            require_solid(frame, at(wall_middle, local_y), what)
+        expected = peg[0] - radius - inner
+        if expected > MEASURE_TOLERANCE_MM:
+            sliver = measured_sliver(frame, at, inner, peg, radius, expected)
+            if abs(sliver - expected) > THICKNESS_TOLERANCE_MM:
+                raise SystemExit(f"error: {what}'s sliver is {sliver:.6f}, expected "
+                                 f"{expected:.6f}")
+        else:
+            require_open(frame, at(inner, peg[1]), f"{what}'s inner face on the west peg's hole")
+            sliver = expected
+        slivers.append(sliver)
+        area = shape.cell_wall_bores(kind, index, pull_in, lip_fit)
+        bores.append((area.get(peg, 0.0), area.get(post, 0.0)))
+    probes = ", ".join(f"{local_y:.1f}" for local_y in WALL_PROBE_LOCAL_YS_MM)
+    print(f"holes:      every footprint hole through the plate and the walls to their mouth; the "
+          f"switch's post and pegs at their holes' size, {SWITCH_PARTS_BELOW_PLATE_MM} below the "
+          f"plate, overlap the frame by {overlap:.1e} mm3; cells 1 to {shape.CELL_COUNT}'s walls "
+          "bored " + ", ".join(f"{peg_area:.3f}" for peg_area, _ in bores) + " mm2 by the west "
+          "peg's hole, " + ", ".join(f"{post_area:.3f}" for _, post_area in bores) + " mm2 by "
+          f"the center post's; lobe B's north wall open on the peg's axis and through its "
+          f"middle there, solid at footprint-local y {probes}, all at its mid depth")
+    print(f"sliver:     lobe B's north wall's inner face to the west peg's hole, cells 1 to "
+          f"{shape.CELL_COUNT} " + ", ".join(f"{sliver:.3f}" for sliver in slivers)
+          + " (measured where positive; negative, the hole reaches past the face into the "
+          "pocket)")
+
+
 def wire_room_boxes(bottom, top):
     return [
         plan_prism(shape.tab_wire_room(shape.cell_key_center(index), tab), bottom, top)
@@ -902,14 +1002,12 @@ def check_frame_clearances(kind, pull_in, lip_fit, frame):
     rooms = wire_room_boxes(-shape.lip_band_bottom_depth(), 0.0)
     depth = shape.wall_depth(kind)
     slots = []
-    gaps = []
     recesses = []
     holes = []
     for index in range(shape.CELL_COUNT):
         key_center = shape.cell_key_center(index)
         slots.extend(plan_prism(shape.tab_slot(key_center, tab), -depth, 0.0)
                      for tab in shape.socket_tab_specs())
-        gaps.extend(plan_prism(gap, -depth, 0.0) for gap in shape.switch_wall_gaps(key_center))
         recesses.extend(plan_prism(shape.tab_slot(key_center, tab), 0.0, shape.TAB_RECESS_DEPTH_MM)
                         for tab in shape.socket_tab_specs())
         holes.extend(shape.hole_cutter(center, radius, layout.PCB_THICKNESS_MM)
@@ -928,13 +1026,11 @@ def check_frame_clearances(kind, pull_in, lip_fit, frame):
         ("bosses from the wire rooms", least_distance(bosses, rooms)),
         ("bosses from the switch's post and pegs", least_distance(bosses, columns)),
         ("bosses from the footprint holes", least_distance(bosses, holes)),
-        ("walls from the switch's post and pegs", least_distance(walls, columns)),
     ]
     figures += check_finger_clearances(kind, pull_in, lip_fit, frame, bodies, columns, slots,
                                        rooms, holes)
     if lips:
-        figures.append(("lips from the tab slots and the walls' gaps",
-                        least_distance(lips, slots + gaps)))
+        figures.append(("lips from the tab slots", least_distance(lips, slots)))
     for what, distance in figures:
         require_clearance(what, distance, FEATURE_CLEARANCE_MM)
     print("clearances: " + ", ".join(f"{what} {distance:.3f}" for what, distance in figures))
@@ -950,10 +1046,18 @@ def check_notches(strip, z):
 
 
 def check_marks(kind, frame):
-    """The strip's north edge open at its own marks and solid at every
-    other strip's (the hole strip shares the lip strip's middle one)."""
+    """The strip's marks at DESIGN.md's places, its north edge open at
+    them and solid at every other strip's that is not also its own (the
+    hole strip shares the lip strip's middle one and two of the pocket
+    strip's)."""
     _, (_, y_high) = shape.plate_rectangle()
     own = shape.strip_mark_xs(kind)
+    design = DESIGN_STRIP_MARK_XS_MM[kind]
+    if len(own) != len(design):
+        raise SystemExit(f"error: the {kind} strip has {len(own)} marks, DESIGN.md says "
+                         f"{len(design)}")
+    for x, design_x in zip(own, design):
+        require_design(f"the {kind} strip's mark", x, design_x)
     for x in sorted({x for mark_kind in shape.STRIP_KINDS for x in shape.strip_mark_xs(mark_kind)}):
         point = App.Vector(x, y_high - shape.LIP_STRIP_MARK_DEPTH_MM / 2.0,
                            layout.PCB_THICKNESS_MM / 2.0)
@@ -979,6 +1083,7 @@ def export_frame(arguments):
         check_fingers(frame, frame_faces, lip_fit)
     check_tab_slots(kind, frame, lip_fit)
     check_pin_holes(kind, frame, arguments.pull_in)
+    check_holes_through_walls(kind, frame, arguments.pull_in, lip_fit)
     check_bores(frame, arguments.insert_length)
     check_frame_clearances(kind, arguments.pull_in, lip_fit, frame)
     check_notches(frame, layout.PCB_THICKNESS_MM / 2.0)
@@ -1028,7 +1133,7 @@ def check_screw_holes(backing):
     return holes
 
 
-def check_stack(kind, stacked, frame, lip_fit):
+def check_stack(kind, stacked, frame, pull_in, lip_fit):
     if frame.common(stacked).Volume > MEASURE_TOLERANCE_MM:
         raise SystemExit(f"error: the backing overlaps the {kind} strip")
     sunk = frame.copy()
@@ -1036,7 +1141,7 @@ def check_stack(kind, stacked, frame, lip_fit):
     contact = sunk.common(stacked).Volume / CONTACT_PROBE_DEPTH_MM
     boss_ends = len(shape.boss_centers()) * math.pi * (
         (shape.BOSS_DIAMETER_MM / 2.0) ** 2 - (shape.INSERT_BORE_DIAMETER_MM / 2.0) ** 2)
-    mouths = shape.frame_mouth_area(kind, lip_fit) if kind == shape.LIP else 0.0
+    mouths = shape.frame_mouth_area(kind, pull_in, lip_fit) if kind == shape.LIP else 0.0
     expected = boss_ends + mouths
     if abs(contact - expected) > CONTACT_VOLUME_RELATIVE_TOLERANCE * expected:
         raise SystemExit(f"error: the backing touches the {kind} strip over {contact:.4f} mm2, "
@@ -1155,7 +1260,7 @@ def export_backing(arguments):
     for kind in shape.FRAME_KINDS:
         frame, _ = shape.build_frame(kind, arguments.pull_in, arguments.insert_length,
                                      arguments.lip_fit)
-        contact = check_stack(kind, stacked, frame, arguments.lip_fit)
+        contact = check_stack(kind, stacked, frame, arguments.pull_in, arguments.lip_fit)
         distance, printed = check_pads_clear(kind, frame, arguments.lip_fit)
         bores = check_bores_over_holes(frame, holes)
         rooms = check_wire_rooms(kind, frame, stacked, arguments.lip_fit)
