@@ -8,10 +8,10 @@ docstring has the design):
   pocket   the pocket's fit steps across the cells, -0.40 to -0.15 in
            0.05 steps, the two pin holes 3.5 across as modelled so the
            pocket alone locates the socket; any pocket can be glued
-  lip      every pocket snug (or at lip_fit), with lips at its mouth on
-           fingers that the socket bends aside as it snaps past, their
-           reach past the walls' inner faces as printed 0.15 to 0.35 in
-           0.04 steps
+  lip      every pocket at -0.20, the pocket strip's result (or at
+           lip_fit), with lips at its mouth on fingers that the socket
+           bends aside as it snaps past, their reach past the walls'
+           inner faces as printed 0.15 to 0.35 in 0.04 steps
   backing  a plate screwed under either frame strip with M2 screws into
            heat-set inserts in the frame's bosses, a pad under each
            socket lobe whose top relative to the socket's bottom steps
@@ -34,11 +34,12 @@ invocation):
     freecadcmd scripts/export_socket_test.py --pass <strip.stl> pocket|lip|backing|holes
         [pull_in=0.2] [insert_length=<mm>] [lip_fit=<mm>]
 
-lip_fit sets the lip strip's pocket fit (snug, 0, by default), for the
-fit the pocket strip shows best; the walls, fingers and lips move
-together, so the lips keep their reach past the walls' inner faces and
-the fingers their strain. The figures that follow from it are then
-printed rather than checked against DESIGN.md.
+lip_fit overrides the lip strip's pocket fit (the pocket strip's
+result, -0.20, by default); the walls, fingers and lips move together,
+so the lips keep their reach past the walls' inner faces and the
+fingers their strain as counted (socket_test_shape.py's
+LIP_POCKET_FIT_MM says what a press fit adds). The pocket's size is
+then printed rather than checked against DESIGN.md.
 
 A frame strip is checked for one valid solid of its analytic volume,
 each pocket centered on its key's socket at its fit as printed, the
@@ -87,7 +88,7 @@ DESIGN_POCKET_PIN_HOLE_DIAMETER_MM = 3.50
 DESIGN_HOLE_STRIP_HOLES_MM = (3.50, 3.40, 3.30, 3.20, 3.10, 3.00)
 DESIGN_HOLE_STRIP_POCKET_FIT_MM = 0.15
 DESIGN_HOLE_STRIP_POCKET_PRINTED_MM = (9.70, 7.00)
-DESIGN_LIP_POCKET_PRINTED_MM = (9.55, 6.85)
+DESIGN_LIP_POCKET_PRINTED_MM = (9.35, 6.65)
 DESIGN_LIP_REACHES_MM = (0.15, 0.19, 0.23, 0.27, 0.31, 0.35)
 DESIGN_LIP_LENGTH_MM = 1.00
 DESIGN_PAD_OFFSETS_MM = (-0.10, -0.05, 0.00, 0.05, 0.10, 0.15)
@@ -101,7 +102,7 @@ DESIGN_BATTERY_CLEARANCE_AS_PRINTED_MM = 0.62
 DESIGN_FINGER_BENDING_LENGTHS_MM = (5.64, 6.64, 6.34)  # in shape.FINGERS' order
 DESIGN_FINGER_PRINTED_THICKNESS_MM = 1.20
 DESIGN_FINGER_ROOM_PRINTED_MM = 0.70
-DESIGN_FINGER_ROOT_BLOCK_MM = (1.00, 0.40)  # past the root, out from the blade's faces
+DESIGN_FINGER_ROOT_BLOCK_MM = (1.00, 0.30)  # past the root, out from the blade's faces
 DESIGN_FINGER_BED_CHAMFERS_MM = {"slots": 0.40, "blade": 0.20}
 DESIGN_LIP_STRAIN_PERCENT = (0.85, 1.08, 1.30, 1.53, 1.75, 1.98)  # the largest of a cell's
 DESIGN_LIP_MAXIMUM_STRAIN_PERCENT = 2.0
@@ -166,8 +167,8 @@ usage: freecadcmd scripts/export_socket_test.py --pass <strip.stl> pocket|lip|ba
                  at most (and by default) the longest the bosses hold,
                  {shape.longest_insert_length():.3f}
   lip_fit        the lip strip's pocket fit, mm, as the pocket strip's cells
-                 step it (default {shape.LIP_POCKET_FIT_MM:.2f}, snug); the backing
-                 is stacked under the lip strip at it\
+                 step it (default {shape.LIP_POCKET_FIT_MM:.2f}, the pocket strip's
+                 result); the backing is stacked under the lip strip at it\
 """
 
 

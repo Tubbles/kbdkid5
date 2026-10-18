@@ -60,30 +60,32 @@ HOLES: every pocket at HOLE_STRIP_POCKET_FIT_MM, loose, and the pin
 holes stepping down from the pocket strip's across the cells
 (cell_pin_hole_diameter()), so only the holes can hold the socket.
 
-LIP: every pocket at the lip strip's fit (lip_fit, snug unless the
-export overrides it), with a lip under three of the socket's lobe faces
+LIP: every pocket at the lip strip's fit (LIP_POCKET_FIT_MM, the fit
+the pocket strip held a socket best at, unless the export's lip_fit
+overrides it), with a lip under three of the socket's lobe faces
 (FINGERS) catching the socket's bottom face, a right triangle
 LIP_LENGTH_MM long: a flat retaining face under the socket and a 45
 degree lead-in below it, so the socket snaps in from below. Their reach
 past the walls' inner faces as printed steps across the cells
 (cell_lip_reach()), which is their reach under the socket when the
-walls touch it: at the snug fit by the print model, at the fit the
-pocket strip shows best in practice, which is what lip_fit is for. The
-lead-in's swelling moves the tip LIP_TIP_GROWTH_AS_PRINTED_MM past the
-wall's own swelling, so each lip is modelled that much shorter.
-Printed, the retaining face is an overhang of the reach. Each lip sits
-at the free end of a finger (FINGERS): a blade of the wall's thickness,
-from the plate's top face to the walls' mouth, cut free of the plate
-and the walls by slots through both. At its other end it runs into the
-plate and, under the plate, into a block of solid plastic from the
-ceiling to the walls' mouth (finger_root_block_box()), so its root is
-held over its whole height, as the snap hook's formula assumes. It
-bends in plan as the socket passes the lip, within the hook's 2 %
-strain as printed by that formula (finger_strain(), checked by the
-export), and prints from the bed up, the slots' and the blade's edges
-on the bed chamfered like the tray's snap hook's. The lip strip's walls,
-fingers and blocks reach down to the lips' band bottom, where the
-largest lead-in meets its finger.
+walls sit on it. A fit tighter than snug presses the walls, and so the
+fingers, into the socket by the print model, a bend finger_strain()
+leaves out (see LIP_POCKET_FIT_MM). The lead-in's swelling moves the
+tip LIP_TIP_GROWTH_AS_PRINTED_MM past the wall's own swelling, so each
+lip is modelled that much shorter. Printed, the retaining face is an
+overhang of the reach. Each lip sits at the free end of a finger
+(FINGERS): a blade of the wall's thickness, from the plate's top face
+to the walls' mouth, cut free of the plate and the walls by slots
+through both. At its other end it runs into the plate and, under the
+plate, into a block of solid plastic from the ceiling to the walls'
+mouth (finger_root_block_box()), so its root is held over its whole
+height, as the snap hook's formula assumes. It bends in plan as the
+socket passes the lip, within the hook's 2 % strain as printed by that
+formula (finger_strain(), checked by the export), and prints from the
+bed up, the slots' and the blade's edges on the bed chamfered like the
+tray's snap hook's. The lip strip's walls, fingers and blocks reach
+down to the lips' band bottom, where the largest lead-in meets its
+finger.
 
 The frame strips carry the same bosses, at every cell boundary and at
 both ends of the strip, BOSS_NORTH_OF_KEY_ROW_MM north and
@@ -111,9 +113,11 @@ cells 1 and 2, 2 and 3, 4 and 5 and 5 and 6, which tell it from the
 first pocket strip, which had none, and the second, which had the two
 between cells 2 and 3 and between cells 4 and 5. The hole strip has
 three (HOLE_STRIP_MARK_XS_MM), between cells 1 and 2, 3 and 4 (where
-the lip strip has its one) and 5 and 6. The backing has the lip
-strip's one (BACKING_MARK_XS_MM), which tells it from the first
-backing, which had none and whose pads were 0.2 larger each way.
+the lip strip has its one) and 5 and 6. The backing has two
+(BACKING_MARK_XS_MM), between cells 2 and 3 and between cells 4 and 5,
+which tell it from the second backing, which had the lip strip's one
+and pads 0.1 larger each way, and from the first, which had none and
+pads 0.3 larger each way.
 
 A switch is the same on both halves, so is the frame: the footprint is
 the left half's (layout.footprint_holes() at FOOTPRINT_ROTATION_DEGREES).
@@ -162,8 +166,15 @@ LIP_REACH_STEP_MM = 0.04
 FIRST_PAD_OFFSET_MM = -0.10
 PAD_OFFSET_STEP_MM = 0.05
 
-# The lip strip's pockets, unless the export's lip_fit overrides it.
-LIP_POCKET_FIT_MM = layout.SNUG_FIT_MM
+# The lip strip's pockets, unless the export's lip_fit overrides it: the
+# second pocket strip's cell 5, which the user found the best fit, "nice
+# satisfying snap and good press fit" (doc/log/2026-10-18.md). By the
+# print model its walls press the socket 0.1 a side, which bends the
+# fingers before a lip does, 0.1 that finger_strain() leaves out: with
+# it the north finger would strain 2.09, 2.32 and 2.55 % in cells 4 to
+# 6, over the hook's 2 %. The reaches stay, since both pocket strips
+# printed larger than the model says, so the press is less than 0.1.
+LIP_POCKET_FIT_MM = -0.20
 
 # The pocket strip's two pin holes (layout.CHOC_FOOTPRINT_PIN_HOLE_CENTERS_MM),
 # which the socket's 2.90 bosses sit in, as modelled whatever pull_in.
@@ -172,9 +183,10 @@ LIP_POCKET_FIT_MM = layout.SNUG_FIT_MM
 # these must leave the bosses free and let the pocket alone locate the
 # socket. 3.5 is the user's "something like 3.5 mm", within the 3.54 at
 # which the tab recess keeps RECESS_HOLE_CLEARANCE_MM (export) from the
-# hole. The lip strip keeps the footprint's holes for now: its fingers'
-# slots keep FINGER_SLOT_HOLE_WEB_MM from them only up to 3.44, and it
-# waits for the pocket strip's result through lip_fit anyway.
+# hole. The lip strip keeps the footprint's holes, which the hole strip
+# found loose (doc/log/2026-10-18.md), so its lips alone hold the
+# socket; its fingers' slots keep FINGER_SLOT_HOLE_WEB_MM from them only
+# up to 3.44.
 POCKET_STRIP_PIN_HOLE_DIAMETER_MM = 3.5
 
 # The hole strip: every pocket at the first pocket strip's cell 6 fit,
@@ -225,17 +237,19 @@ LIP_TIP_GROWTH_AS_PRINTED_MM = (
 # model's 0.2 swelling per side, the narrower reading. The root block
 # reaches FINGER_ROOT_BLOCK_LENGTH_MM on past the root and
 # FINGER_ROOT_BLOCK_SIDE_MM out from the blade's faces on both sides,
-# from the ceiling to the walls' mouth. On the bed the slots' outline is
-# chamfered on its two long sides and past the free end, the blade on
-# its two faces and its free end, as the snap hook's slots and blade are
-# (layout.NANO_HOOK_SLOT_BED_CHAMFER_MM, NANO_HOOK_BLADE_BED_CHAMFER_MM),
-# which leaves the blade 0.4 on the bed.
+# from the ceiling to the walls' mouth; 0.3, down from 0.4, since at the
+# lip strip's fit the blocks' inner sides came 0.18 from their own
+# cell's tab wire rooms, under the 0.2 swelling (0.28 and 0.29 now). On
+# the bed the slots' outline is chamfered on its two long sides and past
+# the free end, the blade on its two faces and its free end, as the snap
+# hook's slots and blade are (layout.NANO_HOOK_SLOT_BED_CHAMFER_MM,
+# NANO_HOOK_BLADE_BED_CHAMFER_MM), which leaves the blade 0.4 on the bed.
 FINGER_THICKNESS_MM = WALL_THICKNESS_MM
 FINGER_FREE_SLOT_MM = 0.5
 FINGER_ROOM_AS_PRINTED_MM = 0.7
 FINGER_ROOM_SPARE_MM = 0.1
 FINGER_ROOT_BLOCK_LENGTH_MM = 1.0
-FINGER_ROOT_BLOCK_SIDE_MM = 0.4
+FINGER_ROOT_BLOCK_SIDE_MM = 0.3
 FINGER_SLOT_BED_CHAMFER_MM = layout.NANO_HOOK_SLOT_BED_CHAMFER_MM
 FINGER_BLADE_BED_CHAMFER_MM = layout.NANO_HOOK_BLADE_BED_CHAMFER_MM
 
@@ -277,8 +291,12 @@ FINGERS = (
 
 # The fingers' slots may open into the center post's hole and keep this
 # much from every other footprint hole as modelled, below their bed
-# chamfers.
-FINGER_SLOT_HOLE_WEB_MM = 0.25
+# chamfers: lobe B's south finger's free slot passes the pin hole at
+# footprint (-3.75, 5.0) by 0.17 at the lip strip's fit (0.27 at the
+# snug fit, where 0.25 was asked for). The web prints about one line
+# wide (0.57 by the print model), and where it does not print the slot
+# opens into a hole the hole strip found loose, no harm done.
+FINGER_SLOT_HOLE_WEB_MM = 0.15
 
 # The bosses: the tray's standoff diameter and insert bore, on every
 # boundary between cells and at both ends of the strip, north and south
@@ -310,7 +328,8 @@ PAD_CLEARANCE_TO_LIPS_MM = 0.3
 # each strip from its south edge, and the lip strip's mark in its north
 # edge. The pocket strip's four marks are the lip strip's size, at cell
 # boundaries like it, so each lies over a boss, 2.0 north of it. The
-# second backing has the lip strip's one.
+# third backing has the second pocket strip's two, the second backing
+# had the lip strip's one.
 NOTCH_WIDTH_MM = 1.0
 NOTCH_DEPTH_MM = 0.8
 NOTCH_PITCH_MM = 2.0
@@ -320,7 +339,7 @@ LIP_STRIP_MARK_X_MM = 3 * layout.KEY_PITCH_MM
 POCKET_STRIP_MARK_XS_MM = tuple(boundary * layout.KEY_PITCH_MM for boundary in (1, 2, 4, 5))
 HOLE_STRIP_MARK_XS_MM = (1 * layout.KEY_PITCH_MM, 3 * layout.KEY_PITCH_MM,
                          5 * layout.KEY_PITCH_MM)
-BACKING_MARK_XS_MM = (LIP_STRIP_MARK_X_MM,)
+BACKING_MARK_XS_MM = tuple(boundary * layout.KEY_PITCH_MM for boundary in (2, 4))
 
 VOLUME_RELATIVE_TOLERANCE = pcb_shape.VOLUME_RELATIVE_TOLERANCE
 AREA_TOLERANCE_MM2 = 1e-9
@@ -627,10 +646,14 @@ def pad_height(index):
 
 def pad_inset():
     """How far a pad lies inside its socket lobe as modelled: the
-    largest lip's reach, the pad's swelling and the clearance, so it
-    passes inside every lip as printed."""
+    largest lip's reach past the walls' inner faces as printed, how far
+    those faces lie inside the lobe as printed at the lip strip's fit,
+    the pad's swelling and the clearance, so it passes inside every lip
+    as printed."""
+    walls_inside_lobe = layout.PRINT_SWELLING_PER_SIDE_MM - pocket_gap(LIP_POCKET_FIT_MM)
     return (
         cell_lip_reach(CELL_COUNT - 1)
+        + walls_inside_lobe
         + layout.PRINT_SWELLING_PER_SIDE_MM
         + PAD_CLEARANCE_TO_LIPS_MM
     )
