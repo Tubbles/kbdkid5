@@ -1315,13 +1315,6 @@ def cut_nano_clamp_bore(tray, fits):
     return result
 
 
-def rectangle_wire(x_range, y_range, z):
-    (low_x, high_x), (low_y, high_y) = x_range, y_range
-    return layout_polygon_wire(
-        ((low_x, low_y), (high_x, low_y), (high_x, high_y), (low_x, high_y)), z
-    )
-
-
 def cut_mount_voids(tray, fits, right):
     """Cut every mount void layout.py gives, in its order: the shell's
     channel and the window, the slot and the pin hole through the north

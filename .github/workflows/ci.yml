@@ -41,8 +41,6 @@ jobs:
             freecadcmd scripts/export_socket_test.py --pass socket/kbdkid5_Socket_Test_Holes.stl \
             holes
           docker run --rm -v "$PWD":/work -w /work freecad-headless \
-            freecadcmd scripts/export_socket_test.py --pass socket/kbdkid5_Socket_Test_Lip.stl lip
-          docker run --rm -v "$PWD":/work -w /work freecad-headless \
             freecadcmd scripts/export_socket_test.py --pass socket/kbdkid5_Socket_Test_Backing.stl \
             backing
       - name: Upload socket test STL

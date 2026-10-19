@@ -2112,15 +2112,6 @@ def nano_clamp_screw_reach(fits=DEFAULT_MOUNT_FITS):
     return NANO_CLAMP_SCREW_LENGTH_MM - nano_clamp_tab_thickness()
 
 
-# The removed snap hook's bed chamfers (work item 004, the hook removed
-# by 009), which the hand-wired frame's lip strip still gives its
-# fingers under these names (socket_test_shape.py): the slots' floor
-# edges and the blade's bottom edges at 45 degrees, so the first layer
-# squashed out past them cannot close a slot or fuse a blade's free end.
-NANO_HOOK_SLOT_BED_CHAMFER_MM = JOINT_FACE_BOTTOM_CHAMFER_MM
-NANO_HOOK_BLADE_BED_CHAMFER_MM = 0.2
-
-
 def cantilever_strain(deflection, thickness, length):
     """The root's bending strain of a cantilever deflected at `length`
     from its root by a point load there: 3 deflection thickness / (2
