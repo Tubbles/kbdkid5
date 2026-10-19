@@ -3,7 +3,7 @@ printed in place of the PCB that holds Kailh Choc hotswap sockets in
 pockets on its underside, for a keyboard wired by hand, in three
 stackable strips of CELL_COUNT cells at the key pitch.
 
-A frame strip (POCKET or HOLES) is a plate of the PCB's thickness, each
+A frame strip (POCKET or HOLES) has a body of the PCB's thickness, each
 cell with one key's footprint holes grown by pull_in like the PCB
 mock's, so the switch's pins reach the socket's contacts as through a
 PCB, but for the two pin holes the socket's bosses sit in: on the
@@ -12,9 +12,9 @@ so they leave the bosses free and the pocket alone locates the socket,
 and on the hole strip they step across the cells.
 Under each cell, pocket walls around the socket's plastic body, open
 at the bottom, against which the socket's top face rests on the
-plate's underside (the ceiling). They follow the body's outline,
-curves and all (layout.HOTSWAP_SOCKET_OUTLINE_MM, from the socket's
-STEP, not the cover layout.HOTSWAP_SOCKET_LOBES_MM and
+underside of the frame's body (the ceiling). They follow the body's
+outline, curves and all (layout.HOTSWAP_SOCKET_OUTLINE_MM, from the
+socket's STEP, not the cover layout.HOTSWAP_SOCKET_LOBES_MM and
 HOTSWAP_SOCKET_FILLS_MM give the tray): in plan they are the region
 between the outline moved out by the pocket's gap (pocket_gap(), their
 inner face) and by the gap plus WALL_THICKNESS_MM (their outer face),
@@ -24,20 +24,20 @@ Kailh's drawing (1.80, to the bumps on its top that bear on a board),
 not layout.HOTSWAP_SOCKET_REACH_MM: kbdkid4's STEP hangs its 1.85 body
 0.17 below the PCB, which a socket pressed against a printed ceiling
 does not do. The walls are built whole, and every footprint hole runs
-on from the plate down through them to their mouth, so the switch's
-center post and side pegs, which reach below the plate, pass them: the
-west peg's hole bores through lobe B's north wall (the socket's lobe
-passes that hole by 0.42), leaving a sliver of the wall's inner side at
-the tighter fits and none at the hole strip's. No other hole meets a
-wall (cell_wall_bores() finds the ones that do in the walls' plan): the
-center post's hole, 1.9 in radius at the default pull_in, keeps 2.36
-from its center to the walls' outer face around lobe B's round toward
-lobe A at the pocket strip's -0.15, the frame's fit. The walls are
-slotted through their full depth where the socket's two metal end tabs
-leave the body's ends. The slots are wider than the straight part of
-either end between its chamfers or its round and step, so they take
-the walls' inner face along those parts, but for at most 0.1 of the
-east end's beside each slot at the looser fits.
+on from the frame's body down through them to their mouth, so the
+switch's center post and side pegs, which reach below the frame's body,
+pass them: the west peg's hole bores through lobe B's north wall (the
+socket's lobe passes that hole by 0.42), leaving a sliver of the wall's
+inner side at the tighter fits and none at the hole strip's. No other
+hole meets a wall (cell_wall_bores() finds the ones that do in the
+walls' plan): the center post's hole, 1.9 in radius at the default
+pull_in, keeps 2.36 from its center to the walls' outer face around lobe
+B's round toward lobe A at the pocket strip's -0.15, the frame's fit.
+The walls are slotted through their full depth where the socket's two
+metal end tabs leave the body's ends. The slots are wider than the
+straight part of either end between its chamfers or its round and step,
+so they take the walls' inner face along those parts, but for at most
+0.1 of the east end's beside each slot at the looser fits.
 
 The tabs: the user solders a wire to each tab before pressing the
 socket in from below, since an iron on a tab in its pocket would melt
@@ -47,7 +47,7 @@ for the tab with TAB_SOLDER_PER_SIDE_MM of solder on both sides at the
 slip fit, and runs on into a recess in the ceiling over the tab, which
 leaves room for solder on the tab's top face.
 
-The strips print upside down, the plate's top face on the bed, the
+The strips print upside down, the frame's top face on the bed, the
 walls growing up. In the project's print model (layout.py's printed
 fits) every vertical face swells PRINT_SWELLING_PER_SIDE_MM, so the
 pockets are printed_fit() of the socket's body and the footprint holes
@@ -70,10 +70,10 @@ both ends of the strip, BOSS_NORTH_OF_KEY_ROW_MM north and
 BOSS_SOUTH_OF_KEY_ROW_MM south of the key row, the tray's standoffs'
 diameter, bored for the tray's M2 heat-set inserts. They end
 boss_end_depth() below the ceiling, past the walls' mouth, so the
-backing on them stands clear of the walls. The plate reaches
+backing on them stands clear of the walls. The frame's body reaches
 BOSS_EDGE_MARGIN_MM past the bosses.
 
-BACKING: a plate BACKING_THICKNESS_MM thick with clearance holes for
+BACKING: BACKING_THICKNESS_MM thick, with clearance holes for
 M2 screws under the bosses and, under each of the body's lobes, a pad of
 the cover's lobe rectangle (PAD_LOBE_RECTANGLES_MM) moved in by
 PAD_INSET_MM, whose top relative to the socket's bottom steps across
@@ -82,7 +82,7 @@ top and its pads' tops rise together and the pads stand where they are
 modelled relative to the bosses' ends and so to the ceiling.
 
 Cell k (from 1, west to east) has k notches in its south edge on every
-strip, as on the slit test strip, the frame strips' through the plate
+strip, as on the slit test strip, the frame strips' through the frame
 south of the pockets and the backing's in line with them. The pocket
 strip also has five notches (MARK_WIDTH_MM, MARK_DEPTH_MM) in its north
 edge (POCKET_STRIP_MARK_XS_MM), one at every cell boundary, clear of
@@ -101,8 +101,9 @@ the left half's (layout.footprint_holes() at FOOTPRINT_ROTATION_DEGREES).
 
 Coordinates: the strip's frame, the cells' south west corner at (0, 0),
 cell index (from 0) at cell_key_center(index), z 0 on the ceiling, the
-plate up to the PCB's thickness, walls and bosses below. The backing is
-built with its bottom on z = 0 and stacked by stacked_backing().
+frame's body up to the PCB's thickness, walls and bosses below. The
+backing is built with its bottom on z = 0 and stacked by
+stacked_backing().
 
 Like the other *_shape.py modules this one has no entry point, so
 probes and the export script can import it.
@@ -157,13 +158,13 @@ HOLE_STRIP_PIN_HOLE_STEP_MM = 0.10
 
 # The pocket walls, as thick as the tray's (two lines). The switch's
 # center post and side pegs, whose holes are
-# layout.CHOC_FOOTPRINT_HOLES_MM's first three, reach below the plate.
+# layout.CHOC_FOOTPRINT_HOLES_MM's first three, reach below the frame's body.
 WALL_THICKNESS_MM = layout.TRAY_WALL_MM
 SWITCH_PROTRUDING_HOLE_COUNT = 3
 
 # The tabs' slots and recesses: the tab with this much solder on each
 # side passes its slot at the slip fit, and the recess reaches this far
-# past the tab's tip and this deep into the plate (its bottom faces up
+# past the tab's tip and this deep into the frame (its bottom faces up
 # as printed, so it leaves 0.3 of room over the tab's top face).
 TAB_SOLDER_PER_SIDE_MM = 0.5
 TAB_RECESS_PAST_TIP_MM = 0.5
@@ -176,7 +177,7 @@ TAB_RECESS_DEPTH_MM = 0.5
 # first pocket strip's loosest, 0.584 from the outline's walls on the
 # hole strip, the south row where it was set 0.5 clear of the scrapped
 # lip strip's fingers' slots, which filled the cells' south edge). The
-# bore's floor keeps the plate's top face whole, three layers.
+# bore's floor keeps the frame's top face whole, three layers.
 BOSS_DIAMETER_MM = layout.STANDOFF_DIAMETER_MM
 INSERT_BORE_DIAMETER_MM = layout.STANDOFF_BORE_DIAMETER_MM
 BOSS_NORTH_OF_KEY_ROW_MM = 3.1
@@ -348,7 +349,7 @@ def boss_end_depth():
 
 
 def boss_height():
-    """From the plate's top face to the boss's end."""
+    """From the frame's top face to the boss's end."""
     return layout.PCB_THICKNESS_MM + boss_end_depth()
 
 
@@ -478,7 +479,7 @@ def footprint_span_rectangle(key_center, x_center, width, y_from, y_to):
 
 
 def tab_slot(key_center, tab):
-    """The tab's slot through the walls and recess into the plate in
+    """The tab's slot through the walls and recess into the frame in
     plan: from the body's end past the tip."""
     x_center, width, face, tip = tab
     end = tip + math.copysign(TAB_RECESS_PAST_TIP_MM, tip - face)
@@ -544,7 +545,7 @@ def wall_area(kind, index, pull_in):
     return cell_walls_plan(kind, index).Area - sum(bores.values())
 
 
-# The strip's plate, bosses and notches in plan.
+# The frame's body, bosses and notches in plan.
 
 
 def boss_centers():
@@ -556,7 +557,7 @@ def boss_centers():
     ]
 
 
-def plate_rectangle():
+def frame_body_rectangle():
     """The strip's outline: the cells, reaching BOSS_EDGE_MARGIN_MM past
     the bosses at the ends and the south."""
     reach = BOSS_DIAMETER_MM / 2.0 + BOSS_EDGE_MARGIN_MM
@@ -567,8 +568,8 @@ def plate_rectangle():
     )
 
 
-def plate_area():
-    (x_low, x_high), (y_low, y_high) = plate_rectangle()
+def frame_body_area():
+    (x_low, x_high), (y_low, y_high) = frame_body_rectangle()
     return (x_high - x_low) * (y_high - y_low)
 
 
@@ -581,7 +582,7 @@ def notch_x_centers(index):
 
 def notch_rectangles():
     """Cell k (from 1) gets its first k notches, in the south edge."""
-    _, (y_low, _) = plate_rectangle()
+    _, (y_low, _) = frame_body_rectangle()
     return [
         rectangle((x - NOTCH_WIDTH_MM / 2.0, x + NOTCH_WIDTH_MM / 2.0),
                   (y_low, y_low + NOTCH_DEPTH_MM))
@@ -598,7 +599,7 @@ def strip_mark_xs(kind):
 
 
 def mark_rectangle(x):
-    _, (_, y_high) = plate_rectangle()
+    _, (_, y_high) = frame_body_rectangle()
     half = MARK_WIDTH_MM / 2.0
     return rectangle(
         (x - half, x + half),
@@ -651,7 +652,7 @@ def hole_cutter(center, radius, thickness):
 
 
 def strip_holes(kind, pull_in):
-    """Every cell's footprint holes as (center, radius) in the plate."""
+    """Every cell's footprint holes as (center, radius) in the frame."""
     return [hole for index in range(CELL_COUNT)
             for hole in cell_holes(kind, index, pull_in)]
 
@@ -662,7 +663,7 @@ def strip_tab_slots():
 
 
 def frame_analytic_volume(kind, pull_in, insert_length):
-    plate = layout.PCB_THICKNESS_MM
+    thickness = layout.PCB_THICKNESS_MM
     holes = sum(math.pi * radius**2 for _center, radius in strip_holes(kind, pull_in))
     recesses = sum(layout.polygon_signed_area(slot) for slot in strip_tab_slots())
     walls = sum(wall_area(kind, index, pull_in) for index in range(CELL_COUNT))
@@ -674,7 +675,7 @@ def frame_analytic_volume(kind, pull_in, insert_length):
         * insert_bore_depth(insert_length)
     )
     return (
-        (plate_area() - holes - edge_cuts) * plate
+        (frame_body_area() - holes - edge_cuts) * thickness
         - recesses * TAB_RECESS_DEPTH_MM
         + walls * wall_depth()
         + bosses
@@ -701,13 +702,13 @@ def pad_polygons(key_center):
 def backing_analytic_volume():
     hole_area = math.pi * (SCREW_CLEARANCE_HOLE_DIAMETER_MM / 2.0) ** 2
     edge_cuts = sum(layout.polygon_signed_area(cut) for cut in edge_cut_rectangles(BACKING))
-    plate = (plate_area() - len(boss_centers()) * hole_area - edge_cuts) * BACKING_THICKNESS_MM
+    body = (frame_body_area() - len(boss_centers()) * hole_area - edge_cuts) * BACKING_THICKNESS_MM
     pads = sum(
         layout.polygon_signed_area(polygon) * pad_height(index)
         for index in range(CELL_COUNT)
         for polygon in pad_polygons(cell_key_center(index))
     )
-    return plate + pads
+    return body + pads
 
 
 # FreeCAD solids.
@@ -718,12 +719,12 @@ def vertical_cutter(polygon, bottom, top):
     return plan_prism(polygon, bottom - CUT_EXTRA_MM, top + CUT_EXTRA_MM)
 
 
-def build_plate(kind, pull_in):
-    """The plate with every cell's footprint holes, the tabs' recesses
-    and the edge cuts."""
-    (x_low, x_high), (y_low, y_high) = plate_rectangle()
+def build_frame_body(kind, pull_in):
+    """The frame's body with every cell's footprint holes, the tabs'
+    recesses and the edge cuts."""
+    (x_low, x_high), (y_low, y_high) = frame_body_rectangle()
     thickness = layout.PCB_THICKNESS_MM
-    plate = Part.makeBox(x_high - x_low, y_high - y_low, thickness, App.Vector(x_low, y_low, 0))
+    body = Part.makeBox(x_high - x_low, y_high - y_low, thickness, App.Vector(x_low, y_low, 0))
     cutters = []
     for index in range(CELL_COUNT):
         key_center = cell_key_center(index)
@@ -736,9 +737,9 @@ def build_plate(kind, pull_in):
             for tab in socket_tab_specs()
         )
     cutters.extend(vertical_cutter(cut, 0.0, thickness) for cut in edge_cut_rectangles(kind))
-    plate = plate.cut(Part.makeCompound(cutters))
-    require_one_valid_solid(plate, "cutting the plate")
-    return plate.Solids[0]
+    body = body.cut(Part.makeCompound(cutters))
+    require_one_valid_solid(body, "cutting the frame's body")
+    return body.Solids[0]
 
 
 def face_prism(face, depth):
@@ -778,7 +779,7 @@ def build_bores(depth, insert_length):
     ]
 
 
-def frame_bodies(kind):
+def frame_walls_and_bosses(kind):
     """(walls of every cell, bosses) before fusing and before the
     footprint holes run on through the walls, for the build and for
     clearance probes."""
@@ -789,7 +790,7 @@ def frame_bodies(kind):
 
 
 def footprint_hole_bores(kind, pull_in):
-    """Every cell's footprint holes from the plate's top face down to the
+    """Every cell's footprint holes from the frame's top face down to the
     walls' mouth, overshooting both."""
     depth = wall_depth()
     bores = []
@@ -809,8 +810,8 @@ def walls_bored_volume(kind, pull_in):
 
 
 def bore_footprint_holes(frame, kind, pull_in):
-    """The frame with its footprint holes run on through the walls, the
-    plate's already cut, checked to take the walls' share from their
+    """The frame with its footprint holes run on through the walls, its
+    body's already cut, checked to take the walls' share from their
     plan (cell_wall_bores()) within VOLUME_RELATIVE_TOLERANCE of it (1e-5
     to 1.5e-5 mm3 at the defaults), so the holes take no boss nor more
     than a graze of one; the export checks the switch's post and pegs
@@ -821,7 +822,7 @@ def bore_footprint_holes(frame, kind, pull_in):
     expected = walls_bored_volume(kind, pull_in)
     if abs(removed - expected) > VOLUME_RELATIVE_TOLERANCE * expected:
         raise SystemExit(
-            f"error: the footprint holes take {removed:.6f} mm3 below the plate, the walls' "
+            f"error: the footprint holes take {removed:.6f} mm3 below the frame's body, the walls' "
             f"share is {expected:.6f} mm3"
         )
     return bored
@@ -835,10 +836,10 @@ def build_frame(kind, pull_in, insert_length):
             f"error: an insert {insert_length} long does not fit the boss, which holds up to "
             f"{longest_insert_length():.3f}"
         )
-    plate = build_plate(kind, pull_in)
-    walls, bosses = frame_bodies(kind)
-    frame = plate.fuse(walls + bosses).removeSplitter()
-    require_one_valid_solid(frame, "fusing the walls and bosses to the plate")
+    body = build_frame_body(kind, pull_in)
+    walls, bosses = frame_walls_and_bosses(kind)
+    frame = body.fuse(walls + bosses).removeSplitter()
+    require_one_valid_solid(frame, "fusing the walls and bosses to the frame's body")
     frame = bore_footprint_holes(frame, kind, pull_in)
     frame = frame.cut(Part.makeCompound(build_bores(boss_end_depth(), insert_length)))
     require_one_valid_solid(frame, "boring the bosses")
@@ -853,9 +854,9 @@ def build_frame(kind, pull_in, insert_length):
 
 def build_backing():
     """(backing strip with its bottom on z = 0, its analytic volume)."""
-    (x_low, x_high), (y_low, y_high) = plate_rectangle()
+    (x_low, x_high), (y_low, y_high) = frame_body_rectangle()
     thickness = BACKING_THICKNESS_MM
-    plate = Part.makeBox(x_high - x_low, y_high - y_low, thickness, App.Vector(x_low, y_low, 0))
+    body = Part.makeBox(x_high - x_low, y_high - y_low, thickness, App.Vector(x_low, y_low, 0))
     radius = SCREW_CLEARANCE_HOLE_DIAMETER_MM / 2.0
     cutters = [
         Part.makeCylinder(radius, thickness + 2.0 * CUT_EXTRA_MM,
@@ -863,13 +864,13 @@ def build_backing():
         for x, y in boss_centers()
     ]
     cutters.extend(vertical_cutter(cut, 0.0, thickness) for cut in edge_cut_rectangles(BACKING))
-    plate = plate.cut(Part.makeCompound(cutters))
+    body = body.cut(Part.makeCompound(cutters))
     pads = [
         plan_prism(polygon, thickness, thickness + pad_height(index))
         for index in range(CELL_COUNT)
         for polygon in pad_polygons(cell_key_center(index))
     ]
-    backing = plate.fuse(pads).removeSplitter()
+    backing = body.fuse(pads).removeSplitter()
     require_one_valid_solid(backing, "fusing the pads to the backing")
     expected = backing_analytic_volume()
     if abs(backing.Volume - expected) > VOLUME_RELATIVE_TOLERANCE * expected:
@@ -888,12 +889,12 @@ def stacked_backing(backing):
 
 
 def turned_for_printing(frame):
-    """A frame strip upside down, its plate's top face on z = 0, placed
-    by the plate's own faces, not by its BoundBox, which can reach past
-    them: the scrapped lip strip's reached 0.05 past its plate's top
-    face, which lifted the strip off the bed."""
+    """A frame strip upside down, its top face on z = 0, placed by its
+    body's own faces, not by its BoundBox, which can reach past them:
+    the scrapped lip strip's reached 0.05 past its top face, which
+    lifted the strip off the bed."""
     turned = frame.copy()
     turned.rotate(App.Vector(0, 0, 0), App.Vector(1, 0, 0), 180.0)
-    _, (_, y_high) = plate_rectangle()
+    _, (_, y_high) = frame_body_rectangle()
     turned.translate(App.Vector(0.0, y_high, layout.PCB_THICKNESS_MM))
     return turned

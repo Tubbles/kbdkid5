@@ -8,7 +8,7 @@ docstring has the design):
   pocket   the pocket's fit steps across the cells, -0.40 to -0.15 in
            0.05 steps, the two pin holes 3.5 across as modelled so the
            pocket alone locates the socket; any pocket can be glued
-  backing  a plate screwed under either frame strip with M2 screws into
+  backing  screwed under either frame strip with M2 screws into
            heat-set inserts in the frame's bosses, a pad under each
            socket lobe whose top relative to the socket's bottom steps
            from -0.10 (a gap) to +0.15 (pressing) in 0.05 steps
@@ -19,7 +19,7 @@ docstring has the design):
 Cell k (from 1, west to east) has k notches in its south edge on every
 strip; the pocket strip also has five in its north edge, one at every
 cell boundary, the hole strip three, between cells 1 and 2, 3 and 4,
-and 5 and 6. The frame strips print upside down, the plate's top face
+and 5 and 6. The frame strips print upside down, the frame's top face
 on z = 0; the backing prints bottom down.
 
 Runs headless under FreeCAD's console interpreter (see
@@ -96,9 +96,9 @@ FEATURE_CLEARANCE_MM = 0.5
 RECESS_HOLE_CLEARANCE_MM = 0.3
 WIRE_ROOM_PRINTED_CLEARANCE_MM = layout.PRINT_SWELLING_PER_SIDE_MM
 
-# How the switch's center post and side pegs reach below the plate
-# (DESIGN.md, "Fused mock").
-SWITCH_PARTS_BELOW_PLATE_MM = 1.4
+# How the switch's center post and side pegs reach below the frame's
+# body (DESIGN.md, "Fused mock").
+SWITCH_PARTS_BELOW_FRAME_BODY_MM = 1.4
 
 # The center post's and the west peg's holes, by their footprint-local
 # centers (layout.CHOC_FOOTPRINT_HOLES_MM): the peg's bores lobe B's
@@ -440,7 +440,7 @@ def check_bores(frame, insert_length):
     floor = layout.PCB_THICKNESS_MM - (insert_length - end_depth
                                        + layout.PRINT_RISE_OF_UP_FACING_BOTTOMS_MM)
     print(f"bosses:     {len(bores)}, {shape.BOSS_DIAMETER_MM} across, {shape.boss_height():.3f} "
-          f"tall from the plate's top, bored {shape.INSERT_BORE_DIAMETER_MM} for an insert "
+          f"tall from the frame's top, bored {shape.INSERT_BORE_DIAMETER_MM} for an insert "
           f"{insert_length:.3f} long ({shape.insert_bore_depth(insert_length):.3f} deep, its "
           f"bottom rising {layout.PRINT_RISE_OF_UP_FACING_BOTTOMS_MM} as printed), floor "
           f"{floor:.3f}; the longest insert they hold {shape.longest_insert_length():.3f}")
@@ -448,7 +448,7 @@ def check_bores(frame, insert_length):
 
 def measured_pin_holes(frame, index, radius):
     """The centers of cell index's vertical cylinders of a radius that
-    run through the plate, the plate's top face to the ceiling."""
+    run through the frame's body, its top face to the ceiling."""
     key_x, _ = shape.cell_key_center(index)
     return {center for center, (low, high) in bore_faces(frame, radius).items()
             if abs(low) < MEASURE_TOLERANCE_MM
@@ -468,7 +468,7 @@ def design_pin_hole(kind, index):
 
 def check_pin_holes(kind, frame, pull_in):
     """The two holes the socket's bosses sit in, in every cell, through
-    the plate at the cell's size."""
+    the frame's body at the cell's size."""
     local = layout.CHOC_FOOTPRINT_PIN_HOLE_CENTERS_MM[0]
     diameters = []
     for index in range(shape.CELL_COUNT):
@@ -480,7 +480,7 @@ def check_pin_holes(kind, frame, pull_in):
         found = measured_pin_holes(frame, index, radius)
         if found != expected:
             raise SystemExit(f"error: cell {index + 1} has {len(found)} pin holes "
-                             f"{2.0 * radius:.3f} across through the plate, expected "
+                             f"{2.0 * radius:.3f} across through the frame's body, expected "
                              f"{len(expected)}")
         design = design_pin_hole(kind, index)
         if design is not None:
@@ -493,24 +493,24 @@ def check_pin_holes(kind, frame, pull_in):
 
 
 def switch_part_columns(key_center):
-    """The switch's center post and side pegs below the plate, their
-    holes' nominal size plus the walls' swelling."""
+    """The switch's center post and side pegs below the frame's body,
+    their holes' nominal size plus the walls' swelling."""
     columns = []
     holes = layout.footprint_holes(key_center)[: shape.SWITCH_PROTRUDING_HOLE_COUNT]
     for (x, y), diameter in holes:
         radius = diameter / 2.0 + layout.PRINT_SWELLING_PER_SIDE_MM
-        columns.append(Part.makeCylinder(radius, SWITCH_PARTS_BELOW_PLATE_MM,
-                                         App.Vector(x, y, -SWITCH_PARTS_BELOW_PLATE_MM), UP))
+        columns.append(Part.makeCylinder(radius, SWITCH_PARTS_BELOW_FRAME_BODY_MM,
+                                         App.Vector(x, y, -SWITCH_PARTS_BELOW_FRAME_BODY_MM), UP))
     return columns
 
 
 def switch_hole_columns(kind, pull_in):
     """The switch's center post and side pegs at their holes' size as
-    modelled, from SWITCH_PARTS_BELOW_PLATE_MM below the plate up
-    through it."""
-    height = SWITCH_PARTS_BELOW_PLATE_MM + layout.PCB_THICKNESS_MM
+    modelled, from SWITCH_PARTS_BELOW_FRAME_BODY_MM below the frame's
+    body up through it."""
+    height = SWITCH_PARTS_BELOW_FRAME_BODY_MM + layout.PCB_THICKNESS_MM
     return [
-        Part.makeCylinder(radius, height, App.Vector(x, y, -SWITCH_PARTS_BELOW_PLATE_MM), UP)
+        Part.makeCylinder(radius, height, App.Vector(x, y, -SWITCH_PARTS_BELOW_FRAME_BODY_MM), UP)
         for index in range(shape.CELL_COUNT)
         for (x, y), radius in shape.cell_holes(kind, index, pull_in)[
             : shape.SWITCH_PROTRUDING_HOLE_COUNT]
@@ -585,9 +585,10 @@ def check_holes_through_walls(kind, frame, pull_in):
         post_gap = shape.cell_walls_plan(kind, index).distToShape(post_hole)[0]
         bores.append((area[peg], area.get(post, 0.0), post_gap))
     probes = ", ".join(f"{local_y:.1f}" for local_y in WALL_PROBE_LOCAL_YS_MM)
-    print(f"holes:      every footprint hole through the plate and the walls to their mouth; the "
-          f"switch's post and pegs at their holes' size, {SWITCH_PARTS_BELOW_PLATE_MM} below the "
-          f"plate, overlap the frame by {overlap:.1e} mm3; cells 1 to {shape.CELL_COUNT}'s walls "
+    print(f"holes:      every footprint hole through the frame's body and the walls to their "
+          f"mouth; the switch's post and pegs at their holes' size, "
+          f"{SWITCH_PARTS_BELOW_FRAME_BODY_MM} below the frame's body, overlap the frame by "
+          f"{overlap:.1e} mm3; cells 1 to {shape.CELL_COUNT}'s walls "
           "bored " + ", ".join(f"{peg_area:.3f}" for peg_area, _, _ in bores) + " mm2 by the "
           "west peg's hole and by no other, " + ", ".join(
               f"{post_area:.3f}" for _, post_area, _ in bores) + " mm2 by the center post's, "
@@ -619,7 +620,7 @@ def require_clearance(what, distance, least):
 
 
 def check_frame_clearances(kind, pull_in):
-    walls, bosses = shape.frame_bodies(kind)
+    walls, bosses = shape.frame_walls_and_bosses(kind)
     columns = [column for index in range(shape.CELL_COUNT)
                for column in switch_part_columns(shape.cell_key_center(index))]
     rooms = wire_room_boxes(-shape.boss_end_depth(), 0.0)
@@ -652,7 +653,7 @@ def check_frame_clearances(kind, pull_in):
 
 
 def check_notches(strip, z):
-    _, (y_low, _) = shape.plate_rectangle()
+    _, (y_low, _) = shape.frame_body_rectangle()
     for index in range(shape.CELL_COUNT):
         for number, x in enumerate(shape.notch_x_centers(index), start=1):
             point = App.Vector(x, y_low + shape.NOTCH_DEPTH_MM / 2.0, z)
@@ -664,7 +665,7 @@ def check_marks(kind, frame):
     """The strip's marks at DESIGN.md's places, its north edge open at
     them and solid at every other strip's that is not also its own (the
     hole strip's three are among the pocket strip's five)."""
-    _, (_, y_high) = shape.plate_rectangle()
+    _, (_, y_high) = shape.frame_body_rectangle()
     own = shape.strip_mark_xs(kind)
     design = DESIGN_STRIP_MARK_XS_MM[kind]
     if len(own) != len(design):
@@ -682,10 +683,10 @@ def check_marks(kind, frame):
 def export_frame(arguments):
     kind = arguments.kind
     frame, expected = shape.build_frame(kind, arguments.pull_in, arguments.insert_length)
-    (x_low, x_high), (y_low, y_high) = shape.plate_rectangle()
-    print(f"strip:      {kind}, {shape.CELL_COUNT} cells at {layout.KEY_PITCH_MM} pitch, plate "
-          f"{x_high - x_low:.3f} x {y_high - y_low:.3f} x {layout.PCB_THICKNESS_MM}, footprint "
-          f"holes grown by {arguments.pull_in}")
+    (x_low, x_high), (y_low, y_high) = shape.frame_body_rectangle()
+    print(f"strip:      {kind}, {shape.CELL_COUNT} cells at {layout.KEY_PITCH_MM} pitch, the "
+          f"frame's body {x_high - x_low:.3f} x {y_high - y_low:.3f} x {layout.PCB_THICKNESS_MM}, "
+          f"footprint holes grown by {arguments.pull_in}")
     print(f"volume:     {frame.Volume:.3f} mm3 (analytic {expected:.3f} mm3)")
     check_pockets(kind, frame)
     check_wall_depth(kind, frame)
@@ -790,7 +791,7 @@ def check_pads_clear(kind, frame):
     measured on the walls and on the whole frame: the pads stay clear of
     the walls as printed, beside which they lie under the socket."""
     pads = Part.makeCompound(stacked_pads())
-    walls, _ = shape.frame_bodies(kind)
+    walls, _ = shape.frame_walls_and_bosses(kind)
     distance, horizontal = expected_pad_distance(kind)
     for what, body in (("walls", Part.makeCompound(walls)), ("frame", frame)):
         measured = body.distToShape(pads)[0]
@@ -825,7 +826,7 @@ def check_wire_rooms(kind, frame, stacked):
         if inside > MEASURE_TOLERANCE_MM:
             raise SystemExit(f"error: {inside:.4f} mm3 of plastic in the wire rooms under the "
                              f"{kind} strip")
-    walls, bosses = shape.frame_bodies(kind)
+    walls, bosses = shape.frame_walls_and_bosses(kind)
     distance = least_distance(rooms, walls + bosses)
     return require_clearance(f"the walls and bosses beside the wire rooms of the {kind} strip",
                              distance, WIRE_ROOM_PRINTED_CLEARANCE_MM)
@@ -861,7 +862,7 @@ def check_battery():
 
 def export_backing(arguments):
     backing, expected = shape.build_backing()
-    (x_low, x_high), (y_low, y_high) = shape.plate_rectangle()
+    (x_low, x_high), (y_low, y_high) = shape.frame_body_rectangle()
     print(f"strip:      backing, {x_high - x_low:.3f} x {y_high - y_low:.3f} x "
           f"{shape.BACKING_THICKNESS_MM}, pads {shape.PAD_INSET_MM:.2f} inside each socket lobe")
     print(f"volume:     {backing.Volume:.3f} mm3 (analytic {expected:.3f} mm3)")
@@ -897,7 +898,7 @@ def main():
         raise SystemExit(f"error: the mesh's lowest point lies at z {mesh.BoundBox.ZMin:.4f}, "
                          "not on the bed")
     box = strip.BoundBox
-    print(f"print:      {'bottom' if arguments.kind == shape.BACKING else 'plate top'} on z = 0, "
+    print(f"print:      {'bottom' if arguments.kind == shape.BACKING else 'frame top'} on z = 0, "
           f"{box.XLength:.2f} x {box.YLength:.2f} x {box.ZLength:.2f} mm")
     print(f"wrote:      {arguments.stl_file} ({mesh.CountFacets} facets), one closed "
           "manifold shell")
