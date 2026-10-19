@@ -1252,6 +1252,19 @@ def printed_fit(nominal, fit):
 # modelled, the thinner reading.
 PRINT_RISE_OF_UP_FACING_BOTTOMS_MM = PRINT_SWELLING_PER_SIDE_MM
 
+# A print's top surface, the face that faces up on the bed, comes out
+# this much higher than modelled: measured 2026-10-19 on the socket
+# pocket strip, whose 1.6 frame body came out "roughly 1.65, measured
+# with the calipers touching as large an area as possible"
+# (doc/log/2026-10-19.md). The user's reading: the face on the bed is
+# true to the model and the top face is rough rather than swollen, as
+# the nozzle melts and lays material over it. The hand-wired frame's
+# ceiling, the switch plate's underside (both print top face down) and
+# the backing's top are such faces. The floors of notches, slots,
+# recesses and blind bores keep PRINT_RISE_OF_UP_FACING_BOTTOMS_MM
+# until one is measured.
+PRINT_RISE_OF_TOP_FACES_MM = 0.05
+
 
 # Magnets: four supermagnete S-08-03-N (8 x 3) standing on edge, each
 # glued against a 0.5 skin at the face, which takes its pull. Its slot

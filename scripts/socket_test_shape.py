@@ -51,11 +51,13 @@ The strips print upside down, the frame's top face on the bed, the
 walls growing up. In the project's print model (layout.py's printed
 fits) every vertical face swells PRINT_SWELLING_PER_SIDE_MM, so the
 pockets are printed_fit() of the socket's body and the footprint holes
-are grown by pull_in; every up-facing face rises
-PRINT_RISE_OF_UP_FACING_BOTTOMS_MM, here the ceiling (the bottom the
-socket fits against), the walls' mouths and the bosses' ends, which
-all rise together, so relative to the ceiling they stay where they are
-modelled. The socket's room is counted from the risen ceiling.
+are grown by pull_in. The ceiling (the underside the socket fits
+against), the walls' mouths and the bosses' ends face up on the bed
+and rise together, so relative to the ceiling they stay where they are
+modelled. The model counted that rise as
+PRINT_RISE_OF_UP_FACING_BOTTOMS_MM, 0.2, which boss_end_depth() keeps;
+measured on the pocket strip the body came out 1.65 thick, a rise of
+PRINT_RISE_OF_TOP_FACES_MM, which the backing's top shares.
 
 POCKET: the pocket's fit steps across the cells (cell_pocket_fit()),
 the pin holes at POCKET_STRIP_PIN_HOLE_DIAMETER_MM. Any pocket can be
@@ -376,15 +378,16 @@ def backing_thickness_limit(socket_bottom_z=None):
     """The thickest backing the battery allows in the real tray: from
     the socket's bottom with the frame in the PCB's place, less the
     pads' room (from the socket's bottom to the backing's top), the
-    backing's own rise as printed (its top rises, so its bottom lies
-    that much lower) and the clearance to the battery."""
+    backing's own rise as printed (its top face rises
+    PRINT_RISE_OF_TOP_FACES_MM, so its bottom lies that much lower) and
+    the clearance to the battery."""
     if socket_bottom_z is None:
         socket_bottom_z = layout.PCB_UNDERSIDE_Z_MM - socket_height()
     pads_room = boss_end_depth() - socket_height()
     return (
         socket_bottom_z
         - pads_room
-        - layout.PRINT_RISE_OF_UP_FACING_BOTTOMS_MM
+        - layout.PRINT_RISE_OF_TOP_FACES_MM
         - layout.MINIMUM_BATTERY_TO_SOCKET_CLEARANCE_MM
         - layout.BATTERY_TOP_Z_MM
     )

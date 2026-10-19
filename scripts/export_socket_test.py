@@ -79,7 +79,7 @@ DESIGN_TAB_SLOT_WIDTH_MM = 3.18
 DESIGN_BOSS_HEIGHT_MM = 3.87
 DESIGN_LONGEST_INSERT_MM = 3.067
 DESIGN_BACKING_THICKNESS_MM = 0.80
-DESIGN_BATTERY_CLEARANCE_AS_PRINTED_MM = 0.62
+DESIGN_BATTERY_CLEARANCE_AS_PRINTED_MM = 0.77
 DESIGN_STRIP_MARK_XS_MM = {shape.POCKET: (19.05, 38.10, 57.15, 76.20, 95.25),
                            shape.HOLES: (19.05, 57.15, 95.25)}
 DESIGN_FIGURE_DECIMALS = 2
@@ -835,7 +835,7 @@ def check_wire_rooms(kind, frame, stacked):
 def battery_figures():
     socket_bottom = layout.PCB_UNDERSIDE_Z_MM - shape.socket_height()
     pads_room = shape.boss_end_depth() - shape.socket_height()
-    rise = layout.PRINT_RISE_OF_UP_FACING_BOTTOMS_MM
+    rise = layout.PRINT_RISE_OF_TOP_FACES_MM
     bottom = socket_bottom - pads_room - shape.BACKING_THICKNESS_MM
     clearance = bottom - rise - layout.BATTERY_TOP_Z_MM
     return socket_bottom, pads_room, bottom, clearance
@@ -850,12 +850,12 @@ def check_battery():
                    DESIGN_BACKING_THICKNESS_MM)
     require_design("the battery clearance as printed", clearance,
                    DESIGN_BATTERY_CLEARANCE_AS_PRINTED_MM)
-    rise = layout.PRINT_RISE_OF_UP_FACING_BOTTOMS_MM
+    rise = layout.PRINT_RISE_OF_TOP_FACES_MM
     print(f"battery:    in the tray the frame in the PCB's place puts the socket's bottom at "
           f"z {socket_bottom:.3f} (under a PCB {layout.SOCKET_BOTTOM_Z_MM:.2f}); below it the "
           f"pads' room takes {pads_room:.3f} and the backing {shape.BACKING_THICKNESS_MM} (of "
           f"{limit:.3f} the battery allows), its bottom at z {bottom:.3f}, {bottom - rise:.3f} "
-          f"as printed (its top rises {rise}), "
+          f"as printed (its top face rises {rise}, measured), "
           f"{clearance:.3f} over the battery's top {layout.BATTERY_TOP_Z_MM} as printed "
           f"(at least {layout.MINIMUM_BATTERY_TO_SOCKET_CLEARANCE_MM})")
 
