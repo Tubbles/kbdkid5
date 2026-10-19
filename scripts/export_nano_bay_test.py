@@ -1,7 +1,8 @@
-"""Export the nice!nano bay test strip (STL): three bays cut out of the
-left tray side by side, whose pockets fit the board across by
-different amounts, to settle the bay on a real board before printing
-whole trays (work items 006, 009 and 010).
+"""Export the nice!nano test bay (STL): one bay cut out of the left
+tray, its pocket at the default slip fit across the board, the user's
+choice to shorten the print, to settle the bay on a real board before
+printing whole trays (work items 006, 009 and 010). BAY_FITS can step
+the fit over several bays again, side by side in one strip.
 
 Each bay is build_tray()'s left tray (tray_shape.py) with the bay's
 layout.MountFits, cut by one box around the nice!nano's corner, so the
@@ -48,7 +49,7 @@ Runs headless under FreeCAD's console interpreter (see
 freecad_common.py for the freecadcmd quirks that shape the
 invocation):
 
-    freecadcmd scripts/export_nano_bay_test.py --pass <strip.stl>
+    freecadcmd scripts/export_nano_bay_test.py --pass <bay.stl>
         [nano_length=<mm>] [nano_width=<mm>]
 
 It prints the box, the clamp's and the bar's figures common to the
@@ -116,7 +117,7 @@ NOTCH_PITCH_MM = 2.0
 NOTCH_MIDDLE_X_MM = 7.0
 
 USAGE = f"""\
-usage: freecadcmd scripts/export_nano_bay_test.py --pass <strip.stl>
+usage: freecadcmd scripts/export_nano_bay_test.py --pass <bay.stl>
            [nano_length=<mm>] [nano_width=<mm>]
 
   nano_length  the nice!nano's board length the bays are fitted to
@@ -468,8 +469,9 @@ def main():
         bays.append(moved)
     bridges = [bridge(index) for index in range(len(BAY_FITS) - 1)]
     strip = join_bays(bays, bridges)
-    print(f"joined:     {len(bays)} bays {BAY_GAP_MM} apart and {len(bridges)} floor bridges, "
-          f"one solid, volume {strip.Volume:.3f} mm3")
+    pieces = ("one bay" if len(bays) == 1
+              else f"{len(bays)} bays {BAY_GAP_MM} apart and {len(bridges)} floor bridges")
+    print(f"joined:     {pieces}, one solid, volume {strip.Volume:.3f} mm3")
     strip, notch_count = cut_notches(strip)
     print(f"notches:    {notch_count}, {NOTCH_WIDTH_MM} wide and {NOTCH_DEPTH_MM} deep through the "
           f"floor, volume {strip.Volume:.3f} mm3")

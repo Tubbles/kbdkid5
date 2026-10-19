@@ -1779,15 +1779,16 @@ NANO_EXTRA_PADS_FROM_B_MINUS_ROW_MM = (2.54, 5.08, 7.62)
 # The mounts' figures that wait on a caliper or the parts in hand (work
 # item 004). export_tray.py's key=value words override them for a test
 # print: the nano's length and width, the pocket's fit across the board
-# (the nano bay test strip steps it, work item 010), the clamp's press
-# on the board and the bar's clearance over the shell (work items 006
-# and 009), and the battery header's front lips (none by default,
-# DESIGN.md says why). The pocket's fit is a slip fit at the least: the
-# board lies 0.3 from the west ledge's face, 0.1 from it as printed, and
-# the wire room over the east pin row reaches to 0.045 inside the
-# board's east edge, so at the slip fit the east wall's inner face as
-# printed meets the board's east edge 0.045 clear of that room, where a
-# snug pocket's would come 0.1 inside the board and 0.055 into the room.
+# (the nice!nano test bay's export can step it over several bays, work
+# item 010), the clamp's press on the board and the bar's clearance
+# over the shell (work items 006 and 009), and the battery header's
+# front lips (none by default, DESIGN.md says why). The pocket's fit
+# is a slip fit at the least: the board lies 0.3 from the west ledge's
+# face, 0.1 from it as printed, and the wire room over the east pin row
+# reaches to 0.045 inside the board's east edge, so at the slip fit the
+# east wall's inner face as printed meets the board's east edge 0.045
+# clear of that room, where a snug pocket's would come 0.1 inside the
+# board and 0.055 into the room.
 NANO_POCKET_FIT_MM = SLIP_FIT_MM
 NANO_CLAMP_PRESS_MM = 0.1  # as printed
 NANO_BAR_CLEARANCE_MM = 0.1
@@ -1996,8 +1997,9 @@ def nano_north_block_boxes(fits=DEFAULT_MOUNT_FITS):
 # A foot as tall as the board runs on north from it across the pocket
 # to the board's end gap short of its south end: its north face is the
 # board's south stop, which a board pushed south (a USB-C plug going in)
-# meets over its whole edge (the user: "Could you increase its height
-# so it it at least as high as the nano board itself?", work item 010).
+# meets over 13.3 of its 18.3, the pry slot taking x 1.6 to 6.6 out of
+# the foot's face (the user: "Could you increase its height so it it at
+# least as high as the nano board itself?", work item 010).
 # The block stands with the screw NANO_CLAMP_SCREW_FROM_BOARD_END_MM
 # from the board's south end, so the head keeps clear of the socket
 # over the board's end in plan and the tab's arm is long enough to bend.
@@ -2242,8 +2244,6 @@ def nano_extra_pads_y_range():
     )
 
 
-
-
 # The pry slot and recess (work item 010, the user's request once the
 # foot stood as tall as the board: "Can you open up a 5 mm pry slot in
 # the south wall with a pry recess in the floor to go along with it? So
@@ -2253,23 +2253,24 @@ def nano_extra_pads_y_range():
 # screw, from the floor up through their tops. The recess runs under the
 # slot's whole length in the floor's top, from the block's south face to
 # NANO_PRY_RECESS_UNDER_BOARD_MM under the board's south end,
-# NANO_PRY_RECESS_DEPTH_MM deep, so a toothpick 2.0 across lies low
-# enough to get its tapered point under the board's edge
-# (check_layout.py works out how far). With the tab off, the toothpick
-# slides in from the south through the slot and lifts the board's south
-# edge. Taking the board's weight at its middle, a lift there takes
-# about 0.51 of it to tip the board about its north end (the shell's
-# mouth, 17.52 from the middle and 34.17 from the south edge) and 0.61
-# about its east edge (9.15 from the middle, 15.1 from the slot's
-# middle), so the board pitches rather than rolls, its whole south end
-# comes up over the foot, and it slides south out of the shell's
-# channel.
+# NANO_PRY_RECESS_DEPTH_MM deep, so a toothpick coming down the slot
+# from over the south rim gets its tapered point under the board's edge
+# (check_layout.py works out the least angle that clears the rim and the
+# ledge, and how far the point then gets). With the tab off, the
+# toothpick lifts the board's south end, and the board pitches up rather
+# than rolling about its east edge. Its north end's top edge rides up
+# the north block's face as it turns about the shell's mouth on the
+# floor, so it slides south a little, its south edge staying clear of
+# the foot's face as printed, as when it goes in (check_layout.py's
+# insertion figures), or it pivots on the shell's top against the bar.
+# Either way its whole south end comes up over the foot, and it then
+# slides south out of the shell's channel.
 NANO_PRY_SLOT_WIDTH_MM = 5.0
 NANO_PRY_SLOT_FROM_LEDGE_MM = 1.0
 NANO_PRY_RECESS_UNDER_BOARD_MM = 2.0
 NANO_PRY_RECESS_DEPTH_MM = 0.8
-# The toothpick check_layout.py fits in: 2.0 across, tapering to its
-# point over its last 5.0.
+# The toothpick check_layout.py fits in: 2.0 across, tapering to a
+# round point on its axis over its last 5.0.
 NANO_PRY_TOOTHPICK_DIAMETER_MM = 2.0
 NANO_PRY_TOOTHPICK_TAPER_MM = 5.0
 

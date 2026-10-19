@@ -7,7 +7,7 @@ under that end that bears on the board beside the clamp's foot, and
 the M2 screw's hole through the plate. The tab is symmetric about the
 board's center line, so one tab serves both halves, and its shape is
 the same whatever the clamp presses, since the block's top sets the
-press, so the nice!nano bay test strip's three bays take it too.
+press, so the nice!nano test bay takes it too.
 
 This script measures the tab against DESIGN.md's figures, which it
 transcribes itself (the DESIGN_* constants below), turns it over, so
@@ -170,7 +170,7 @@ def main():
     print(f"print:      top face down, {bed_area:.3f} mm2 on the bed, the nose standing up, no "
           f"support, {box.XLength:.2f} x {box.YLength:.2f} x {box.ZLength:.2f} mm")
     print(f"wrote:      {stl_file} ({mesh.CountFacets} facets), one closed manifold shell; print "
-          "one per half and one per bay of the nice!nano bay test strip")
+          "one per half and one for the nice!nano test bay")
 
 
 run_and_exit(main)

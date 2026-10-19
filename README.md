@@ -60,15 +60,17 @@ CI uploads both halves of the fused mock and the slit strips as the `kbdkid5-moc
 
 For a test print, `pin_hole_diameter` overrides the half's pin hole fit as modelled, and the others the figures the mounts rest on until a caliper confirms them: the nice!nano's board length and width, how much wider than the board its pocket prints, how hard the clamp's tab presses the board (how far below the tab's seat on the board its block's top stands), the bar's clearance over the USB-C shell, and lips reaching that far onto the battery header's front rim (none by default, DESIGN.md says why). Glue the battery header into its pocket and the reset button to the floor. The right tray is mirrored across the outline's center line like the other right parts, but cut for the right half's sockets, which sit as on the left half at the mirrored key centers.
 
-`scripts/export_clamp_tab.py` exports the nice!nano clamp's tab, the same for both halves and every bay of the test strip below, printed top face down. Press the insert into the block south of the nice!nano, lay the board in nose first, put the tab on with its nose over the board's south edge and screw it down.
+`scripts/export_clamp_tab.py` exports the nice!nano clamp's tab, the same for both halves and the test bay below, printed top face down. Press the insert into the block south of the nice!nano, lay the board in nose first, put the tab on with its nose over the board's south edge and screw it down.
 
     docker run --rm -v "$PWD":/work -w /work freecad-headless \
         freecadcmd scripts/export_clamp_tab.py --pass tab.stl
 
-`scripts/export_nano_bay_test.py` exports a strip of three nice!nano bays cut out of the left tray, to settle the bay on a real board before printing whole trays: the pocket 0.1 (the default), 0.2 and 0.3 mm wider than the board as printed, the east wall's inner face moved with it, the clamp's press and the bar's clearance at their defaults, and bay k has k notches in its south edge. Try the board in each bay under a tab and its screw, a USB-C cable in its window and a toothpick in its pry slot. `nano_length` and `nano_width` fit all three bays to a calipered board. Pass the winning bay's fit to the tray as `nano_pocket_fit`.
+`scripts/export_nano_bay_test.py` exports one nice!nano bay cut out of the left tray, to settle the bay on a real board before printing whole trays: the pocket at the default slip fit, 0.1 mm wider than the board as printed, the clamp's press and the bar's clearance at their defaults, and one notch in its south edge. A single bay keeps the print short (the user's choice). `BAY_FITS` in the script can step the fit over several bays again. `nano_length` and `nano_width` fit the bay to a calipered board.
+
+To try it, drop the board in nose first and screw the tab on. Push a USB-C cable in and pull it out: the board should not move or ride up. Wiggle the board across: loose means it rattles, too tight means it would not drop in flat. Then take the tab off and lift the board out with a toothpick through the slot. Note whether the board went in, whether it is loose, snug or tight across, whether it held under the cable, and whether the toothpick got it out.
 
     docker run --rm -v "$PWD":/work -w /work freecad-headless \
-        freecadcmd scripts/export_nano_bay_test.py --pass strip.stl \
+        freecadcmd scripts/export_nano_bay_test.py --pass bay.stl \
         [nano_length=33.3] [nano_width=18.3]
 
-CI uploads both halves, the tab and the strip as the `kbdkid5-tray-stl-<short commit hash>` artifact: `kbdkid5_Tray_Left.stl`, `kbdkid5_Tray_Right.stl`, `kbdkid5_Nano_Clamp_Tab.stl` and `kbdkid5_Nano_Bay_Test.stl`.
+CI uploads both halves, the tab and the test bay as the `kbdkid5-tray-stl-<short commit hash>` artifact: `kbdkid5_Tray_Left.stl`, `kbdkid5_Tray_Right.stl`, `kbdkid5_Nano_Clamp_Tab.stl` and `kbdkid5_Nano_Bay_Test.stl`.
