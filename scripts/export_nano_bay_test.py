@@ -1,21 +1,20 @@
 """Export the nice!nano bay test strip (STL): three bays cut out of the
-left tray side by side, whose screw clamps press the board by
-different amounts and whose hold-down bar clearances differ, to settle
-the bay on a real board before printing whole trays (work items 006
-and 009).
+left tray side by side, whose pockets fit the board across by
+different amounts, to settle the bay on a real board before printing
+whole trays (work items 006, 009 and 010).
 
 Each bay is build_tray()'s left tray (tray_shape.py) with the bay's
 layout.MountFits, cut by one box around the nice!nano's corner, so the
 bay is the tray's geometry and not a copy of it. The box reaches past
 the tray's west and north faces, so it holds the floor, the west and
-north walls at full height with the ledge, the USB window, the
-hold-down bar and its posts, the screw clamp's boss and stop, the east
-ribs, the solder grooves and the pry recess. Its east face
-(BAY_EAST_X_MM) cuts the floor and the north wall and ledge east of the
-battery's northwest rib, its south face (BAY_SOUTH_Y_MM) the floor and
-the west wall and ledge south of the clamp's boss and the standoff at
-(18.574, 37.782), so the bay keeps that standoff and the rib whole
-and floor beyond the ribs and the boss to join and to hold.
+north walls at full height with the ledge, the USB window, the north
+block, the screw clamp's block and foot with the standoff at (18.574,
+37.782) they take in, the east wall, the pry slot and the pry recess.
+Its east face (BAY_EAST_X_MM) cuts the floor and the north wall and
+ledge east of the battery's northwest rib, its south face
+(BAY_SOUTH_Y_MM) the floor and the west wall and ledge south of the
+clamp's block, so the bay keeps that standoff and the rib whole and
+floor beyond the rib and the block to join and to hold.
 The box crosses nothing else: every other feature of the tray lies
 wholly inside it or wholly outside, at least BAY_BOX_MARGIN_MM from
 its faces, and the faces keep BAY_BOX_MARGIN_MM plus the corner's
@@ -28,20 +27,20 @@ joined to the next by a bridge of the floor's thickness across the
 gap, and are fused into one solid. Bay k (from 1) has k notches in its
 floor's south edge, so a printed bay names itself.
 
-The bays step the clamp's press and the bar's clearance together, the
-defaults in bay 2 (BAY_FITS). The press is set on the bay's side: the
-clamp's boss stands that much lower under one tab
-(export_clamp_tab.py's, the same for every bay and both halves), so a
-tab bent too far or a board left loose shows which press holds. The
-words nano_length and nano_width size the board for all three bays,
-for a test print on a calipered board.
+The bays can step the pocket's fit across the board (BAY_FITS), the
+east wall's inner face standing further east from bay to bay. There is
+one bay now, at the default slip fit. The clamp's press and the bar's
+clearance are the defaults in every bay, under one tab
+(export_clamp_tab.py's, the same for every bay and both halves). The
+words nano_length and nano_width size the board for every bay.
 
 Every bay passes the mount checks the default tray passes:
 check_layout.py's problem functions with the bay's fits (the mounts
 inside the tray and clear of the parts, the sockets, the standoffs and
 the joint, the clamp's tab within its strain and under the PCB, the
 floor's voids short of its underside, the openings around the shell
-and the lever, the pry recess, the wire rooms), on top of
+and the lever, the board going in past the foot, the pry slot, the
+wire rooms), on top of
 build_tray()'s own probes of what it built, its closed floor among
 them. Any problem stops the export.
 
@@ -52,8 +51,9 @@ invocation):
     freecadcmd scripts/export_nano_bay_test.py --pass <strip.stl>
         [nano_length=<mm>] [nano_width=<mm>]
 
-It prints the box and each bay's figures (the press, the boss's top,
-the tab's strain as printed and the bar's clearance as printed), checks
+It prints the box, the clamp's and the bar's figures common to the
+bays, and each bay's (the pocket as modelled and as printed, the east
+wall's inner face), checks
 the strip for one valid solid of the bays' and bridges' volume,
 every bay's notch count, and a closed mesh, and writes it floor down,
 as the tray prints, the floor's underside on z = 0.
@@ -86,11 +86,13 @@ from tray_shape import (
     tray_corner_radius,
 )
 
-# Each bay's (clamp_press, bar_clearance), west to east, the defaults in
-# bay 2: the clamp's press on the board and the bar's clearance over the
-# shell, both as printed, step together.
-BAY_FITS = ((0.0, 0.0), (0.1, 0.1), (0.2, 0.2))
-DEFAULT_BAY_INDEX = 1
+# Each bay's pocket fit across the board (nano_pocket_fit), west to
+# east. A snug pocket's east wall would come inside the board as printed
+# (layout.py's NANO_POCKET_FIT_MM). One bay at the default slip fit, the
+# user's choice to shorten the print (doc/log/2026-10-19.md), where the
+# first strip of this bay stepped 0.1, 0.2 and 0.3.
+BAY_FITS = (0.1,)
+DEFAULT_BAY_INDEX = 0
 
 # The box each bay is cut by: east and south faces through the floor
 # (and the walls and the ledge they meet), the others past the tray's
@@ -107,7 +109,7 @@ BAY_BOX_MARGIN_MM = 0.5
 BAY_GAP_MM = 2.0
 
 # The notches that number the bays, through the floor from its south
-# edge, west of the standoff and south of the clamp's boss.
+# edge, south of the clamp's block and its pry recess.
 NOTCH_WIDTH_MM = 1.0
 NOTCH_DEPTH_MM = 0.8
 NOTCH_PITCH_MM = 2.0
@@ -117,7 +119,7 @@ USAGE = f"""\
 usage: freecadcmd scripts/export_nano_bay_test.py --pass <strip.stl>
            [nano_length=<mm>] [nano_width=<mm>]
 
-  nano_length  the nice!nano's board length all three bays are fitted to
+  nano_length  the nice!nano's board length the bays are fitted to
                (default {layout.NANO_LENGTH_MM}), its USB end staying put
   nano_width   its width (default {layout.NANO_WIDTH_MM}), its west edge staying put\
 """
@@ -152,8 +154,7 @@ def parse_arguments(argument_list):
 
 
 def bay_fits(index, board_size):
-    clamp_press, bar_clearance = BAY_FITS[index]
-    return layout.MountFits(clamp_press=clamp_press, bar_clearance=bar_clearance, **board_size)
+    return layout.MountFits(nano_pocket_fit=BAY_FITS[index], **board_size)
 
 
 # The mount checks, check_layout.py's, with a bay's fits.
@@ -164,14 +165,15 @@ def mount_problems(fits):
     the left half."""
     right = False
     return (
-        check_layout.mount_containment_problems(right, fits)[0]
+        check_layout.mount_containment_problems(fits)[0]
         + check_layout.mount_part_clearances(fits)[3]
         + check_layout.mount_socket_problems(right, fits)[0]
         + check_layout.mount_standoff_clearances(fits)[0]
         + check_layout.mount_joint_problems(right, fits)[0]
         + check_layout.clamp_problems(fits)
         + check_layout.opening_problems(fits)
-        + check_layout.pry_recess_problems(right, fits)
+        + check_layout.insertion_problems(fits)
+        + check_layout.pry_slot_problems(right, fits)
         + check_layout.wire_room_problems(right, fits)[0]
     )
 
@@ -183,13 +185,21 @@ def bar_clearance_as_printed(fits):
     return layout.nano_bar_underside_z(fits) - layout.PRINT_SWELLING_PER_SIDE_MM - shell_top
 
 
-def bay_figures(fits):
+def common_figures(fits):
     return (
-        f"the clamp pressing {fits.clamp_press:.1f} as printed, its boss's top at z "
-        f"{layout.nano_clamp_boss_top_z(fits):.1f}, the tab's strain "
+        f"the clamp pressing {fits.clamp_press:.1f} as printed, its block's top at z "
+        f"{layout.nano_clamp_block_top_z(fits):.1f}, the tab's strain "
         f"{100.0 * layout.nano_clamp_strain(fits):.2f} % as printed, bar "
-        f"{bar_clearance_as_printed(fits):.2f} over the shell as printed, a flat tip lifting the "
-        f"south end {check_layout.pry_release_margin(fits):.2f} over the stop"
+        f"{bar_clearance_as_printed(fits):.2f} over the shell as printed"
+    )
+
+
+def bay_figures(fits):
+    pocket = layout.nano_pocket_east_x(fits) - layout.west_ledge_face_x()
+    printed = pocket - 2.0 * layout.PRINT_SWELLING_PER_SIDE_MM
+    return (
+        f"the pocket {pocket:.1f} across as modelled, {printed:.1f} as printed, the east wall's "
+        f"inner face at x {layout.nano_pocket_east_x(fits):.1f}"
     )
 
 
@@ -232,7 +242,7 @@ def bay_features(fits):
     boxes = layout.mount_bodies(fits) + layout.mount_voids(fits)
     mounts = [(check_layout.describe_mount(box), check_layout.box_polygon(box),
                box.part == "nice!nano") for box in boxes]
-    cuts = [layout.ledge_cutaway_cut(cutaway) for cutaway in layout.LEDGE_CUTAWAYS]
+    cuts = [layout.ledge_cutaway_cut(cutaway) for cutaway in layout.ledge_cutaways(fits)]
     cuts.extend(layout.all_socket_tray_cuts())
     tray_cuts = [(cut.label, layout.tray_cut_polygon(cut), False) for cut in cuts]
     standoffs = [(f"standoff at {center}", standoff_square(center), False)
@@ -361,6 +371,8 @@ def join_bays(bays, bridges):
     """The bays and the bridges, which only touch, fused into one solid
     of their volume with the faces the fuse split merged."""
     pieces = bays + bridges
+    if len(pieces) == 1:
+        return pieces[0]
     fused = pieces[0].multiFuse(pieces[1:]).removeSplitter()
     require_one_valid_solid(fused, "joining the bays")
     require_volume("the joined bays", fused.Volume, sum(piece.Volume for piece in pieces), 1e-6)
@@ -436,6 +448,7 @@ def main():
           f"{BAY_EAST_X_MM}, its south face the floor, the west wall and the ledge at y "
           f"{BAY_SOUTH_Y_MM}, each {BAY_BOX_MARGIN_MM} plus the corner's radius from every "
           f"outline vertex and beyond that by at least {corner_clearance}")
+    print(f"clamp:      in every bay {common_figures(bay_fits(0, arguments.board_size))}")
     bays = []
     for index in range(len(BAY_FITS)):
         fits = bay_fits(index, arguments.board_size)

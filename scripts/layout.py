@@ -553,7 +553,7 @@ STANDOFF_HEIGHT_MM = PCB_UNDERSIDE_Z_MM
 # come last in this module (work item 004).
 # `containment` says where a box must lie: CAVITY inside the cavity
 # wall and clear of the ledge (except where the ledge is cut away for
-# it, LEDGE_CUTAWAYS), THROUGH_WALL inside the tray's outer face (it
+# it, ledge_cutaways()), THROUGH_WALL inside the tray's outer face (it
 # passes a window in the wall), PROUD nowhere (it stands out past the
 # wall by design).
 CAVITY = "cavity"
@@ -587,20 +587,23 @@ NORTH_EDGE_Y_OF_COLUMN_2_MM = 80.248
 NORTH_EDGE_Y_OF_COLUMN_3_MM = 82.629
 
 # nice!nano v2 (DESIGN.md): the board, its flat underside on the
-# floor, and the USB-C shell, flush with the board's underside, 8.94
-# wide and 3.16 tall, reaching 0.87 past the board's north end, 6.5
-# long (doc/components.md: the C168688 drawing's front to rear of the
-# body), centered on the board.
+# floor, 18.30 wide by the user's caliper (NANO_WIDTH_MM), and the
+# USB-C shell, flush with the board's underside, 8.94 wide and 3.16
+# tall, reaching 0.87 past the board's north end, 6.5 long
+# (doc/components.md: the C168688 drawing's front to rear of the body),
+# centered on the board.
 NANO_BOARD = Envelope(
-    "nice!nano", "board", (0.9, 18.9), (42.016, 75.316), (0.0, 1.6), CAVITY
+    "nice!nano", "board", (0.9, 19.2), (42.016, 75.316), (0.0, 1.6), CAVITY
 )
 NANO_USB_SHELL_WIDTH_MM = 8.94
 NANO_USB_SHELL_PAST_BOARD_MM = 0.87
 NANO_USB_SHELL_LENGTH_MM = 6.5
+NANO_USB_SHELL_CENTER_X_MM = sum(NANO_BOARD.x_range) / 2.0
 NANO_USB_SHELL = Envelope(
     "nice!nano",
     "USB-C shell",
-    (9.9 - NANO_USB_SHELL_WIDTH_MM / 2.0, 9.9 + NANO_USB_SHELL_WIDTH_MM / 2.0),
+    (NANO_USB_SHELL_CENTER_X_MM - NANO_USB_SHELL_WIDTH_MM / 2.0,
+     NANO_USB_SHELL_CENTER_X_MM + NANO_USB_SHELL_WIDTH_MM / 2.0),
     (
         NANO_BOARD.y_range[1] + NANO_USB_SHELL_PAST_BOARD_MM - NANO_USB_SHELL_LENGTH_MM,
         NANO_BOARD.y_range[1] + NANO_USB_SHELL_PAST_BOARD_MM,
@@ -882,6 +885,8 @@ PART_ENVELOPES = (
 # Where DESIGN.md cuts the north ledge away, as (part, x range along the
 # north outline edge at the given y): over the nice!nano's width, the
 # power switch body and the reset button, each plus 0.5 on either side.
+# The nice!nano's follows the board's width as the mounts' fits size it,
+# so ledge_cutaways() gives them all, with the mounts below.
 LEDGE_CUTAWAY_MARGIN_MM = 0.5
 
 
@@ -901,8 +906,7 @@ def ledge_cutaway(part, x_range, north_edge_y):
     )
 
 
-LEDGE_CUTAWAYS = (
-    ledge_cutaway("nice!nano", NANO_BOARD.x_range, NORTH_EDGE_Y_OF_COLUMNS_0_AND_1_MM),
+SWITCH_AND_BUTTON_LEDGE_CUTAWAYS = (
     ledge_cutaway("power switch", POWER_SWITCH_BODY.x_range, NORTH_EDGE_Y_OF_COLUMN_2_MM),
     ledge_cutaway("reset button", RESET_BUTTON_HOUSING.x_range, NORTH_EDGE_Y_OF_COLUMN_3_MM),
 )
@@ -1697,16 +1701,19 @@ def west_ledge_face_x():
 # check_layout.py checks the mounts the way it checks the parts. Two
 # shapes are not boxes and lie inside theirs: the USB window with its
 # rounded corners and outer chamfer, and the reset pin hole, a
-# flat-topped teardrop. The nice!nano's clamp boss is bored for its
-# insert like a standoff, the bore no box of its own. The clamp's tab
-# and screw head are no part of the tray, but check_layout.py checks
-# them with the mount bodies (nano_clamp_part_boxes()). The right tray
-# is built in the left half's frame and mirrored (the module
-# docstring), which is right for a mount
-# wherever its part maps onto itself under that mirror or lies mirrored
-# on the right half. DESIGN.md, "Parts in the tray", works that out for
-# each part: only the nice!nano's P1.01/P1.02/P1.07 row does neither, so
-# its groove takes the half.
+# flat-topped teardrop. The nice!nano's clamp block is bored for its
+# insert like a standoff, the bore no box of its own, and the standoff
+# that the block, the foot and the east wall merge
+# (NANO_MERGED_STANDOFF_MM) keeps its own bore: tray_shape.py builds no
+# body into a standoff's bore. The clamp's tab and screw head are no
+# part of the tray, but check_layout.py checks them with the mount
+# bodies (nano_clamp_part_boxes()). The right tray is built in the left
+# half's frame and mirrored (the module docstring), which is right for a
+# mount wherever its part maps onto itself under that mirror or lies
+# mirrored on the right half. DESIGN.md, "Mirroring", works that out for
+# each part, and every mount mirrors rightly. Only the wire room over
+# the nice!nano's P1.01/P1.02/P1.07 pads takes the half
+# (nano_wire_rooms()).
 #
 # Every printed fit is printed_fit(): a pocket or slot as the part plus
 # the print's swelling on both sides plus the fit's clearance, so it
@@ -1739,25 +1746,26 @@ def half_fit_gap(nominal, fit):
     return (printed_fit(nominal, fit) - nominal) / 2.0
 
 
-# The nice!nano's figures the mounts rest on (doc/components.md, from
-# the manufacturer's render, +-0.1, NANO_RENDER_UNCERTAINTY_MM): the
-# board 33.3 x 18.0 x 1.6, its two pin rows of 12 at 2.54 pitch, pin 1
-# 3.91 from the USB end, the rows' centers 1.31 and 1.44 in from the
-# long edges (which is which the render leaves open, so a groove covers
-# both), pads 1.53 across, the B+ and B- pads 1.14 across in line with
-# the rows 1.38 from the USB end, the P1.01, P1.02 and P1.07 pads in a
-# row across the board 26.8 from the USB end, 2.54, 5.08 and 7.62 from
-# the B- row (taken as the pin pads' size), and the USB-C shell's tab
-# slots (the C168688 drawing, work/research/downloads/usbc-c168688/):
-# 0.65 x 1.40 and 1.70, their pairs 2.09 and 6.09 behind the shell's
-# front, 11.08 across, which the drawing leaves either between the
-# slots' centers or across their outsides, so a groove covers both.
-# Seen from above with the USB end north, B- is on the west (the
-# render's top view), and so are the P1 pads, on both halves, since the
-# right half's nano is the same part the same side up.
+# The nice!nano's figures the mounts rest on. The width is the user's
+# caliper: "The nano measures, with the usb connector included: 18.30 x
+# 34.17" (doc/log/2026-10-19.md). The length is the board alone, the
+# manufacturer's render's 33.3 (doc/components.md), which that 34.17
+# bears out as the board plus the render's 0.87 of shell past it
+# (NANO_USB_SHELL_PAST_BOARD_MM), but the board alone has not been
+# calipered. The underside is flat with nothing below it (the user,
+# doc/log/2026-10-19.md). The pads are the render's (doc/components.md,
+# +-0.1), measured on its 18.0 wide board from the long edges: two pin
+# rows of 12 at 2.54 pitch, pin 1 3.91 from the USB end, the rows'
+# centers 1.31 and 1.44 in from the long edges (which is which the
+# render leaves open, so a wire room covers both), pads 1.53 across, the
+# B+ and B- pads 1.14 across in line with the rows 1.38 from the USB
+# end, the P1.01, P1.02 and P1.07 pads in a row across the board 26.8
+# from the USB end, 2.54, 5.08 and 7.62 from the B- row (taken as the
+# pin pads' size). Seen from above with the USB end north, B- is on the
+# west (the render's top view), and so are the P1 pads, on both halves,
+# since the right half's nano is the same part the same side up.
 NANO_LENGTH_MM = 33.3
-NANO_WIDTH_MM = 18.0
-NANO_RENDER_UNCERTAINTY_MM = 0.1
+NANO_WIDTH_MM = 18.30
 NANO_PIN_PITCH_MM = 2.54
 NANO_PINS_PER_ROW = 12
 NANO_PIN_1_FROM_USB_END_MM = 3.91
@@ -1767,17 +1775,20 @@ NANO_BATTERY_PADS_FROM_USB_END_MM = 1.38
 NANO_BATTERY_PAD_DIAMETER_MM = 1.14
 NANO_EXTRA_PADS_FROM_USB_END_MM = 26.8
 NANO_EXTRA_PADS_FROM_B_MINUS_ROW_MM = (2.54, 5.08, 7.62)
-NANO_SHELL_TAB_SLOTS_BEHIND_FRONT_MM = (2.09, 2.09 + 4.00)
-NANO_SHELL_TAB_SLOT_WIDTH_MM = 0.65
-NANO_SHELL_TAB_SLOT_LENGTH_MM = 1.70  # the longer of the drawing's two
-NANO_SHELL_TAB_SLOTS_ACROSS_MM = 11.08
 
 # The mounts' figures that wait on a caliper or the parts in hand (work
 # item 004). export_tray.py's key=value words override them for a test
-# print: the nano's length and width (the render's), the clamp's press
-# on the board and the bar's clearance over the shell, which rest on
-# them (the nano bay test strip, work items 006 and 009), and the
-# battery header's front lips (none by default, DESIGN.md says why).
+# print: the nano's length and width, the pocket's fit across the board
+# (the nano bay test strip steps it, work item 010), the clamp's press
+# on the board and the bar's clearance over the shell (work items 006
+# and 009), and the battery header's front lips (none by default,
+# DESIGN.md says why). The pocket's fit is a slip fit at the least: the
+# board lies 0.3 from the west ledge's face, 0.1 from it as printed, and
+# the wire room over the east pin row reaches to 0.045 inside the
+# board's east edge, so at the slip fit the east wall's inner face as
+# printed meets the board's east edge 0.045 clear of that room, where a
+# snug pocket's would come 0.1 inside the board and 0.055 into the room.
+NANO_POCKET_FIT_MM = SLIP_FIT_MM
 NANO_CLAMP_PRESS_MM = 0.1  # as printed
 NANO_BAR_CLEARANCE_MM = 0.1
 BATTERY_HEADER_SHOULDER_MM = 0.0
@@ -1787,6 +1798,7 @@ BATTERY_HEADER_SHOULDER_MM = 0.0
 class MountFits:
     nano_length: float = NANO_LENGTH_MM
     nano_width: float = NANO_WIDTH_MM
+    nano_pocket_fit: float = NANO_POCKET_FIT_MM
     clamp_press: float = NANO_CLAMP_PRESS_MM
     bar_clearance: float = NANO_BAR_CLEARANCE_MM
     battery_shoulder: float = BATTERY_HEADER_SHOULDER_MM
@@ -1822,7 +1834,7 @@ def nano_center_x(fits):
 
 def nano_end_gap(fits):
     """The pocket's gap at each end of the board along y, between the
-    bar's posts and the clamp's stop: the board's slip fit."""
+    north block and the clamp's foot: the board's slip fit."""
     return half_fit_gap(fits.nano_length, SLIP_FIT_MM)
 
 
@@ -1850,6 +1862,19 @@ def part_envelopes(fits=DEFAULT_MOUNT_FITS):
     return tuple(sized.get(envelope, envelope) for envelope in PART_ENVELOPES)
 
 
+def nano_ledge_cutaway(fits=DEFAULT_MOUNT_FITS):
+    """The north ledge's cut-away over the board the fits size."""
+    return ledge_cutaway(
+        "nice!nano", nano_board_envelope(fits).x_range, NORTH_EDGE_Y_OF_COLUMNS_0_AND_1_MM
+    )
+
+
+def ledge_cutaways(fits=DEFAULT_MOUNT_FITS):
+    """Every ledge cut-away, the nice!nano's over the board the fits
+    size."""
+    return (nano_ledge_cutaway(fits),) + SWITCH_AND_BUTTON_LEDGE_CUTAWAYS
+
+
 # The USB window: kbdkid4's (its scripts/export_tray.py,
 # USB_WINDOW_WIDTH_MM, USB_WINDOW_CORNER_RADIUS_MM and
 # USB_WINDOW_CHAMFER_MM, and its tray_shape.py, USB_WINDOW_HEIGHT_MM,
@@ -1858,10 +1883,11 @@ def part_envelopes(fits=DEFAULT_MOUNT_FITS):
 # overmold goes, its chamfer on the wall's outer face only. Between the
 # cavity face and the mouth the wall stands on over and beside the
 # shell, which passes it in a channel of its own: the shell's section as
-# a slip fit (the bar's posts' opening across, up to the bar's
-# underside), run on the board's end gap past the mouth. So the bar and
-# its posts reach on to the mouth, and wherever the posts let the shell
-# go, the window's corner rounds stay clear of it as printed.
+# a slip fit (the north block's opening across, up to the bar's
+# underside), run on the board's end gap past the mouth. So the wall
+# carries the north block's bar and sides on to the mouth, and wherever
+# they let the shell go, the window's corner rounds stay clear of it as
+# printed.
 USB_WINDOW_WIDTH_MM = 10.5
 USB_WINDOW_HEIGHT_MM = 4.5
 USB_WINDOW_CORNER_RADIUS_MM = 1.95
@@ -1906,16 +1932,23 @@ def usb_opening_boxes(fits=DEFAULT_MOUNT_FITS):
     return (usb_shell_channel_box(fits), usb_window_box(fits))
 
 
-# The hold-down bar over the shell's top, against the north wall's inner
-# face between the board's USB end and the wall, so it is over nothing
-# but the shell, B+ and B- included, its underside bar_clearance over
-# the shell's top as printed. It bridges between two posts on the floor
-# beside the shell, which are the board's north stop: the posts' opening
-# is the shell's slip fit, the shell plus 0.5, and their south faces lie
-# the board's end gap north of its USB end. The wall carries them on to
-# the shell's mouth (the USB window's comment).
+# The north block, one block across the pocket against the north wall's
+# inner face, between the board's USB end and the wall (work item 010,
+# the user: "make the cradle more of a heavy duty pocket in an
+# extrusion"). It reaches over the ledge cut-away's whole width, so it
+# merges with the ledge at both ends, and from the floor to the bar's
+# top. Its south face, the board's end gap north of its USB end, is the
+# board's north stop. The shell passes it in an opening of its own, the
+# shell's slip fit across (the shell plus 0.5), up to the bar's
+# underside, bar_clearance over the shell's top as printed, which the
+# shell's channel continues through the wall (the USB window's
+# comment). So the block is three boxes: its sides beside the opening
+# and the bar over it, which holds the shell down and is over nothing
+# but the shell, B+ and B- included. The block is no deeper than the
+# old bar: the board goes in nose first, its shell into the opening,
+# and its south end comes down with its USB end against the block
+# (check_layout.py's insertion check).
 NANO_BAR_HEIGHT_MM = 1.5
-NANO_BAR_POST_WIDTH_MM = 1.0
 
 
 def nano_bar_opening():
@@ -1926,86 +1959,71 @@ def nano_bar_underside_z(fits=DEFAULT_MOUNT_FITS):
     return NANO_USB_SHELL.z_range[1] + PRINT_SWELLING_PER_SIDE_MM + fits.bar_clearance
 
 
-def nano_bar_south_y(fits=DEFAULT_MOUNT_FITS):
+def nano_north_block_south_y(fits=DEFAULT_MOUNT_FITS):
     return nano_usb_end_y() + nano_end_gap(fits)
 
 
 def nano_bar_depth(fits=DEFAULT_MOUNT_FITS):
-    """The bar's depth over the shell, from its south face to the
-    shell's mouth, where the window opens."""
-    return nano_usb_shell_mouth_y() - nano_bar_south_y(fits)
+    """The bar's depth over the shell, from the block's south face to
+    the shell's mouth, where the window opens."""
+    return nano_usb_shell_mouth_y() - nano_north_block_south_y(fits)
 
 
-def nano_bar_boxes(fits=DEFAULT_MOUNT_FITS):
-    center = nano_center_x(fits)
-    half_opening = nano_bar_opening() / 2.0
-    outside = half_opening + NANO_BAR_POST_WIDTH_MM
-    y_range = (nano_bar_south_y(fits), cavity_wall_y(NORTH_EDGE_Y_OF_COLUMNS_0_AND_1_MM))
+def nano_north_block_boxes(fits=DEFAULT_MOUNT_FITS):
+    """The block's west and east sides, from the floor to the bar's top,
+    and the bar over the opening between them."""
+    low_x, high_x = nano_ledge_cutaway(fits).x_range
+    opening = centered_range(nano_center_x(fits), nano_bar_opening())
+    y_range = (nano_north_block_south_y(fits), cavity_wall_y(NORTH_EDGE_Y_OF_COLUMNS_0_AND_1_MM))
     underside = nano_bar_underside_z(fits)
+    top = underside + NANO_BAR_HEIGHT_MM
     return (
-        MountBox(
-            "hold-down bar",
-            "nice!nano",
-            (center - outside, center + outside),
-            y_range,
-            (underside, underside + NANO_BAR_HEIGHT_MM),
-        ),
-        MountBox(
-            "bar's west post",
-            "nice!nano",
-            (center - outside, center - half_opening),
-            y_range,
-            (0.0, underside),
-        ),
-        MountBox(
-            "bar's east post",
-            "nice!nano",
-            (center + half_opening, center + outside),
-            y_range,
-            (0.0, underside),
-        ),
+        MountBox("north block's west side", "nice!nano", (low_x, opening[0]), y_range, (0.0, top)),
+        MountBox("north block's east side", "nice!nano", (opening[1], high_x), y_range, (0.0, top)),
+        MountBox("north block's bar", "nice!nano", opening, y_range, (underside, top)),
     )
 
 
-# The screw clamp at the board's south end (work item 009): a tab of its
-# own print over the board's south edge, pulled down by an M2 screw into
-# an M2 heat-set insert in a boss south of the board. Nothing flexes in
-# the tray, and its floor stays closed. The boss is bored for the insert
-# down to the floor's top, like the standoffs, the floor's thickness
-# under it, and stands on a low foot that runs on north to the board:
-# the foot's north face, the board's end gap from its south end, is the
-# board's south stop. Taking the board out sets the stop's height
-# (NANO_CLAMP_STOP_HEIGHT_MM): with the tab off, the board slides south
-# over the stop once lifted at the pry recess, and a flat tip must lift
-# its south end clear of the stop with room to spare (check_layout.py).
-# Going in, the board is lowered with the shell's mouth on the floor,
-# level with its underside, so its south end comes down from the north
-# of where it rests (by its height squared over twice its distance from
-# the mouth) and no stop is in its way. Lifted at the pry it pitches
-# under the bar instead, about the shell's top, so its south end moves
-# south as it rises, within the board's play along y as printed at the
-# stop's height (DESIGN.md).
-# The boss stands with the screw NANO_CLAMP_SCREW_FROM_BOARD_END_MM
+# The screw clamp at the board's south end (work items 009 and 010): a
+# tab of its own print over the board's south edge, pulled down by an M2
+# screw into an M2 heat-set insert in the clamp block south of the
+# board. Nothing flexes in the tray, and its floor stays closed. The
+# block runs across the pocket from the west ledge's face on to the east
+# wall's outer face, NANO_CLAMP_BLOCK_DEPTH_MM along y, so it takes in
+# the standoff at NANO_MERGED_STANDOFF_MM with the foot and the east
+# wall, and is bored for the insert on the board's center line down to
+# the floor's top, like the standoffs, the floor's thickness under it.
+# A foot as tall as the board runs on north from it across the pocket
+# to the board's end gap short of its south end: its north face is the
+# board's south stop, which a board pushed south (a USB-C plug going in)
+# meets over its whole edge (the user: "Could you increase its height
+# so it it at least as high as the nano board itself?", work item 010).
+# The block stands with the screw NANO_CLAMP_SCREW_FROM_BOARD_END_MM
 # from the board's south end, so the head keeps clear of the socket
 # over the board's end in plan and the tab's arm is long enough to bend.
 #
-# The tab is a plate on the boss's top reaching NANO_CLAMP_TAB_REACH_MM
-# onto the board, with a nose under that end NANO_CLAMP_NOSE_DEPTH_MM
-# below the plate's underside. The boss's top lies the fits' clamp_press
-# under where the plate's underside would be with the nose on the
-# board's top, so tightening the screw bends the tab's arm, from the
-# head's edge to the board's edge, up by the press, which is how hard it
-# holds the board down. The boss's top and the floor's top face up in
-# the same print and rise together, and so do the plate's underside and
-# the nose's bottom, the tab printed top face down, so the press prints
-# as modelled. The tab is the same for every press, which the boss's
-# top sets. Its plan is symmetric about the board's center line, so the
-# right half takes the same tab.
-NANO_CLAMP_WIDTH_MM = STANDOFF_DIAMETER_MM  # along x: the boss, its foot and the tab
+# The tab is a plate on the block's top reaching NANO_CLAMP_TAB_REACH_MM
+# onto the board, with a nose NANO_CLAMP_NOSE_LENGTH_MM long under that
+# end, NANO_CLAMP_NOSE_DEPTH_MM below the plate's underside. The nose
+# starts far enough onto the board that its south face clears the
+# foot's as printed, both swollen toward each other (check_layout.py).
+# The block's top lies the fits' clamp_press under where the plate's
+# underside would be with the nose on the board's top, so tightening the
+# screw bends the tab's arm, from the head's edge to the nose's south
+# face, where the board pushes it up, up by the press, which is how hard
+# it holds the board down. The block's top and the floor's top face up
+# in the same print and rise together, and so do the plate's underside
+# and the nose's bottom, the tab printed top face down, so the press
+# prints as modelled. The tab is the same for every press, which the
+# block's top sets. Its plan is symmetric about the board's center line,
+# so the right half takes the same tab.
+NANO_CLAMP_TAB_WIDTH_MM = STANDOFF_DIAMETER_MM  # along x, the boss's it came with
+NANO_CLAMP_BLOCK_DEPTH_MM = STANDOFF_DIAMETER_MM  # along y, the boss's it replaces
 NANO_CLAMP_SCREW_FROM_BOARD_END_MM = 6.5
-NANO_CLAMP_STOP_HEIGHT_MM = 0.5
+NANO_CLAMP_FOOT_HEIGHT_MM = NANO_BOARD.z_range[1]  # as tall as the board
 NANO_CLAMP_TAB_THICKNESS_MM = 1.0
-NANO_CLAMP_TAB_REACH_MM = 1.0  # onto the board
+NANO_CLAMP_TAB_REACH_MM = 1.5  # onto the board
+NANO_CLAMP_NOSE_LENGTH_MM = 1.0  # along y, at the tab's north end
 NANO_CLAMP_NOSE_DEPTH_MM = 2.1  # below the plate's underside
 NANO_CLAMP_BORE_DIAMETER_MM = STANDOFF_BORE_DIAMETER_MM  # an M2 heat-set insert's, the standoffs'
 NANO_CLAMP_INSERT_LENGTH_MM = 3.0  # M2 x 3
@@ -2017,13 +2035,17 @@ NANO_CLAMP_SCREW_LENGTH_MM = 4.0  # M2 x 4, under the head
 NANO_CLAMP_SCREW_HEAD_DIAMETER_MM = 3.77
 NANO_CLAMP_SCREW_HEAD_HEIGHT_MM = 2.0
 NANO_CLAMP_SCREW_HOLE_DIAMETER_MM = printed_fit(MOUNTING_DRILL_DIAMETER_MM, SNUG_FIT_MM)
+# The standoff the clamp block, the foot and the east wall take in
+# (DESIGN.md, Mounting: moved there out from under the nice!nano).
+NANO_MERGED_STANDOFF_MM = MOUNTING_DRILL_CENTERS_MM[1]
 
 
-def nano_clamp_x_range(fits=DEFAULT_MOUNT_FITS):
-    return centered_range(nano_center_x(fits), NANO_CLAMP_WIDTH_MM)
+def nano_clamp_tab_x_range(fits=DEFAULT_MOUNT_FITS):
+    return centered_range(nano_center_x(fits), NANO_CLAMP_TAB_WIDTH_MM)
 
 
 def nano_clamp_stop_y(fits=DEFAULT_MOUNT_FITS):
+    """The foot's north face, the board's south stop."""
     return nano_south_end_y(fits) - nano_end_gap(fits)
 
 
@@ -2032,27 +2054,28 @@ def nano_clamp_screw_center(fits=DEFAULT_MOUNT_FITS):
     return (nano_center_x(fits), nano_south_end_y(fits) - NANO_CLAMP_SCREW_FROM_BOARD_END_MM)
 
 
-def nano_clamp_boss_top_z(fits=DEFAULT_MOUNT_FITS):
+def nano_clamp_block_top_z(fits=DEFAULT_MOUNT_FITS):
     return NANO_BOARD.z_range[1] + NANO_CLAMP_NOSE_DEPTH_MM - fits.clamp_press
 
 
 def nano_clamp_boxes(fits=DEFAULT_MOUNT_FITS):
-    """The boss, square about the screw's axis, and its foot, from the
-    boss on to the stop."""
-    x_range = nano_clamp_x_range(fits)
-    boss_y = centered_range(nano_clamp_screw_center(fits)[1], NANO_CLAMP_WIDTH_MM)
+    """The block, from the west ledge's face to the east wall's outer
+    face about the screw's axis, and the foot, from the block on to the
+    stop across the pocket."""
+    block_y = centered_range(nano_clamp_screw_center(fits)[1], NANO_CLAMP_BLOCK_DEPTH_MM)
+    west = west_ledge_face_x()
     return (
-        MountBox("clamp's boss", "nice!nano", x_range, boss_y,
-                 (0.0, nano_clamp_boss_top_z(fits))),
-        MountBox("clamp's stop", "nice!nano", x_range, (boss_y[1], nano_clamp_stop_y(fits)),
-                 (0.0, NANO_CLAMP_STOP_HEIGHT_MM)),
+        MountBox("clamp's block", "nice!nano", (west, nano_east_wall_outer_x()), block_y,
+                 (0.0, nano_clamp_block_top_z(fits))),
+        MountBox("clamp's foot", "nice!nano", (west, nano_pocket_east_x(fits)),
+                 (block_y[1], nano_clamp_stop_y(fits)), (0.0, NANO_CLAMP_FOOT_HEIGHT_MM)),
     )
 
 
 def nano_clamp_insert_room(fits=DEFAULT_MOUNT_FITS):
-    """The bore's depth under the boss's top as printed, its bottom,
+    """The bore's depth under the block's top as printed, its bottom,
     which faces up, counted higher."""
-    return nano_clamp_boss_top_z(fits) - PRINT_RISE_OF_UP_FACING_BOTTOMS_MM
+    return nano_clamp_block_top_z(fits) - PRINT_RISE_OF_UP_FACING_BOTTOMS_MM
 
 
 def nano_clamp_tab_thickness(printed=True):
@@ -2061,21 +2084,25 @@ def nano_clamp_tab_thickness(printed=True):
 
 
 def nano_clamp_tab_y_range(fits=DEFAULT_MOUNT_FITS):
-    """From the boss's south face to the tab's reach onto the board."""
+    """From the block's south face to the tab's reach onto the board."""
     south = nano_clamp_boxes(fits)[0].y_range[0]
     return (south, nano_south_end_y(fits) + NANO_CLAMP_TAB_REACH_MM)
 
 
+def nano_clamp_nose_y_range(fits=DEFAULT_MOUNT_FITS):
+    north = nano_clamp_tab_y_range(fits)[1]
+    return (north - NANO_CLAMP_NOSE_LENGTH_MM, north)
+
+
 def nano_clamp_tab_boxes(fits=DEFAULT_MOUNT_FITS):
-    """The tab as modelled, seated on the boss's top: its plate and its
+    """The tab as modelled, seated on the block's top: its plate and its
     nose, which reaches the press below the board's top."""
-    x_range = nano_clamp_x_range(fits)
-    top = nano_clamp_boss_top_z(fits)
-    tab_y = nano_clamp_tab_y_range(fits)
+    x_range = nano_clamp_tab_x_range(fits)
+    top = nano_clamp_block_top_z(fits)
     return (
-        MountBox("clamp tab's plate", "nice!nano", x_range, tab_y,
+        MountBox("clamp tab's plate", "nice!nano", x_range, nano_clamp_tab_y_range(fits),
                  (top, top + NANO_CLAMP_TAB_THICKNESS_MM)),
-        MountBox("clamp tab's nose", "nice!nano", x_range, (nano_south_end_y(fits), tab_y[1]),
+        MountBox("clamp tab's nose", "nice!nano", x_range, nano_clamp_nose_y_range(fits),
                  (top - NANO_CLAMP_NOSE_DEPTH_MM, top)),
     )
 
@@ -2083,11 +2110,11 @@ def nano_clamp_tab_boxes(fits=DEFAULT_MOUNT_FITS):
 def nano_clamp_part_boxes(fits=DEFAULT_MOUNT_FITS):
     """The tab and the screw's head where they sit with the tab on the
     board, which bends its arm up by the press: the plate from the
-    boss's top to its top as printed, the press over it, the nose from
+    block's top to its top as printed, the press over it, the nose from
     the board's top to the plate, and the head, its bounding box, on the
-    plate as printed, which the screw holds on the boss's top."""
-    x_range = nano_clamp_x_range(fits)
-    top = nano_clamp_boss_top_z(fits)
+    plate as printed, which the screw holds on the block's top."""
+    x_range = nano_clamp_tab_x_range(fits)
+    top = nano_clamp_block_top_z(fits)
     board_top = NANO_BOARD.z_range[1]
     nose_top = board_top + NANO_CLAMP_NOSE_DEPTH_MM
     head_bottom = top + nano_clamp_tab_thickness()
@@ -2095,8 +2122,7 @@ def nano_clamp_part_boxes(fits=DEFAULT_MOUNT_FITS):
     return (
         MountBox("clamp tab's plate", "nice!nano", x_range, nano_clamp_tab_y_range(fits),
                  (top, nose_top + nano_clamp_tab_thickness())),
-        MountBox("clamp tab's nose", "nice!nano", x_range,
-                 (nano_south_end_y(fits), nano_clamp_tab_y_range(fits)[1]),
+        MountBox("clamp tab's nose", "nice!nano", x_range, nano_clamp_nose_y_range(fits),
                  (board_top, nose_top)),
         MountBox("clamp screw's head", "nice!nano",
                  centered_range(x, NANO_CLAMP_SCREW_HEAD_DIAMETER_MM),
@@ -2107,21 +2133,23 @@ def nano_clamp_part_boxes(fits=DEFAULT_MOUNT_FITS):
 
 def nano_clamp_arm_length():
     """The tab's arm that bends, from the head's edge, where the screw
-    holds the plate on the boss, to the board's south edge, where the
-    nose bears on the board as the arm bends up."""
-    return NANO_CLAMP_SCREW_FROM_BOARD_END_MM - NANO_CLAMP_SCREW_HEAD_DIAMETER_MM / 2.0
+    holds the plate on the block, to the nose's south face, where the
+    board pushes the arm up as it bends."""
+    nose_south_from_screw = (NANO_CLAMP_SCREW_FROM_BOARD_END_MM + NANO_CLAMP_TAB_REACH_MM
+                             - NANO_CLAMP_NOSE_LENGTH_MM)
+    return nose_south_from_screw - NANO_CLAMP_SCREW_HEAD_DIAMETER_MM / 2.0
 
 
 def nano_clamp_strain(fits=DEFAULT_MOUNT_FITS, printed=True):
     """The arm's bending strain at the head's edge, bent up by the press
-    at the board's edge."""
+    at the nose's south face."""
     return cantilever_strain(
         fits.clamp_press, nano_clamp_tab_thickness(printed), nano_clamp_arm_length()
     )
 
 
 def nano_clamp_screw_reach(fits=DEFAULT_MOUNT_FITS):
-    """How far the screw reaches into the bore below the boss's top."""
+    """How far the screw reaches into the bore below the block's top."""
     return NANO_CLAMP_SCREW_LENGTH_MM - nano_clamp_tab_thickness()
 
 
@@ -2139,50 +2167,38 @@ def nano_free_middle_x_range(fits=DEFAULT_MOUNT_FITS):
     return (nano_west_x() + clear, nano_east_x(fits) - clear)
 
 
-# The east ribs: low ribs along the board's east edge, touching only its
-# side face, the board's width a slip fit between them and the west
-# ledge's face, near both ends of the board. They are 1.0 thick as
-# printed, so the north rib keeps out of the PCB connector's zone as
-# printed.
-NANO_RIB_HEIGHT_MM = 1.0
-NANO_RIB_THICKNESS_MM = 0.6
-NANO_RIB_LENGTH_MM = 3.0
-NANO_RIB_FROM_BOARD_ENDS_MM = 2.0
+# The east wall along the board's east edge (work item 010, the user:
+# "Make them tall, thick walls that really cover the nano"): one body
+# from the pocket's east face, the board's width as the pocket's fit
+# from the west ledge's face, to the battery's northwest rib's inner
+# face, so that rib merges into it, NANO_EAST_WALL_HEIGHT_MM tall (the
+# proposal the user accepted, doc/log/2026-10-19.md), from the clamp's
+# block north to where its north face as printed meets the PCB
+# connector's zone, which keeps tray features out above the floor. North
+# of that the board's east edge has no wall.
+NANO_EAST_WALL_HEIGHT_MM = 4.0
 
 
-def nano_rib_face_x(fits=DEFAULT_MOUNT_FITS):
-    return west_ledge_face_x() + printed_fit(fits.nano_width, SLIP_FIT_MM)
+def nano_pocket_east_x(fits=DEFAULT_MOUNT_FITS):
+    """The pocket's east face, the east wall's inner face."""
+    return west_ledge_face_x() + printed_fit(fits.nano_width, fits.nano_pocket_fit)
 
 
-def nano_rib_boxes(fits=DEFAULT_MOUNT_FITS):
-    face = nano_rib_face_x(fits)
-    x_range = (face, face + NANO_RIB_THICKNESS_MM)
-    z_range = (0.0, NANO_RIB_HEIGHT_MM)
-    south = nano_south_end_y(fits) + NANO_RIB_FROM_BOARD_ENDS_MM
-    north = nano_usb_end_y() - NANO_RIB_FROM_BOARD_ENDS_MM
-    return (
-        MountBox("nice!nano's south rib", "nice!nano", x_range,
-                 (south, south + NANO_RIB_LENGTH_MM), z_range),
-        MountBox("nice!nano's north rib", "nice!nano", x_range,
-                 (north - NANO_RIB_LENGTH_MM, north), z_range),
-    )
+def nano_east_wall_outer_x():
+    """The east wall's outer face, the battery's northwest rib's inner
+    face."""
+    return battery_rib_pocket()[0][0]
 
 
-# The solder grooves in the floor under the board: each over the
-# features' extents by the render's figures, grown by its uncertainty,
-# as a slip fit, NANO_GROOVE_DEPTH_MM deep.
-NANO_GROOVE_DEPTH_MM = 0.4
+def nano_east_wall_box(fits=DEFAULT_MOUNT_FITS):
+    south = nano_clamp_boxes(fits)[0].y_range[1]
+    north = PCB_CONNECTOR_CLEAR_ZONE.y_range[0] - PRINT_SWELLING_PER_SIDE_MM
+    return MountBox("east wall", "nice!nano", (nano_pocket_east_x(fits), nano_east_wall_outer_x()),
+                    (south, north), (0.0, NANO_EAST_WALL_HEIGHT_MM))
 
 
-def nano_groove_box(label, x_range, y_range):
-    grow = NANO_RENDER_UNCERTAINTY_MM + half_fit_gap(0.0, SLIP_FIT_MM)
-    return MountBox(
-        label,
-        "nice!nano",
-        grown_range(x_range, grow),
-        grown_range(y_range, grow),
-        (-NANO_GROOVE_DEPTH_MM, 0.0),
-    )
+# The pads' extents, which the wire rooms over the board cover
+# (nano_wire_rooms()).
 
 
 def nano_row_x_range(fits, west):
@@ -2208,7 +2224,7 @@ def nano_row_y_range():
 def nano_extra_pads_x_range(fits=DEFAULT_MOUNT_FITS, right=False):
     """The P1.01/P1.02/P1.07 pads across x, on the B- row's side: the
     west on the left half and, in the left half's frame, the east on the
-    right one (the section's comment)."""
+    right one (the comment on the nice!nano's figures)."""
     pad = NANO_PIN_PAD_DIAMETER_MM / 2.0
     near_inset, far_inset = min(NANO_ROW_INSETS_MM), max(NANO_ROW_INSETS_MM)
     nearest = min(NANO_EXTRA_PADS_FROM_B_MINUS_ROW_MM)
@@ -2226,131 +2242,58 @@ def nano_extra_pads_y_range():
     )
 
 
-def nano_shell_tab_x_ranges(fits=DEFAULT_MOUNT_FITS):
-    """(west, east) slots' extents across x, over both readings of the
-    drawing's 11.08."""
-    center = nano_center_x(fits)
-    half = NANO_SHELL_TAB_SLOTS_ACROSS_MM / 2.0
-    inside = half - NANO_SHELL_TAB_SLOT_WIDTH_MM  # across the slots' outsides
-    outside = half + NANO_SHELL_TAB_SLOT_WIDTH_MM / 2.0  # between their centers
-    return ((center - outside, center - inside), (center + inside, center + outside))
 
 
-def nano_shell_tab_y_range():
-    front = NANO_USB_SHELL.y_range[1]
-    nearest, farthest = min(NANO_SHELL_TAB_SLOTS_BEHIND_FRONT_MM), max(
-        NANO_SHELL_TAB_SLOTS_BEHIND_FRONT_MM
-    )
-    half = NANO_SHELL_TAB_SLOT_LENGTH_MM / 2.0
-    return (front - farthest - half, front - nearest + half)
-
-
-def nano_groove_boxes(fits=DEFAULT_MOUNT_FITS, right=False):
-    rows = nano_row_y_range()
-    west_tabs, east_tabs = nano_shell_tab_x_ranges(fits)
-    tabs = nano_shell_tab_y_range()
-    return (
-        nano_groove_box("west pin row's groove", nano_row_x_range(fits, True), rows),
-        nano_groove_box("east pin row's groove", nano_row_x_range(fits, False), rows),
-        nano_groove_box(
-            "P1.01/P1.02/P1.07 groove",
-            nano_extra_pads_x_range(fits, right),
-            nano_extra_pads_y_range(),
-        ),
-        nano_groove_box("west tab slots' groove", west_tabs, tabs),
-        nano_groove_box("east tab slots' groove", east_tabs, tabs),
-    )
-
-
-# The pry recess, so the board can be taken out: a pocket in the floor's
-# top along the board's east edge, open upward. A flat tool tip (a
-# spudger, a small flat screwdriver) comes in from the east low over the
-# floor, goes down into it beside the board, slides under the board and,
-# levered on the recess's east edge, lifts the board's east side, which
-# pitches the board about the shell's mouth under the bar and lifts its
-# south end, with the clamp's tab taken off, over the clamp's stop, so
-# the board slides south from under the bar and out. The tip crosses
-# only floor on its way there north of the battery: the recess lies
-# NANO_PRY_RECESS_FROM_RIB_MM north of the battery's northwest rib, as
-# far south as the battery allows, since the farther the pry is from the
-# shell's mouth, the less it takes to lift the board's south end.
-# Across, it is the slip fit of a NANO_PRY_TOOL_WIDTH_MM tip. As printed
-# it reaches
-# NANO_PRY_RECESS_UNDER_BOARD_MM under the board, the reach a straight
-# tip NANO_PRY_TOOL_THICKNESS_MM thick gets at the slopes the tray's
-# walls leave it (check_layout.py works them out), and
-# NANO_PRY_RECESS_BESIDE_BOARD_MM beside it, so the tip at the shallowest
-# of those slopes passes over the recess's east edge. Under the board it
-# stays inside the east pin row's groove, which it runs into, and the
-# strip of floor between that groove and the board's edge, so the board
-# lies flat on the floor it had but that strip. NANO_PRY_RECESS_DEPTH_MM
-# deep, it leaves 0.4 of floor under it, which is counted where it is
-# modelled, and leaves the tip room NANO_PRY_RECESS_DEPTH_MM less
-# PRINT_RISE_OF_UP_FACING_BOTTOMS_MM as printed: 0.2 to tilt in under the
-# board's underside.
-NANO_PRY_TOOL_WIDTH_MM = 4.0
-NANO_PRY_TOOL_THICKNESS_MM = 0.4
-NANO_PRY_RECESS_UNDER_BOARD_MM = 1.0  # as printed
-NANO_PRY_RECESS_BESIDE_BOARD_MM = 4.0  # as printed
-NANO_PRY_RECESS_FROM_RIB_MM = 0.5
+# The pry slot and recess (work item 010, the user's request once the
+# foot stood as tall as the board: "Can you open up a 5 mm pry slot in
+# the south wall with a pry recess in the floor to go along with it? So
+# I can pry with e.g. a toothpick"). The slot runs through the clamp's
+# block and foot, NANO_PRY_SLOT_WIDTH_MM across from
+# NANO_PRY_SLOT_FROM_LEDGE_MM east of the west ledge's face, west of the
+# screw, from the floor up through their tops. The recess runs under the
+# slot's whole length in the floor's top, from the block's south face to
+# NANO_PRY_RECESS_UNDER_BOARD_MM under the board's south end,
+# NANO_PRY_RECESS_DEPTH_MM deep, so a toothpick 2.0 across lies low
+# enough to get its tapered point under the board's edge
+# (check_layout.py works out how far). With the tab off, the toothpick
+# slides in from the south through the slot and lifts the board's south
+# edge. Taking the board's weight at its middle, a lift there takes
+# about 0.51 of it to tip the board about its north end (the shell's
+# mouth, 17.52 from the middle and 34.17 from the south edge) and 0.61
+# about its east edge (9.15 from the middle, 15.1 from the slot's
+# middle), so the board pitches rather than rolls, its whole south end
+# comes up over the foot, and it slides south out of the shell's
+# channel.
+NANO_PRY_SLOT_WIDTH_MM = 5.0
+NANO_PRY_SLOT_FROM_LEDGE_MM = 1.0
+NANO_PRY_RECESS_UNDER_BOARD_MM = 2.0
 NANO_PRY_RECESS_DEPTH_MM = 0.8
+# The toothpick check_layout.py fits in: 2.0 across, tapering to its
+# point over its last 5.0.
+NANO_PRY_TOOTHPICK_DIAMETER_MM = 2.0
+NANO_PRY_TOOTHPICK_TAPER_MM = 5.0
 
 
-def battery_northwest_rib_along_x():
-    return next(box for box in battery_rib_boxes()
-                if box.label == "battery's northwest rib along x")
+def nano_pry_slot_x_range():
+    west = west_ledge_face_x() + NANO_PRY_SLOT_FROM_LEDGE_MM
+    return (west, west + NANO_PRY_SLOT_WIDTH_MM)
+
+
+def nano_pry_slot_box(fits=DEFAULT_MOUNT_FITS):
+    """The slot through the clamp's block and foot, from the floor to
+    the block's top."""
+    block, foot = nano_clamp_boxes(fits)
+    return MountBox("pry slot", "nice!nano", nano_pry_slot_x_range(),
+                    (block.y_range[0], foot.y_range[1]), (0.0, block.z_range[1]))
 
 
 def nano_pry_recess_box(fits=DEFAULT_MOUNT_FITS):
-    east = nano_east_x(fits)
-    under, beside = NANO_PRY_RECESS_UNDER_BOARD_MM, NANO_PRY_RECESS_BESIDE_BOARD_MM
-    south = battery_northwest_rib_along_x().y_range[1] + NANO_PRY_RECESS_FROM_RIB_MM
-    return MountBox(
-        "pry recess",
-        "nice!nano",
-        grown_range((east - under, east + beside), half_fit_gap(under + beside, SNUG_FIT_MM)),
-        (south, south + printed_fit(NANO_PRY_TOOL_WIDTH_MM, SLIP_FIT_MM)),
-        (-NANO_PRY_RECESS_DEPTH_MM, 0.0),
-    )
-
-
-def nano_pry_tool_room():
-    """The room the recess leaves the tip under the board's underside as
-    printed, its up-facing bottom counted higher."""
-    return NANO_PRY_RECESS_DEPTH_MM - PRINT_RISE_OF_UP_FACING_BOTTOMS_MM
-
-
-# The leverage (DESIGN.md): lifted at the pry, north of its middle, the
-# board first pivots on its south end until the shell's top meets the
-# bar, the bar's clearance over it as printed. From there it pitches
-# about the shell's mouth, where the bar holds it down, so a further
-# lift at the pry's middle lifts the board's south end, which must clear
-# the clamp's stop, by the ratio of their distances from the mouth.
-def nano_pry_lever_ratio(fits=DEFAULT_MOUNT_FITS):
-    pivot = nano_usb_shell_mouth_y()
-    pry = sum(nano_pry_recess_box(fits).y_range) / 2.0
-    return (pivot - nano_south_end_y(fits)) / (pivot - pry)
-
-
-def nano_release_lift():
-    """How far the board's south end must rise for its underside to
-    clear the clamp's stop and slide south over it, the stop's top and
-    the floor's top both facing up in the print."""
-    return NANO_CLAMP_STOP_HEIGHT_MM
-
-
-def nano_pry_lift_to_release(fits=DEFAULT_MOUNT_FITS):
-    """The lift at the pry's middle that brings the board's south end
-    up to the clamp's stop's top."""
-    clearance = fits.bar_clearance
-    return clearance + (nano_release_lift() - clearance) / nano_pry_lever_ratio(fits)
-
-
-def nano_pry_south_end_lift(fits=DEFAULT_MOUNT_FITS):
-    """How far a flat tip, lifting the board its thickness at the pry,
-    lifts the board's south end."""
-    clearance = fits.bar_clearance
-    return clearance + (NANO_PRY_TOOL_THICKNESS_MM - clearance) * nano_pry_lever_ratio(fits)
+    """The recess in the floor under the slot and the board's south
+    end."""
+    south = nano_clamp_boxes(fits)[0].y_range[0]
+    north = nano_south_end_y(fits) + NANO_PRY_RECESS_UNDER_BOARD_MM
+    return MountBox("pry recess", "nice!nano", nano_pry_slot_x_range(), (south, north),
+                    (-NANO_PRY_RECESS_DEPTH_MM, 0.0))
 
 
 # The power switch: its lever's slot through the north wall, its swept
@@ -2594,17 +2537,20 @@ def battery_rib_boxes():
     return tuple(boxes)
 
 
+def nano_bodies(fits=DEFAULT_MOUNT_FITS):
+    return nano_north_block_boxes(fits) + nano_clamp_boxes(fits) + (nano_east_wall_box(fits),)
+
+
 def mount_bodies(fits=DEFAULT_MOUNT_FITS):
     """Every box of plastic the mounts add, in the order the tray
-    builder fuses them."""
+    builder fuses them: the nice!nano's last, since its east wall takes
+    in the battery's northwest rib."""
     return (
-        nano_bar_boxes(fits)
-        + nano_clamp_boxes(fits)
-        + nano_rib_boxes(fits)
-        + power_switch_cradle_boxes()
+        power_switch_cradle_boxes()
         + reset_back_wall_boxes()
         + battery_pocket_boxes(fits)
         + battery_rib_boxes()
+        + nano_bodies(fits)
     )
 
 
@@ -2615,19 +2561,20 @@ def wall_openings(fits=DEFAULT_MOUNT_FITS):
     return (usb_opening_boxes(fits), (power_switch_lever_slot_box(),), (reset_pin_hole_box(),))
 
 
-def mount_voids(fits=DEFAULT_MOUNT_FITS, right=False):
+def mount_voids(fits=DEFAULT_MOUNT_FITS):
     """Every box the mounts cut, the window and the pin hole as their
-    bounding boxes, in the order the tray builder cuts them. The clamp's
-    insert bore is left out: it lies in the clamp's boss, like a
-    standoff's in the standoff."""
+    bounding boxes, in the order the tray builder cuts them: the
+    openings through the wall, the pry slot through the clamp's block
+    and foot, the floor's voids. The clamp's insert bore is left out: it
+    lies in the clamp's block, like a standoff's in the standoff."""
     openings = tuple(box for opening in wall_openings(fits) for box in opening)
-    return openings + nano_floor_voids(fits, right)
+    return openings + (nano_pry_slot_box(fits),) + floor_voids(fits)
 
 
-def nano_floor_voids(fits=DEFAULT_MOUNT_FITS, right=False):
-    """The nice!nano's voids in the floor, in the order the tray builder
-    cuts them: the solder grooves and the pry recess."""
-    return nano_groove_boxes(fits, right) + (nano_pry_recess_box(fits),)
+def floor_voids(fits=DEFAULT_MOUNT_FITS):
+    """The voids in the floor's top, in the order the tray builder cuts
+    them: the nice!nano's pry recess."""
+    return (nano_pry_recess_box(fits),)
 
 
 # The room the wires need (DESIGN.md: wires need room behind every

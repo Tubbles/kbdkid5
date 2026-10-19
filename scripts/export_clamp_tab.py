@@ -2,12 +2,12 @@
 (work item 009).
 
 tray_shape.py's build_clamp_tab() builds the tab from layout.py: a
-plate on the clamp's boss reaching onto the board's south end, a nose
-under that end that bears on the board, and the M2 screw's hole
-through the plate. The tab is symmetric about the board's center line,
-so one tab serves both halves, and its shape is the same whatever the
-clamp presses, since the boss's top sets the press, so the nice!nano
-bay test strip's three bays take it too.
+plate on the clamp's block reaching onto the board's south end, a nose
+under that end that bears on the board beside the clamp's foot, and
+the M2 screw's hole through the plate. The tab is symmetric about the
+board's center line, so one tab serves both halves, and its shape is
+the same whatever the clamp presses, since the block's top sets the
+press, so the nice!nano bay test strip's three bays take it too.
 
 This script measures the tab against DESIGN.md's figures, which it
 transcribes itself (the DESIGN_* constants below), turns it over, so
@@ -35,7 +35,7 @@ from tray_shape import UP, build_clamp_tab
 # DESIGN.md's figures, transcribed independently of layout.py, each
 # compared within half its last digit.
 DESIGN_TAB_WIDTH_MM = 5.8  # along x
-DESIGN_TAB_LENGTH_MM = 10.4  # along y, from the boss's south face to 1.0 onto the board
+DESIGN_TAB_LENGTH_MM = 10.9  # along y, from the block's south face to 1.5 onto the board
 DESIGN_TAB_THICKNESS_MM = 1.0  # the plate, as modelled
 DESIGN_NOSE_LENGTH_MM = 1.0  # along y, at the tab's north end
 DESIGN_NOSE_DEPTH_MM = 2.1  # below the plate's underside

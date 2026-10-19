@@ -14,7 +14,7 @@ Downloads (datasheets, renders, pages) are in `work/research/downloads/<name>/`.
 
 | Item | Recommendation | Key dimensions |
 |---|---|---|
-| 1. nice!nano v2 | Grip the far (antenna) end and the USB shell, not the long edges | about 33.3 x 18.0 board, 1.6 PCB, USB-C shell 8.94 x 3.16, flush with the underside, about 0.9 past the board end (derived) |
+| 1. nice!nano v2 | Grip the far (antenna) end and the USB shell, not the long edges | 18.30 x 34.17 with the USB shell (the user's caliper), the board about 33.3 long, 1.6 PCB, USB-C shell 8.94 x 3.16, flush with the underside, about 0.9 past the board end (derived) |
 | 2. Power switch | SOFNG SS-12D00-G3 (or G4), vertical through hole SPDT | body 8.8 x 3.9 x 3.5, lever 1.5 x 1.5 x 3 (G3), 2 travel, 3 pins 3.0 long at 2.5 pitch, 0.5 A 24 VDC |
 | 3. Reset button | C&K PTS636 SL43 LFS, 6 x 3.5 top actuated, 2 through-hole leads, laid on its side, pressed through a pin hole | body 6.0 x 3.5 x 3.3, 4.3 to stem top, leads 3.9 long at 6.4 pitch, 130 gf, 0.25 travel |
 | 4. Battery connector | JST PH 2.0 mm, B2B-PH-K-S (top entry) laid on its side in a pocket, wires on the posts | 5.9 x 4.5 x 6.0 body, posts 3.4, mated length 8 |
@@ -58,7 +58,7 @@ Cross-checks:
 - The kbdkid4 package model (`kbdkid4/library/pkg/e86c9147-c7a4-4cf8-9447-455cd70fafbc/`, STEP "nice!nano v2.step", exported 2025-01-29 by Autodesk Translation Framework, origin not recorded) has a 33.2 x 17.8 x 1.4 PCB (probed with FreeCAD this session). The kbdkid4 scripts already record that the model is wrong in thickness (1.4 vs the measured 1.6) and in the receptacle height (`kbdkid4/scripts/export_tray.py` lines 198 to 205).
 - kbdkid4's `MCU_USB_END_OFFSET_MM = 18.7` (connector end from the centre of the pin rows, `kbdkid4/scripts/tray_shape.py`) agrees with the render: 3.91 + 13.97 + 0.87 = 18.75.
 
-The render and the drawn footprints disagree by about 0.3 in length and 0.2 in width. A caliper on a real board settles it in a minute; until then design the pocket for 33.3 x 18.0 plus clearance.
+The render and the drawn footprints disagree by about 0.3 in length and 0.2 in width. The user's caliper on a real board (doc/log/2026-10-19.md): "The nano measures, with the usb connector included: 18.30 x 34.17". The width is 0.3 over the render's 18.0. The length is the render's 33.3 board plus its 0.87 of shell to within 0.01, so the board alone is taken as 33.3 (Derived: the board's length without the shell has not been calipered). The pocket is designed for 18.30 x 33.3 plus clearance.
 
 ### Thickness and the USB-C receptacle
 
@@ -77,7 +77,7 @@ The schematic's part C168688 is the Jing Extension (Shenzhen Jing Tuo Jin) 918-4
 
 Cross-check against the owner's measurement: the feet sit on the board's top copper and the shell sinks through a cutout. With the measured 1.6 board, one face of the shell lies 1.6 from the foot plane and the other 1.56, so the shell ends within 0.04 of the underside (flush) and stands 1.56 to 1.6 above the top side. Total 3.16 to 3.2, which matches the vendor's "3.2mm total thickness". This supports the owner's numbers (1.6 PCB, flush shell, 3.16 shell, about 1.56 above the top). The kbdkid4 model's receptacle ("usb4520-03-0-a v1", a different part) straddles the board and is inconsistent with this drawing.
 
-Not confirmed: whether the shell's four tabs or their solder protrude below the underside. The render shows the four plated slots on the underside; the owner measured the shell flush. Leave a shallow relief in the tray floor under the slots (about 1.2 x 2.0 each at the slot positions above) unless a caliper shows them flush.
+Whether the shell's four tabs or their solder protrude below the underside was open: the render shows the four plated slots on the underside, and the owner measured the shell flush. The user settled it on a real board: "the nano is absolutely flat on its underside. There is nothing sticking out downwards" (doc/log/2026-10-19.md). So the tray floor under it is flat, with no relief under the slots.
 
 ### Top side parts
 
@@ -100,7 +100,7 @@ Not confirmed: whether the shell's four tabs or their solder protrude below the 
 - Far (antenna) end, top side: free of parts from about 27.5 to 33.3 from the USB end, across the middle 13.7 between the pads of the last pin of each row (18.0 minus 2 x (1.37 row inset + 0.77 pad radius)). A hook lip there can reach up to about 5 onto the top face without touching a pad, a part or a solder joint. Plastic over a PCB antenna detunes it a little; keep the lip small (Unconfirmed: general RF practice, not measured).
 - USB end: the metal shell stands 1.56 above the top face across 8.94. The north wall's USB window can bear down on the shell top and hold that end down; no pads or parts are touched. B+ and B- sit at the two corners of this end, 1.38 from the edge, and will carry soldered wires: no lips at those corners.
 - Long edges: pads every 2.54 along the whole length; the strip outside the pads is only about 0.6 wide (1.37 inset minus 0.77 pad radius), and the gaps between pads about 1.0. With wires soldered on top, no lips here; locate the long edges with plain side walls.
-- Underside: flat except the pads. Wires soldered from the top fill the plated holes, and the solder can bulge slightly on the underside pads (Unconfirmed: not measured). If the board must lie fully flat on the floor, add shallow grooves in the floor under the two pin rows and under B+/B- and P1.xx.
+- Underside: flat, with nothing below it. The user on a real board: "the nano is absolutely flat on its underside. There is nothing sticking out downwards" (doc/log/2026-10-19.md). The shallow grooves this note once suggested under the two pin rows and under B+/B- and P1.xx were printed in the first nice!nano bay test strip and removed as unnecessary.
 
 ## 2. Power switch
 
@@ -283,9 +283,8 @@ Kailh CPG135001S30, the Choc v1 hotswap socket. Source: Kailh's product specific
 
 ## Not confirmed
 
-- nice!nano outline (33.3 x 18.0) and every pad position: measured on the manufacturer's render, ±0.1, not on a drawing or a board. Footprints say 33.02 x 17.78, the kbdkid4 model 33.2 x 17.8. A caliper settles it.
+- nice!nano board length (33.3) and every pad position: measured on the manufacturer's render, ±0.1, not on a drawing or a board. The user's caliper gives 18.30 x 34.17 with the shell, so the width is measured and only the board's length alone is inferred (34.17 less the render's 0.87 of shell). The pads' insets were measured from the long edges of the render's 18.0 board and have not been measured on the 18.30 board. Footprints say 33.02 x 17.78, the kbdkid4 model 33.2 x 17.8.
 - That every nice!nano v2 uses the C168688 receptacle: from the schematic label; the render's shell width (8.91) and tab spacing (4.02) agree with its drawing.
-- Whether the USB shell tabs or solder protrude below the nano's underside, and how far solder from top-side wiring bulges on the underside pads.
 - The nano's finished hole size (render shows about 0.83).
 - Heights of the nRF52840 (about 0.85 from distributors), LEDs, inductors and crystals; that the antenna is a PCB trace at the far end.
 - That plastic over the antenna end detunes it only a little.
