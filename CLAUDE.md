@@ -36,20 +36,19 @@ There is no PCB design yet (the user does it later in LibrePCB). Until then `scr
 
 ## Running the exports
 
-Locally this machine has podman, not docker:
+The FreeCAD exports run in CI only, never locally (the user, 2026-10-20: "change it so all freedcad export are done in CI, never locally"). To see an export, push and read its job's log. `check_layout.py` is plain Python and runs locally:
 
-    podman build -t freecad-headless -f scripts/freecad.Dockerfile scripts
-    podman run --rm -v "$PWD":/work -w /work freecad-headless freecadcmd scripts/<script>.py --pass <out.stl> [words]
     python3 scripts/check_layout.py
 
-The freecadcmd quirks (exit codes swallowed, `__name__` set to the file stem, scripts run twice, dash arguments intercepted even after `--pass`, hence `key=value` words and `os._exit` through `run_and_exit`) are documented in the module docstring of `scripts/freecad_common.py`. Read it before writing a FreeCAD script here. The machine has 8 GB RAM: run at most two FreeCAD containers at once.
+The freecadcmd quirks (exit codes swallowed, `__name__` set to the file stem, scripts run twice, dash arguments intercepted even after `--pass`, hence `key=value` words and `os._exit` through `run_and_exit`) are documented in the module docstring of `scripts/freecad_common.py`. Read it before writing a FreeCAD script here.
 
 ## Conventions
 
 - Commit and push completed changes without asking. Keep commits small and focused.
-- Test prints come first: the printer idling is the loop's bottleneck. Commit and push a test print (strip, mock, test piece) as soon as its export passes its own checks, since the user fetches STLs from CI's artifacts, then review and document while it prints, and put review findings into the next print. Brief the implementer for that code change and that one export alone, with a report as soon as it passes; the docs, the other parts' re-exports and the byte comparisons follow the push in a second commit. Scope a test print's work item to the printable: a shared change that pulls in the trays or plates is its own item. Verify with the export's checks and quick B-rep probes, never by turning STL meshes back into solids (one such probe ran over 13 minutes).
+- Test prints come first: the printer idling is the loop's bottleneck. Commit and push a test print (strip, mock, test piece) as soon as its change is ready and `check_layout.py` passes, since the user fetches STLs from CI's artifacts and CI runs the export with its own checks. Then review and document while it prints, and put review findings into the next print. Brief the implementer for that code change alone; the docs follow the push in a second commit. Scope a test print's work item to the printable: a shared change that pulls in the trays or plates is its own item. Verify with the export's checks, and put any probe of the geometry into the export script so it prints in the CI log. Never turn STL meshes back into solids (one such probe ran over 13 minutes).
 - `tmp/` is scratch space, `work/` holds untracked notes and downloads (the research's datasheets are in `work/research/downloads/`). Neither is committed.
-- Test any change to an export script by running it in the container and checking the exit code; freecadcmd hides Python failures unless the script exits through `run_and_exit`.
-- To inspect geometry beyond the exit code: `freecad_common.py`, `tray_shape.py`, `plate_shape.py`, `pcb_shape.py`, `socket_test_shape.py` and `layout.py` import normally (put `scripts/` on `sys.path`), but the export scripts must be exec'd with their trailing `run_and_exit(main)` line stripped and `__file__` predefined (a plain import would run main and `os._exit` the interpreter). Then drive their functions directly.
+- Test any change to an export script by pushing it and reading its CI job's result; freecadcmd hides Python failures unless the script exits through `run_and_exit`.
+- Never export, or compare exports, to prove a part unchanged. The user, 2026-10-20, on that check: "I actually think its completely redundant, so let's remove it".
+- `layout.py` imports normally without FreeCAD (put `scripts/` on `sys.path`), as `check_layout.py` does. The FreeCAD modules (`freecad_common.py`, `tray_shape.py`, `plate_shape.py`, `pcb_shape.py`, `socket_test_shape.py` and the export scripts) run only in CI, so a question about the built geometry becomes a figure the export script prints.
 - Keep DESIGN.md, README.md, this file, the work items' status and the comments in the scripts current in the same commit as the change. Decisions go in a new dated file in `doc/log/` (write once, tagged with `#topic`).
 - Markdown: one paragraph per line, never reflowed.
