@@ -1,6 +1,7 @@
 """Export one of the socket retention test strips (STL), work item 008:
 a frame printed in place of the PCB, holding Kailh Choc hotswap sockets
-in pockets on its underside, to try a keyboard wired by hand.
+in pockets on its underside, to try a keyboard wired by hand. Or the
+switch hole strip, work item 012, the frame's body alone.
 
 The word chooses the strip (socket_test_shape.py builds them and its
 docstring has the design):
@@ -15,18 +16,23 @@ docstring has the design):
   holes    every pocket loose (+0.15), the two pin holes stepping 3.5 to
            3.0 across as modelled in 0.1 steps, so only they hold the
            socket
+  switch   the switch hole strip: no pockets or bosses, the center
+           post's and side pegs' holes printing -0.05 to +0.15 over the
+           calipered post and pegs in cells 1 to 5, cell 6 the socket
+           strips' holes, the pin holes 3.2 so only the post and pegs
+           hold the switch
 
 Cell k (from 1, west to east) has k notches in its south edge on every
 strip; the pocket strip also has five in its north edge, one at every
 cell boundary, the hole strip three, between cells 1 and 2, 3 and 4,
-and 5 and 6. The frame strips print upside down, the frame's top face
-on z = 0; the backing prints bottom down.
+and 5 and 6. The frame strips and the switch hole strip print upside
+down, the frame's top face on z = 0; the backing prints bottom down.
 
 Runs headless under FreeCAD's console interpreter (see
 freecad_common.py for the freecadcmd quirks that shape the
 invocation):
 
-    freecadcmd scripts/export_socket_test.py --pass <strip.stl> pocket|backing|holes
+    freecadcmd scripts/export_socket_test.py --pass <strip.stl> pocket|backing|holes|switch
         [pull_in=0.2] [insert_length=<mm>]
 
 A frame strip is checked for one valid solid of its analytic volume,
@@ -49,6 +55,14 @@ the backing's and its screw heads'. It also prints where the backing
 and the heads stand over the nice!nano's socket strips, which only
 states a constraint on a real frame: the heads come below the strips'
 tops, so its backing screws must keep off the strips in plan.
+The switch hole strip is checked for one valid solid of its analytic
+volume, every footprint hole of every cell measured off its faces (one
+cylinder from the top face to the underside, at its size as built and
+at the hand-worked figures below), and it prints each cell's post and
+peg holes as modelled and as printed by the measured shrink with their
+clearance over the calipered post and pegs, the pin holes against the
+blades, the least plastic between two holes of each cell (measured,
+at least MINIMUM_HOLE_WEB_MM) and the notches per cell.
 Every strip's mesh must have its lowest point on z = 0, the bed.
 """
 
@@ -88,6 +102,28 @@ DESIGN_SCREW_HEADS_OVER_BATTERY_PRINTED_MM = 0.77  # the backing's, 1.5 tall
 DESIGN_STRIP_MARK_XS_MM = {shape.POCKET: (19.05, 38.10, 57.15, 76.20, 95.25),
                            shape.HOLES: (19.05, 57.15, 95.25)}
 DESIGN_FIGURE_DECIMALS = 2
+
+# The switch hole strip's figures (work item 012), worked out by hand
+# from the user's calipered post (3.17) and pegs (1.65), the clearances
+# as printed and the 0.15 per side a hole prints smaller than modelled,
+# compared like DESIGN.md's above: cells 1 to 5's clearance as printed
+# and their post's and pegs' holes as modelled, and the pin holes as
+# modelled. Cell 6's post and pegs and every cell's NC pad hole are
+# checked against the pocket strip's, which follow pull_in.
+DESIGN_SWITCH_HOLE_CLEARANCES_MM = (-0.05, 0.00, 0.05, 0.10, 0.15)
+DESIGN_SWITCH_POST_HOLES_MM = (3.42, 3.47, 3.52, 3.57, 3.62)
+DESIGN_SWITCH_PEG_HOLES_MM = (1.90, 1.95, 2.00, 2.05, 2.10)
+DESIGN_SWITCH_PIN_HOLE_DIAMETER_MM = 3.20
+
+# The footprint's holes as the switch hole strip's report names them, in
+# layout.CHOC_FOOTPRINT_HOLES_MM's order (the footprint is turned 90
+# degrees, its +y along the board's -x), the pins' as the slit test
+# strip names them.
+SWITCH_STRIP_HOLE_NAMES = ("post", "west peg", "east peg", "peg-side pin", "middle pin",
+                           "NC pad")
+# The least plastic the switch hole strip keeps between two holes of a
+# cell as modelled: two lines.
+MINIMUM_HOLE_WEB_MM = 0.8
 
 # Clearances the checks ask for, as modelled: the bosses from the walls,
 # the tabs' wire rooms, the switch's protruding parts and the footprint
@@ -130,14 +166,18 @@ OPEN_PROBE_STEP_MM = 0.01
 WINDOW_MM = 0.5
 
 USAGE = f"""\
-usage: freecadcmd scripts/export_socket_test.py --pass <strip.stl> pocket|backing|holes
+usage: freecadcmd scripts/export_socket_test.py --pass <strip.stl> pocket|backing|holes|switch
            [pull_in={pcb_shape.DEFAULT_PULL_IN_MM}] [insert_length=<mm>]
 
   pocket         the pocket strip, its pocket's fit stepping across the cells
   backing        the backing strip, its pads' height stepping across the cells
   holes          the hole strip, its pin holes stepping across the cells
+  switch         the switch hole strip, its post's and pegs' holes stepping
+                 across the cells
   pull_in        swelling allowance per side, mm: the footprint holes grow by it
-                 (all but the pocket strip's pin holes, 3.5 as modelled)
+                 (all but the pin holes, 3.5 as modelled on the pocket strip,
+                 stepping on the hole strip, 3.2 on the switch hole strip, and
+                 the switch hole strip's post and pegs but in its cell 6)
   insert_length  the heat-set inserts' length, mm, which sets the bores' depth:
                  at most (and by default) the longest the bosses hold,
                  {shape.longest_insert_length():.3f}\
@@ -659,9 +699,15 @@ def check_frame_clearances(kind, pull_in):
 
 def check_notches(strip, z):
     _, (y_low, _) = shape.frame_body_rectangle()
+    check_notches_from(strip, y_low, z)
+
+
+def check_notches_from(strip, south_y, z):
+    """Cell k (from 1) open at its first k notch places in a south edge
+    at south_y and solid at the others."""
     for index in range(shape.CELL_COUNT):
         for number, x in enumerate(shape.notch_x_centers(index), start=1):
-            point = App.Vector(x, y_low + shape.NOTCH_DEPTH_MM / 2.0, z)
+            point = App.Vector(x, south_y + shape.NOTCH_DEPTH_MM / 2.0, z)
             if strip.isInside(point, MEASURE_TOLERANCE_MM, True) != (number > index + 1):
                 raise SystemExit(f"error: cell {index + 1} has the wrong notches")
 
@@ -905,10 +951,227 @@ def export_backing(arguments):
     return backing
 
 
+# The switch hole strip.
+
+
+def require_figure(what, measured, figure):
+    if abs(measured - figure) > design_tolerance():
+        raise SystemExit(f"error: {what} is {measured:.4f}, expected {figure:.2f}")
+
+
+def vertical_cylinder_faces(solid):
+    return [face for face in solid.Faces
+            if isinstance(face.Surface, Part.Cylinder) and abs(face.Surface.Axis.z) > 0.999]
+
+
+def measured_through_hole(faces, center, what):
+    """(diameter, faces) of the hole on a plan center: the vertical
+    cylinder faces on that axis, which must share one radius and run
+    from the underside to the top face."""
+    on_axis = [face for face in faces
+               if math.hypot(face.Surface.Center.x - center[0],
+                             face.Surface.Center.y - center[1]) < MEASURE_TOLERANCE_MM]
+    if not on_axis:
+        raise SystemExit(f"error: {what} is missing")
+    radii = [face.Surface.Radius for face in on_axis]
+    low = min(face.BoundBox.ZMin for face in on_axis)
+    high = max(face.BoundBox.ZMax for face in on_axis)
+    if (max(radii) - min(radii) > MEASURE_TOLERANCE_MM or abs(low) > MEASURE_TOLERANCE_MM
+            or abs(high - layout.PCB_THICKNESS_MM) > MEASURE_TOLERANCE_MM):
+        raise SystemExit(f"error: {what} is not one cylinder through the strip: radii "
+                         + ", ".join(f"{radius:.4f}" for radius in radii)
+                         + f", z {low:.4f} to {high:.4f}")
+    return 2.0 * radii[0], on_axis
+
+
+def measured_cell_holes(faces, index, pull_in):
+    """Cell index's footprint holes as measured, [(diameter, faces)] in
+    layout.CHOC_FOOTPRINT_HOLES_MM's order, each at its size as built."""
+    measured = []
+    for name, (center, radius) in zip(SWITCH_STRIP_HOLE_NAMES,
+                                      shape.cell_holes(shape.SWITCH, index, pull_in), strict=True):
+        what = f"cell {index + 1}'s {name} hole"
+        diameter, hole_faces = measured_through_hole(faces, center, what)
+        if abs(diameter - 2.0 * radius) > MEASURE_TOLERANCE_MM:
+            raise SystemExit(f"error: {what} is {diameter:.6f} across, built as "
+                             f"{2.0 * radius:.6f}")
+        measured.append((diameter, hole_faces))
+    return measured
+
+
+def holes_where(measured, keep):
+    """[(name, diameter)] of a cell's measured holes whose footprint-local
+    center keep() accepts."""
+    return [(name, diameter) for name, (local_center, _), (diameter, _) in zip(
+        SWITCH_STRIP_HOLE_NAMES, layout.CHOC_FOOTPRINT_HOLES_MM, measured, strict=True)
+        if keep(local_center)]
+
+
+def is_switch_part_hole(local_center):
+    return local_center in shape.switch_part_calipered_diameters()
+
+
+def is_other_hole(local_center):
+    """The NC pad's: neither a pin hole nor the post's or a peg's."""
+    return not shape.is_pin_hole(local_center) and not is_switch_part_hole(local_center)
+
+
+def transcribed_switch_holes(index, pull_in):
+    """Cell index's holes as modelled by the hand-worked figures, in
+    layout.CHOC_FOOTPRINT_HOLES_MM's order: the post and pegs
+    DESIGN_SWITCH_POST_HOLES_MM's and DESIGN_SWITCH_PEG_HOLES_MM's, past
+    those (cell 6) the pocket strip's, the pin holes
+    DESIGN_SWITCH_PIN_HOLE_DIAMETER_MM, the NC pad's the pocket strip's."""
+    pocket_strip = [2.0 * radius for _, radius in shape.cell_holes(shape.POCKET, index, pull_in)]
+    figures = []
+    for (local_center, _), pocket_strip_diameter in zip(layout.CHOC_FOOTPRINT_HOLES_MM,
+                                                        pocket_strip, strict=True):
+        if shape.is_pin_hole(local_center):
+            figures.append(DESIGN_SWITCH_PIN_HOLE_DIAMETER_MM)
+        elif is_switch_part_hole(local_center) and index < len(DESIGN_SWITCH_POST_HOLES_MM):
+            figures.append((DESIGN_SWITCH_POST_HOLES_MM if local_center == CENTER_POST_HOLE_MM
+                            else DESIGN_SWITCH_PEG_HOLES_MM)[index])
+        else:
+            figures.append(pocket_strip_diameter)
+    return figures
+
+
+def check_switch_cell(index, measured, pull_in):
+    """Cell index's measured holes against the hand-worked figures.
+    Returns [(name, modelled, printed, clearance over the calipered
+    part)] for the post and both pegs, cells 1 to 5's clearance checked
+    against DESIGN_SWITCH_HOLE_CLEARANCES_MM."""
+    for name, (diameter, _), figure in zip(SWITCH_STRIP_HOLE_NAMES, measured,
+                                           transcribed_switch_holes(index, pull_in), strict=True):
+        require_figure(f"cell {index + 1}'s {name} hole as modelled", diameter, figure)
+    calipered = shape.switch_part_calipered_diameters()
+    parts = []
+    for (name, diameter), part in zip(holes_where(measured, is_switch_part_hole),
+                                      calipered.values(), strict=True):
+        printed = shape.printed_switch_hole_diameter(diameter)
+        parts.append((name, diameter, printed, printed - part))
+    if index < len(DESIGN_SWITCH_HOLE_CLEARANCES_MM):
+        for name, _, _, clearance in parts:
+            require_figure(f"cell {index + 1}'s {name} hole's clearance as printed", clearance,
+                           DESIGN_SWITCH_HOLE_CLEARANCES_MM[index])
+    return parts
+
+
+def print_switch_cell(index, parts, pull_in):
+    if index == shape.SWITCH_REFERENCE_CELL_INDEX:
+        step = f"the socket strips' holes, grown by pull_in {pull_in}"
+    else:
+        step = f"clearance {shape.cell_switch_hole_clearance(index):+.2f} as printed"
+    holes = "; ".join(f"{name} {modelled:.3f} modelled, {printed:.3f} printed, {clearance:+.3f} "
+                      "over the part" for name, modelled, printed, clearance in parts)
+    print(f"cell {index + 1}:     {step}: {holes}")
+
+
+def blade_reach(hole_center, blade_center, thickness):
+    """How far a blade's farthest edge lies from its hole's center in
+    plan: its calipered thickness along footprint x, the model's width
+    along y."""
+    along_x = abs(blade_center[0] - hole_center[0]) + thickness / 2.0
+    along_y = abs(blade_center[1] - hole_center[1]) + layout.CHOC_PIN_BLADE_WIDTH_MM / 2.0
+    return math.hypot(along_x, along_y)
+
+
+def check_switch_pin_holes(measured_cells, pull_in):
+    """Every cell's pin holes and NC pad's hole as measured (each
+    already checked against its figure), and the room the blades leave
+    in the smallest pin hole as printed, which must be positive."""
+    pins = [diameter for measured in measured_cells
+            for _, diameter in holes_where(measured, shape.is_pin_hole)]
+    others = [diameter for measured in measured_cells
+              for _, diameter in holes_where(measured, is_other_hole)]
+    printed_radius = shape.printed_switch_hole_diameter(min(pins)) / 2.0
+    pin_names = [name for name, _ in holes_where(measured_cells[0], shape.is_pin_hole)]
+    blades = []
+    for name, hole_center, blade_center, thickness in zip(
+            pin_names, layout.CHOC_FOOTPRINT_PIN_HOLE_CENTERS_MM, layout.CHOC_PIN_CENTERS_MM,
+            layout.CHOC_PIN_CALIPERED_BLADE_THICKNESSES_MM, strict=True):
+        reach = blade_reach(hole_center, blade_center, thickness)
+        if reach >= printed_radius:
+            raise SystemExit(f"error: the {name}'s blade reaches {reach:.3f} from its hole's "
+                             f"center, past the hole's {printed_radius:.3f} radius as printed")
+        blades.append(f"{name} {reach:.3f}")
+    print(f"pin holes:  {len(pins)}, {min(pins):.3f} to {max(pins):.3f} modelled whatever "
+          f"pull_in, {2.0 * printed_radius:.3f} printed; the blades (calipered thickness, the "
+          f"model's width) reach {', '.join(blades)} from their holes' centers, inside the "
+          f"{printed_radius:.3f} radius as printed")
+    print(f"NC pads:    {len(others)} holes, {min(others):.3f} to {max(others):.3f} modelled "
+          f"(the footprint's grown by pull_in {pull_in})")
+
+
+def cell_hole_webs(index, measured, pull_in):
+    """[(web, first name, second name)] between every two of cell
+    index's holes: the least distance between their measured faces,
+    checked against the plan's from the holes' centers and radii."""
+    holes = shape.cell_holes(shape.SWITCH, index, pull_in)
+    webs = []
+    for first in range(len(measured)):
+        for second in range(first + 1, len(measured)):
+            web = least_distance(measured[first][1], measured[second][1])
+            (first_center, first_radius), (second_center, second_radius) = (holes[first],
+                                                                            holes[second])
+            plan = math.dist(first_center, second_center) - first_radius - second_radius
+            names = (SWITCH_STRIP_HOLE_NAMES[first], SWITCH_STRIP_HOLE_NAMES[second])
+            if abs(web - plan) > MEASURE_TOLERANCE_MM:
+                raise SystemExit(f"error: cell {index + 1}'s {names[0]} and {names[1]} holes "
+                                 f"keep {web:.6f} between them, {plan:.6f} in plan")
+            webs.append((web, *names))
+    return webs
+
+
+def check_switch_hole_webs(measured_cells, pull_in):
+    """The least plastic between two holes of each cell, at least
+    MINIMUM_HOLE_WEB_MM as modelled."""
+    least = []
+    for index, measured in enumerate(measured_cells):
+        web, first, second = min(cell_hole_webs(index, measured, pull_in))
+        require_clearance(f"cell {index + 1}'s {first} and {second} holes", web,
+                          MINIMUM_HOLE_WEB_MM)
+        least.append((web, first, second))
+    growth = 2.0 * shape.MEASURED_HOLE_SHRINK_PER_SIDE_MM
+    print(f"webs:       the least plastic between two holes, cells 1 to {shape.CELL_COUNT}: "
+          + ", ".join(f"{web:.3f} ({first} to {second})" for web, first, second in least)
+          + f" modelled (at least {MINIMUM_HOLE_WEB_MM}), "
+          + ", ".join(f"{web + growth:.3f}" for web, _, _ in least) + " printed")
+
+
+def export_switch_holes(arguments):
+    pull_in = arguments.pull_in
+    strip, expected = shape.build_switch_strip(pull_in)
+    (x_low, x_high), (y_low, y_high) = shape.switch_strip_rectangle()
+    print(f"strip:      switch, {shape.CELL_COUNT} cells at {layout.KEY_PITCH_MM} pitch, the "
+          f"frame's body {x_high - x_low:.3f} x {y_high - y_low:.3f} x "
+          f"{layout.PCB_THICKNESS_MM} with each cell's footprint holes, no walls, bosses or "
+          "recesses")
+    print(f"volume:     {strip.Volume:.3f} mm3 (analytic {expected:.3f} mm3)")
+    print(f"switch:     post {shape.SWITCH_POST_CALIPERED_DIAMETER_MM} and pegs "
+          f"{shape.SWITCH_PEG_CALIPERED_DIAMETER_MM} across, calipered; a hole taken to print "
+          f"{shape.MEASURED_HOLE_SHRINK_PER_SIDE_MM} per side smaller than modelled (the hole "
+          "strip's, measured on 3.x holes, the pegs' smaller holes not yet measured)")
+    faces = vertical_cylinder_faces(strip)
+    measured_cells = [measured_cell_holes(faces, index, pull_in)
+                      for index in range(shape.CELL_COUNT)]
+    for index, measured in enumerate(measured_cells):
+        print_switch_cell(index, check_switch_cell(index, measured, pull_in), pull_in)
+    check_switch_pin_holes(measured_cells, pull_in)
+    check_switch_hole_webs(measured_cells, pull_in)
+    check_notches_from(strip, y_low, layout.PCB_THICKNESS_MM / 2.0)
+    print(f"notches:    cells 1 to {shape.CELL_COUNT} have "
+          + ", ".join(str(index + 1) for index in range(shape.CELL_COUNT))
+          + " in the south edge, every other notch place solid")
+    return shape.turned_for_printing(strip)
+
+
 def main():
     arguments = parse_arguments(script_arguments(sys.argv))
     if arguments.kind == shape.BACKING:
         strip = export_backing(arguments)
+    elif arguments.kind == shape.SWITCH:
+        strip = export_switch_holes(arguments)
     else:
         strip = export_frame(arguments)
     mesh = export_stl(strip, arguments.stl_file)

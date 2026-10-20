@@ -1,7 +1,8 @@
 """The socket retention test strips' shapes (work item 008): a frame
 printed in place of the PCB that holds Kailh Choc hotswap sockets in
 pockets on its underside, for a keyboard wired by hand, in three
-stackable strips of CELL_COUNT cells at the key pitch.
+stackable strips of CELL_COUNT cells at the key pitch. Also the switch
+hole strip (work item 012, SWITCH below), the frame's body alone.
 
 A frame strip (POCKET or HOLES) has a body of the PCB's thickness, each
 cell with one key's footprint holes grown by pull_in like the PCB
@@ -98,6 +99,22 @@ between cells 4 and 5, which tell it from the second backing, which
 had one in the middle and pads 0.1 larger each way, and from the
 first, which had none and pads 0.3 larger each way.
 
+SWITCH: the switch hole strip, to find the holes for the switch's
+center post and side pegs that hold it without play sideways (the
+user, 2026-10-20: "On eg. the hotswap socket test strip these pin
+holes are too wide and doesn't aid in sideways stability of the
+switch"). Its cells are 19.05 squares of the frame's body with each
+cell's footprint holes and the notches in their south edge, and
+nothing else: no walls, bosses, tab recesses or marks. The post's and
+both pegs' holes step together across cells 1 to 5, each printing the
+cell's clearance over the calipered parts by the shrink the hole strip
+measured (MEASURED_HOLE_SHRINK_PER_SIDE_MM), and cell 6 has the socket
+strips' holes, grown by pull_in, as the reference
+(switch_strip_hole_radius()). The pin holes are the frame's 3.2, so
+the blades pass freely and only the post and pegs hold the switch. It
+prints top face down like the frame strips, so the switch's housing
+sits on the face that was on the bed.
+
 A switch is the same on both halves, so is the frame: the footprint is
 the left half's (layout.footprint_holes() at FOOTPRINT_ROTATION_DEGREES).
 
@@ -125,7 +142,8 @@ from tray_shape import (CUT_EXTRA_MM, UP, layout_polygon_wire, plan_prism,
 POCKET = "pocket"
 BACKING = "backing"
 HOLES = "holes"
-STRIP_KINDS = (POCKET, BACKING, HOLES)
+SWITCH = "switch"
+STRIP_KINDS = (POCKET, BACKING, HOLES, SWITCH)
 # The frame strips the backing is stacked under and checked against.
 FRAME_KINDS = (POCKET,)
 
@@ -157,6 +175,32 @@ POCKET_STRIP_PIN_HOLE_DIAMETER_MM = 3.5
 # cells (cell_pin_hole_diameter()), as modelled whatever pull_in.
 HOLE_STRIP_POCKET_FIT_MM = 0.15
 HOLE_STRIP_PIN_HOLE_STEP_MM = 0.10
+
+# The switch hole strip: the switch's center post and side pegs as the
+# user calipered them on a real Kailh Choc v1, 2026-10-20: "Post is 3.17
+# and pegs are 1.65 mm diameter".
+SWITCH_POST_CALIPERED_DIAMETER_MM = 3.17
+SWITCH_PEG_CALIPERED_DIAMETER_MM = 1.65
+# How much smaller than modelled a hole prints, per side: on the hole
+# strip 3.2 as modelled held the socket's 2.9 bosses best, and 3.3, the
+# zero clearance cell by the print model's PRINT_SWELLING_PER_SIDE_MM
+# (0.2), was loose (DESIGN.md, "Hole strip"). That was measured on 3.x
+# holes. No hole as small as the pegs' has been measured, so theirs is
+# taken to shrink the same.
+MEASURED_HOLE_SHRINK_PER_SIDE_MM = 0.15
+# Cells 1 to 5 step the post's and both pegs' holes together through
+# these diametral clearances as printed over the calipered parts, from
+# slightly tight to loose. Cell 6 has the socket strips' holes (the
+# footprint's grown by pull_in) as the reference.
+FIRST_SWITCH_HOLE_CLEARANCE_MM = -0.05
+SWITCH_HOLE_CLEARANCE_STEP_MM = 0.05
+SWITCH_REFERENCE_CELL_INDEX = CELL_COUNT - 1
+# The two pin holes, which the switch's blades pass through: the
+# frame's, the hole strip's cell 4 (DESIGN.md, "Hole strip"), as
+# modelled whatever pull_in, so the blades pass freely and only the
+# post and pegs hold the switch. The NC pad's hole stays as the frame
+# strips have it, grown by pull_in.
+SWITCH_STRIP_PIN_HOLE_DIAMETER_MM = 3.2
 
 # The pocket walls, as thick as the tray's (two lines). The switch's
 # center post and side pegs, whose holes are
@@ -609,11 +653,18 @@ def notch_x_centers(index):
 
 
 def notch_rectangles():
-    """Cell k (from 1) gets its first k notches, in the south edge."""
+    """Cell k (from 1) gets its first k notches, in the frame's body's
+    south edge."""
     _, (y_low, _) = frame_body_rectangle()
+    return notch_rectangles_from(y_low)
+
+
+def notch_rectangles_from(south_y):
+    """Cell k (from 1) gets its first k notches, in a south edge at
+    south_y."""
     return [
         rectangle((x - NOTCH_WIDTH_MM / 2.0, x + NOTCH_WIDTH_MM / 2.0),
-                  (y_low, y_low + NOTCH_DEPTH_MM))
+                  (south_y, south_y + NOTCH_DEPTH_MM))
         for index in range(CELL_COUNT)
         for x in notch_x_centers(index)[: index + 1]
     ]
@@ -658,8 +709,11 @@ def cell_pin_hole_diameter(index):
 def hole_radius(kind, index, local_center, diameter, pull_in):
     """Cell index's footprint hole's radius as modelled: grown by
     pull_in, but the pocket strip's pin holes
-    POCKET_STRIP_PIN_HOLE_DIAMETER_MM across and the hole strip's
-    cell_pin_hole_diameter()."""
+    POCKET_STRIP_PIN_HOLE_DIAMETER_MM across, the hole strip's
+    cell_pin_hole_diameter() and the switch hole strip's
+    switch_strip_hole_radius()."""
+    if kind == SWITCH:
+        return switch_strip_hole_radius(index, local_center, diameter, pull_in)
     if kind == POCKET and is_pin_hole(local_center):
         return POCKET_STRIP_PIN_HOLE_DIAMETER_MM / 2.0
     if kind == HOLES and is_pin_hole(local_center):
@@ -914,6 +968,90 @@ def stacked_backing(backing):
     moved = backing.copy()
     moved.translate(App.Vector(0.0, 0.0, -boss_end_depth() - BACKING_THICKNESS_MM))
     return moved
+
+
+# The switch hole strip (work item 012).
+
+
+def switch_part_calipered_diameters():
+    """{footprint-local center: the calipered diameter of the switch's
+    part in that hole} for the center post and the side pegs, the first
+    SWITCH_PROTRUDING_HOLE_COUNT of layout.CHOC_FOOTPRINT_HOLES_MM."""
+    calipered = (SWITCH_POST_CALIPERED_DIAMETER_MM, SWITCH_PEG_CALIPERED_DIAMETER_MM,
+                 SWITCH_PEG_CALIPERED_DIAMETER_MM)
+    holes = layout.CHOC_FOOTPRINT_HOLES_MM[:SWITCH_PROTRUDING_HOLE_COUNT]
+    return {local_center: diameter
+            for (local_center, _), diameter in zip(holes, calipered, strict=True)}
+
+
+def cell_switch_hole_clearance(index):
+    """Cells 1 to 5's (index 0 to 4) diametral clearance as printed over
+    the calipered post and pegs."""
+    return FIRST_SWITCH_HOLE_CLEARANCE_MM + index * SWITCH_HOLE_CLEARANCE_STEP_MM
+
+
+def modelled_switch_hole_diameter(calipered, clearance):
+    """A hole that prints clearance over a calipered part, shrinking
+    MEASURED_HOLE_SHRINK_PER_SIDE_MM per side."""
+    return calipered + clearance + 2.0 * MEASURED_HOLE_SHRINK_PER_SIDE_MM
+
+
+def printed_switch_hole_diameter(modelled):
+    return modelled - 2.0 * MEASURED_HOLE_SHRINK_PER_SIDE_MM
+
+
+def switch_strip_hole_radius(index, local_center, diameter, pull_in):
+    """The switch hole strip's cell index's footprint hole's radius as
+    modelled: the post's and pegs' printing the cell's clearance over
+    the calipered parts, but the reference cell's the socket strips'
+    (grown by pull_in), the pin holes SWITCH_STRIP_PIN_HOLE_DIAMETER_MM
+    across, the NC pad's grown by pull_in."""
+    if is_pin_hole(local_center):
+        return SWITCH_STRIP_PIN_HOLE_DIAMETER_MM / 2.0
+    calipered = switch_part_calipered_diameters().get(local_center)
+    if calipered is None or index == SWITCH_REFERENCE_CELL_INDEX:
+        return diameter / 2.0 + pull_in
+    return modelled_switch_hole_diameter(calipered, cell_switch_hole_clearance(index)) / 2.0
+
+
+def switch_strip_rectangle():
+    """The switch hole strip's outline: its cells alone, with no bosses
+    for the body to reach past. Its north edge is the frame strips', so
+    turned_for_printing() places it too."""
+    return (0.0, CELL_COUNT * layout.KEY_PITCH_MM), (0.0, layout.KEY_PITCH_MM)
+
+
+def switch_strip_notches():
+    _, (y_low, _) = switch_strip_rectangle()
+    return notch_rectangles_from(y_low)
+
+
+def switch_strip_analytic_volume(pull_in):
+    (x_low, x_high), (y_low, y_high) = switch_strip_rectangle()
+    holes = sum(math.pi * radius**2 for _center, radius in strip_holes(SWITCH, pull_in))
+    notches = sum(layout.polygon_signed_area(notch) for notch in switch_strip_notches())
+    return ((x_high - x_low) * (y_high - y_low) - holes - notches) * layout.PCB_THICKNESS_MM
+
+
+def build_switch_strip(pull_in):
+    """(switch hole strip, its analytic volume): the frame's body of the
+    cells with their footprint holes and notches, checked to be one
+    valid solid of that volume."""
+    (x_low, x_high), (y_low, y_high) = switch_strip_rectangle()
+    thickness = layout.PCB_THICKNESS_MM
+    body = Part.makeBox(x_high - x_low, y_high - y_low, thickness, App.Vector(x_low, y_low, 0))
+    cutters = [hole_cutter(center, radius, thickness)
+               for center, radius in strip_holes(SWITCH, pull_in)]
+    cutters.extend(vertical_cutter(notch, 0.0, thickness) for notch in switch_strip_notches())
+    strip = body.cut(Part.makeCompound(cutters))
+    require_one_valid_solid(strip, "cutting the switch hole strip")
+    expected = switch_strip_analytic_volume(pull_in)
+    if abs(strip.Volume - expected) > VOLUME_RELATIVE_TOLERANCE * expected:
+        raise SystemExit(
+            f"error: the switch hole strip's volume is {strip.Volume:.4f} mm3, analytic "
+            f"{expected:.4f} mm3"
+        )
+    return strip.Solids[0], expected
 
 
 def turned_for_printing(frame):
