@@ -34,12 +34,17 @@ foot (work item 010). The nice!nano's seat leaves the pads beside it
 and the socket strips' tails under it room as printed, and the strips
 on the board with the room over them up to the PCB keep clear of the
 tray as printed, through their pockets in the west ledge and the east
-wall (the user's request of 2026-10-20). The strips and their tails
-are nice!nano part envelopes, so every check of the parts covers them.
-The wire rooms behind the parts' leads must stay clear of all of it as
-printed. Those that meet the sockets, the joint or the wire room over
-the nice!nano's P1.01/P1.02/P1.07 pads, which differs between the
-halves, run on both halves. The nice!nano's pry slot (work item 010) is
+wall (the user's request of 2026-10-20). The strips, each an insulator
+over its sleeves, and their tails are nice!nano part envelopes, so
+every check of the parts covers them, and the nice!nano's own pad rooms
+are checked against them, the overlaps DESIGN.md names printed and any
+other failing. Figures that move with the board, its strips' clearance,
+the clamp's nose on it and a toothpick's reach under it, are taken
+wherever the board can lie between its stops as printed, at the worst
+of those places. The wire rooms behind the parts' leads must stay clear
+of all of it as printed. Those that meet the sockets, the joint or
+the wire room over the nice!nano's P1.01/P1.02/P1.07 pads, which
+differs between the halves, run on both halves. The nice!nano's pry slot (work item 010) is
 checked in plan against everything else whatever the heights, since a
 toothpick comes into it from above the floor, and a toothpick coming in
 over the rim and the south ledge must get its point under the board,
@@ -60,6 +65,7 @@ kbdkid4's tray), so a part within that of a convex cavity corner has
 less room than reported here.
 """
 
+import dataclasses
 import itertools
 import math
 import os
@@ -200,9 +206,12 @@ DESIGN_NANO_TAILS_OVER_CHANNELS_MM = {False: 0.39, True: 0.057}  # nominal model
 DESIGN_NANO_STRIP_X_MM = {"west": (0.625, 3.925), "east": (16.075, 19.375)}
 DESIGN_NANO_STRIP_Y_MM = (41.8825, 72.9895)
 DESIGN_NANO_STRIP_TOP_Z_MM = 5.213
+DESIGN_NANO_STRIP_INSULATOR_BOTTOM_Z_MM = 3.41  # 0.61 over the board's top
+DESIGN_NANO_STRIP_PAST_BOARD_END_MM = 0.2335  # the insulator, over the clamp's foot
+DESIGN_NANO_INSULATOR_OVER_FOOT_PRINTED_MM = 0.56  # the foot's top rising as a top face
 DESIGN_NANO_STRIP_POCKET_X_MM = (0.125, 19.875)  # the west ledge's face, the east wall's
 DESIGN_NANO_STRIP_POCKET_Y_MM = (41.3825, 73.4895)
-DESIGN_NANO_STRIPS_CLEAR_PRINTED_MM = 0.3  # of the tray, up to the PCB's underside
+DESIGN_NANO_STRIPS_CLEAR_PRINTED_MM = 0.18  # of the tray up to the PCB's underside, the board north
 DESIGN_NANO_STRIPS_UNDER_SOCKETS_MM = 2.267
 DESIGN_NANO_STRIP_SOCKET_KEYS = {False: {"S100", "S101", "S110", "S111"}, True: {"S100", "S101"}}
 # The nice!nano's screw clamp (work items 009 and 010), at the default
@@ -228,6 +237,7 @@ DESIGN_CLAMP_ARM_MM = 5.115
 DESIGN_CLAMP_STRAIN_PERCENT = {True: 0.69, False: 0.57}  # as printed, as modelled
 DESIGN_CLAMP_MAXIMUM_STRAIN_PERCENT = 2.0  # PLA, the removed snap hook's
 DESIGN_CLAMP_NOSE_FROM_FOOT_PRINTED_MM = 0.28
+DESIGN_CLAMP_NOSE_ONTO_BOARD_PRINTED_MM = (0.18, 0.28)  # the board at its north stop, its south
 DESIGN_CLAMP_HEAD_TOP_Z_MM = 8.0
 DESIGN_CLAMP_UNDER_PCB_MM = 1.5  # the head
 DESIGN_CLAMP_MINIMUM_UNDER_PCB_MM = 0.5
@@ -244,11 +254,35 @@ DESIGN_NANO_LONGEST_BOARD_MM = 33.26  # that tilts in between them
 DESIGN_NANO_LEAST_SHELL_OVERHANG_MM = 0.81  # for the board with its shell to tilt in
 DESIGN_NANO_REMOVAL_CLEARANCE_PRINTED_MM = 0.061  # the south edge from the foot's face
 DESIGN_NANO_REMOVAL_SLIDE_MM = 0.08  # from the north stop until the south end clears the foot
+# Going in, the west strip's north top corner from the west pocket's
+# north end as printed, and the steepest the board may tilt with its USB
+# end on the north block before that corner meets the ledge.
+DESIGN_NANO_STRIP_TILT_CLEARANCE_PRINTED_MM = 0.061
+DESIGN_NANO_STRIP_TILT_STEEPEST_DEGREES = 4.13
+# With all of the end faces' calipered 0.26 on the foot (only the sum
+# was measured): the shell's mouth past its channel's end as printed and
+# its box's corners into the window's corner rounds as printed, at its
+# play across. The real shell's ends are rounded and clear the rounds.
+DESIGN_SHELL_PAST_CHANNEL_ALL_ON_FOOT_MM = 0.13
+DESIGN_SHELL_INTO_WINDOW_ROUND_ALL_ON_FOOT_MM = 0.018
 DESIGN_RESET_PIN_HOLE_AXIS_MM = (66.199, 1.75)  # x, z
 DESIGN_MOUNTS_FROM_PCB_ZONE_PRINTED_MM = 0.0  # the nice!nano's east wall
 DESIGN_WIRE_ROOM_BEHIND_LEADS_MM = 3.0
 DESIGN_WIRE_ROOM_OVER_PADS_MM = 3.0
 DESIGN_WIRE_ROOM_LEAST_CLEARANCE_PRINTED_MM = 0.147
+# The nice!nano's pad rooms its own socket strips' insulators reach
+# into, per half (False the left one, in the left half's frame), (room,
+# strip): (how far in plan, decimals). The B+ and B- rooms meet the
+# insulators' north ends, the P1.01/P1.02/P1.07 room the B- row's
+# insulator (0.31 if the render's insets moved together), and whether
+# the P1 pads get wired is an open question to the user. Any other
+# overlap fails.
+DESIGN_NANO_ROOMS_INTO_STRIPS_MM = {
+    False: {("over the B- pad", "west"): (0.1235, 4), ("over the B+ pad", "east"): (0.1235, 4),
+            ("over the P1.01/P1.02/P1.07 pads", "west"): (0.44, 2)},
+    True: {("over the B+ pad", "west"): (0.1235, 4), ("over the B- pad", "east"): (0.1235, 4),
+           ("over the P1.01/P1.02/P1.07 pads", "east"): (0.44, 2)},
+}
 # The nice!nano's pry slot and recess (work item 010).
 DESIGN_PRY_SLOT_X_MM = (1.6, 6.6)
 DESIGN_PRY_SLOT_Y_MM = (32.716, 42.006)  # through the clamp's block and foot
@@ -258,8 +292,8 @@ DESIGN_PRY_RECESS_Y_MM = (32.716, 44.116)
 DESIGN_PRY_RECESS_UNDER_BOARD_MM = 2.0
 DESIGN_PRY_RECESS_BOTTOM_Z_MM = 0.0  # the floor's top, the seat left out
 DESIGN_PRY_RECESS_FLOOR_UNDER_MM = 1.2  # the whole floor
-DESIGN_PRY_TOOTHPICK_ANGLE_DEGREES = 18.0  # the least, over the rim
-DESIGN_PRY_TOOTHPICK_REACH_PRINTED_MM = 1.78  # its point under the board, at the recess's end
+DESIGN_PRY_TOOTHPICK_ANGLE_DEGREES = 18.0  # the least, over the rim, the board north
+DESIGN_PRY_TOOTHPICK_REACH_PRINTED_MM = 1.68  # its point under the board, the board north
 DESIGN_PRY_TOOTHPICK_LANE_X_MM = (3.605, 6.4)  # as printed, east of the west row's last tail
 DESIGN_PRY_LAST_TAIL_FROM_BOARD_END_MM = 0.969  # the west row's, its south edge
 
@@ -2267,6 +2301,16 @@ def clamp_nose_from_foot(fits=layout.DEFAULT_MOUNT_FITS):
             - layout.nano_south_stop_y_as_printed(fits))
 
 
+def clamp_nose_onto_board(fits=layout.DEFAULT_MOUNT_FITS):
+    """(least, most) the nose's south face as printed, swollen toward the
+    foot, lies onto the board's south end, the board anywhere between its
+    stops (nano_board_places())."""
+    nose_south = layout.nano_clamp_nose_y_range(fits)[0] - layout.PRINT_SWELLING_PER_SIDE_MM
+    shifts = [dy for _, dy in nano_board_places(fits)]
+    board_south = layout.nano_south_end_y(fits)
+    return nose_south - (board_south + max(shifts)), nose_south - (board_south + min(shifts))
+
+
 def box_overlap(first, second):
     """The volume two MountBoxes share."""
     volume = 1.0
@@ -2303,6 +2347,8 @@ def clamp_problems(fits=layout.DEFAULT_MOUNT_FITS):
     if clamp_nose_from_foot(fits) < -TOLERANCE_MM:
         problems.append(f"the tab's nose reaches {-clamp_nose_from_foot(fits):.3f} into the foot "
                         "as printed")
+    if clamp_nose_onto_board(fits)[0] < TOLERANCE_MM:
+        problems.append("the tab's nose comes off the board's south end as printed")
     for part in layout.nano_clamp_part_boxes(fits):
         for body in layout.mount_bodies(fits):
             if box_overlap(part, body) > TOLERANCE_MM:
@@ -2363,6 +2409,10 @@ def clamp_figures():
                        DESIGN_CLAMP_STRAIN_PERCENT[False], 2),
         require_figure("nose from the foot as printed", clamp_nose_from_foot(),
                        DESIGN_CLAMP_NOSE_FROM_FOOT_PRINTED_MM, 2),
+        require_figure("onto the board, the board north", clamp_nose_onto_board()[0],
+                       DESIGN_CLAMP_NOSE_ONTO_BOARD_PRINTED_MM[0], 2),
+        require_figure("south", clamp_nose_onto_board()[1],
+                       DESIGN_CLAMP_NOSE_ONTO_BOARD_PRINTED_MM[1], 2),
         require_figure("head top z", head.z_range[1], DESIGN_CLAMP_HEAD_TOP_Z_MM, 1),
         require_figure("under the PCB", layout.PCB_UNDERSIDE_Z_MM - head.z_range[1],
                        DESIGN_CLAMP_UNDER_PCB_MM, 1),
@@ -2556,12 +2606,83 @@ def nano_removal_slide(fits=layout.DEFAULT_MOUNT_FITS):
     return past_board * (1.0 - math.cos(clear)) + thickness * math.sin(clear)
 
 
+# Going in, the board's top rises toward its south end, so the strips
+# on it lean north: the west strip's north top corner, its insulator's
+# worst case, comes closest to the west pocket's north end, north of
+# which the ledge's face as printed stands over the strip's west edge.
+# The corner moves north the more the board tilts, so with its USB end
+# on the north block the board goes in no steeper than the angle at
+# which the corner still clears.
+def nano_strip_tilt_figures(fits=layout.DEFAULT_MOUNT_FITS):
+    """(the west strip's north top corner from the west pocket's north
+    end as printed at the going-in angle, the steepest angle in degrees
+    at which it clears)."""
+    board = layout.nano_board_envelope(fits)
+    strip = layout.nano_strip_insulators(fits)[0]
+    block_face = layout.nano_north_stop_y_as_printed(fits)
+    pocket_end = layout.nano_strip_pocket_y_range()[1] - layout.PRINT_SWELLING_PER_SIDE_MM
+    behind = board.y_range[1] - strip.y_range[1]
+    over = strip.z_range[1] - board.z_range[1]
+    tilt = math.radians(nano_insertion_figures(fits)[1])
+    corner = block_face - behind * math.cos(tilt) + over * math.sin(tilt)
+    steepest = (math.acos((block_face - pocket_end) / math.hypot(behind, over))
+                - math.atan2(over, behind))
+    return pocket_end - corner, math.degrees(steepest)
+
+
 def insertion_problems(fits=layout.DEFAULT_MOUNT_FITS):
     clearance, angle, bar_margin = nano_insertion_figures(fits)
+    problems = []
     if min(clearance, bar_margin) < -TOLERANCE_MM:
-        return [f"going in at {angle:.2f} degrees, the board's south end clears the foot by "
-                f"{clearance:.4f} and its shell the bar by {bar_margin:.4f} as printed"]
-    return []
+        problems.append(f"going in at {angle:.2f} degrees, the board's south end clears the foot "
+                        f"by {clearance:.4f} and its shell the bar by {bar_margin:.4f} as printed")
+    tilt_clearance, _steepest = nano_strip_tilt_figures(fits)
+    if tilt_clearance < TOLERANCE_MM:
+        problems.append(f"going in at {angle:.2f} degrees, the west strip's corner meets the ledge "
+                        f"north of its pocket by {-tilt_clearance:.4f} as printed")
+    return problems
+
+
+# Only the sum of the end faces' swelling was calipered. Put all of it
+# on the foot and the north block's face stands as modelled, so the
+# shell's mouth gets past its channel's end as printed, into the
+# window, whose corner rounds its box's corners then reach into. The
+# real shell's ends are rounded and stay clear of the rounds.
+def window_round_reach(x_range, z_range, fits=layout.DEFAULT_MOUNT_FITS):
+    """How far a box's corners (its x and z ranges) reach out of the USB
+    window's corner rounds as printed, where they lie beyond a round's
+    center on both axes, minus infinity where none does."""
+    swelling = layout.PRINT_SWELLING_PER_SIDE_MM
+    center_x, center_z = layout.usb_window_center(fits)
+    radius = layout.USB_WINDOW_CORNER_RADIUS_MM
+    inset_x = layout.USB_WINDOW_WIDTH_MM / 2.0 - radius
+    inset_z = layout.USB_WINDOW_HEIGHT_MM / 2.0 - radius
+    reach = -math.inf
+    for x, x_sign in zip(x_range, (-1.0, 1.0)):
+        for z, z_sign in zip(z_range, (-1.0, 1.0)):
+            out_x = x_sign * (x - center_x) - inset_x
+            out_z = z_sign * (z - center_z) - inset_z
+            if out_x > 0.0 and out_z > 0.0:
+                reach = max(reach, math.hypot(out_x, out_z) - (radius - swelling))
+    return reach
+
+
+def shell_with_end_swelling_on_foot(fits=layout.DEFAULT_MOUNT_FITS):
+    """(how far the shell's mouth gets past its channel's end as printed,
+    how far its box's corners then reach into the window's corner rounds
+    as printed at its play across) with the north block's face as
+    modelled."""
+    swelling = layout.PRINT_SWELLING_PER_SIDE_MM
+    shell = layout.nano_usb_shell_envelope(fits)
+    board = layout.nano_board_envelope(fits)
+    channel = layout.usb_shell_channel_box(fits)
+    north = layout.nano_north_block_south_y(fits) - board.y_range[1]
+    past = shell.y_range[1] + north - (channel.y_range[1] - swelling)
+    play = nano_shell_play(fits)
+    reach = max(window_round_reach((shell.x_range[0] + dx, shell.x_range[1] + dx),
+                                   shell.z_range, fits)
+                for dx in (-play["west"], play["east"]))
+    return past, reach
 
 
 def opening_problems(fits=layout.DEFAULT_MOUNT_FITS):
@@ -2583,6 +2704,8 @@ def check_mount_openings():
     hole_x, hole_z = layout.reset_pin_hole_center()
     clearance, angle, bar_margin = nano_insertion_figures()
     apart, longest, overhang = nano_tilt_limits()
+    tilt_clearance, steepest = nano_strip_tilt_figures()
+    past_channel, into_round = shell_with_end_swelling_on_foot()
     figures = [
         require_figure("lever in its slot as printed", lever_in_slot_margin(),
                        DESIGN_LEVER_IN_SLOT_PRINTED_MM, 2),
@@ -2607,6 +2730,14 @@ def check_mount_openings():
                        DESIGN_NANO_LONGEST_BOARD_MM, 2),
         require_figure("the least shell overhang", overhang,
                        DESIGN_NANO_LEAST_SHELL_OVERHANG_MM, 2),
+        require_figure("the west strip's north top corner from its pocket's north end as printed",
+                       tilt_clearance, DESIGN_NANO_STRIP_TILT_CLEARANCE_PRINTED_MM, 3),
+        require_figure("the steepest going in with the USB end on the block, degrees", steepest,
+                       DESIGN_NANO_STRIP_TILT_STEEPEST_DEGREES, 2),
+        require_figure("with the end faces' swelling all on the foot, the shell past its channel",
+                       past_channel, DESIGN_SHELL_PAST_CHANNEL_ALL_ON_FOOT_MM, 2),
+        require_figure("its box into the window's corner rounds as printed", into_round,
+                       DESIGN_SHELL_INTO_WINDOW_ROUND_ALL_ON_FOOT_MM, 3),
         require_figure("pin hole's axis x", hole_x, DESIGN_RESET_PIN_HOLE_AXIS_MM[0], 3),
         require_figure("z", hole_z, DESIGN_RESET_PIN_HOLE_AXIS_MM[1], 2),
     ]
@@ -2686,11 +2817,48 @@ def standoff_problems(envelope, tightest):
     return problems
 
 
+def nano_strip_pieces(fits=layout.DEFAULT_MOUNT_FITS):
+    """The labels of the nice!nano's socket strips and their tails, the
+    pieces of its own a room over its pads must keep clear of."""
+    return {describe_envelope(envelope)
+            for envelope in layout.nano_strip_envelopes(fits) + layout.nano_tail_envelopes(fits)}
+
+
+def room_into_strips(room, strips, tightest):
+    """{(room's piece, strip's label): how far} in plan a room reaches
+    into the (label, polygon, z range) strip pieces where their heights
+    overlap, the ones it clears counted in the Tightest."""
+    found = {}
+    polygon = box_polygon(room)
+    for label, strip, z_range in strips:
+        if not ranges_overlap(room.z_range, z_range):
+            continue
+        clearance = convex_separation(polygon, strip)
+        if clearance < -TOLERANCE_MM:
+            found[(room.piece, label)] = -clearance
+        else:
+            tightest.update(clearance, f"the {describe_envelope(room)} and the {label}")
+    return found
+
+
+def named_room_overlaps(right):
+    """{(room's piece, strip's label): (how far, decimals)} DESIGN.md
+    names."""
+    return {(f"wire room {room}", f"nice!nano {side} socket strip's insulator"): figure
+            for (room, side), figure in DESIGN_NANO_ROOMS_INTO_STRIPS_MM[right].items()}
+
+
 def wire_room_problems(right, fits=layout.DEFAULT_MOUNT_FITS):
-    """(problems, tightest) of every wire room against its obstacles and
-    the standoffs, the printed plastic as printed."""
+    """(problems, tightest, overlaps) of every wire room against its
+    obstacles and the standoffs, the printed plastic as printed, and of
+    the nice!nano's pad rooms against its own strips and tails: those
+    overlaps as {(room's piece, strip's label): how far}, any DESIGN.md
+    does not name a problem."""
     obstacles, parts = wire_room_obstacles(right, fits)
+    strips = nano_strip_pieces(fits)
+    named = named_room_overlaps(right)
     problems = []
+    overlaps = {}
     tightest = Tightest()
     for room in layout.wire_rooms(fits, right):
         candidates = list(obstacles)
@@ -2698,20 +2866,33 @@ def wire_room_problems(right, fits=layout.DEFAULT_MOUNT_FITS):
                           if part != room.part)
         problems.extend(clearance_problems(room, candidates, tightest))
         problems.extend(standoff_problems(room, tightest))
-    return problems, tightest
+        own = [(label, polygon, z_range) for label, part, polygon, z_range in parts
+               if part == room.part and label in strips]
+        overlaps.update(room_into_strips(room, own, tightest))
+    problems.extend(f"the nice!nano's {room} reaches {overlaps[(room, strip)]:.4f} into its {strip}"
+                    for room, strip in sorted(set(overlaps) - set(named)))
+    return problems, tightest, overlaps
 
 
 def check_wire_rooms(right=False):
     """Every wire room clear of the tray as cut, the mounts, the
     standoffs and the joint as printed, the sockets and the other
-    parts."""
+    parts, and the nice!nano's pad rooms of its strips but where
+    DESIGN.md names an overlap."""
     behind, over = wire_room_depths()
-    problems, tightest = wire_room_problems(right)
+    problems, tightest, overlaps = wire_room_problems(right)
+    named = named_room_overlaps(right)
+    problems.extend(f"the nice!nano's {room} no longer reaches into its {strip}"
+                    for room, strip in sorted(set(named) - set(overlaps)))
     figures = [
         require_figure_for_all("behind every lead", behind, DESIGN_WIRE_ROOM_BEHIND_LEADS_MM, 1),
         require_figure_for_all("over the nice!nano's pads", over, DESIGN_WIRE_ROOM_OVER_PADS_MM, 1),
         require_figure("clear as printed by", tightest.value,
                        DESIGN_WIRE_ROOM_LEAST_CLEARANCE_PRINTED_MM, 3),
+    ] + [
+        require_figure(f"the {room} into the {strip.removeprefix('nice!nano ')}",
+                       overlaps[(room, strip)], stated, decimals)
+        for (room, strip), (stated, decimals) in sorted(named.items()) if (room, strip) in overlaps
     ]
     fail_on(problems + failed(figures), f"{half_label(right)}the wires' room taken")
     return f"wires:     {half_label(right)}{joined(figures)} ({tightest.where})"
@@ -2792,23 +2973,58 @@ def check_nano_seat():
     return "seat:      " + joined(figures)
 
 
+def nano_board_places(fits=layout.DEFAULT_MOUNT_FITS):
+    """(dx, dy) from its modelled place of each extreme place the board
+    can take in its pocket as printed: across as far as the shell's play
+    lets it, along from the foot's face to the north block's. At the
+    defaults the modelled place lies 0.02 into the foot as printed, so
+    every place is north of it."""
+    play = nano_shell_play(fits)
+    south = (layout.nano_south_stop_y_as_printed(fits)
+             - layout.nano_board_envelope(fits).y_range[0])
+    return [(dx, dy) for dx in (-play["west"], play["east"]) for dy in (south, play["north"])]
+
+
+def shifted_envelope(envelope, offset):
+    """The envelope moved in plan by (dx, dy), which its label tells."""
+    dx, dy = offset
+    return dataclasses.replace(
+        envelope, piece=f"{envelope.piece} moved ({dx:+.2f}, {dy:+.2f})",
+        x_range=(envelope.x_range[0] + dx, envelope.x_range[1] + dx),
+        y_range=(envelope.y_range[0] + dy, envelope.y_range[1] + dy),
+    )
+
+
 def nano_strip_clearances(right, fits=layout.DEFAULT_MOUNT_FITS):
     """(problems, tightest) of the strips and the rooms over them against
-    the half's tray as printed, the standoffs included."""
+    the half's tray as printed, the standoffs included, the board at
+    each of its extreme places (nano_board_places())."""
     obstacles = printed_tray_obstacles(right, fits)
     problems = []
     tightest = Tightest()
-    for envelope in layout.nano_strip_envelopes(fits) + layout.nano_strip_rooms(fits):
-        problems.extend(clearance_problems(envelope, obstacles, tightest))
-        problems.extend(standoff_problems(envelope, tightest))
+    for offset in nano_board_places(fits):
+        for envelope in layout.nano_strip_envelopes(fits) + layout.nano_strip_rooms(fits):
+            moved = shifted_envelope(envelope, offset)
+            problems.extend(clearance_problems(moved, obstacles, tightest))
+            problems.extend(standoff_problems(moved, tightest))
     return problems, tightest
+
+
+def nano_insulator_over_foot(fits=layout.DEFAULT_MOUNT_FITS):
+    """(how far the strips' insulators reach past the board's south end,
+    how far they then stay over the clamp foot's top as printed, which
+    rises as a top face)."""
+    insulator = layout.nano_strip_insulators(fits)[0]
+    past = layout.nano_south_end_y(fits) - insulator.y_range[0]
+    foot_top = layout.NANO_CLAMP_FOOT_HEIGHT_MM + layout.PRINT_RISE_OF_TOP_FACES_MM
+    return past, insulator.z_range[0] - foot_top
 
 
 def strips_under_sockets(right, fits=layout.DEFAULT_MOUNT_FITS):
     """(least height under them, keys) of the sockets over the strips in
     plan on the given half."""
     least, keys = math.inf, set()
-    for strip in layout.nano_strip_envelopes(fits):
+    for strip in layout.nano_strip_insulators(fits):
         for name, socket in socket_footprints(right):
             if convex_separation(box_polygon(strip), socket) < -TOLERANCE_MM:
                 keys.add(name)
@@ -2817,9 +3033,11 @@ def strips_under_sockets(right, fits=layout.DEFAULT_MOUNT_FITS):
 
 
 def nano_strip_figures():
-    """The strips' worst case and their pockets as built: the west one
-    the ledge's cut, the east one the east wall's boxes."""
-    west, east = layout.nano_strip_envelopes()
+    """The strips' worst case, their insulators over the clamp's foot,
+    and their pockets as built: the west one the ledge's cut, the east
+    one the east wall's boxes."""
+    west, east = layout.nano_strip_insulators()
+    past_board, over_foot = nano_insulator_over_foot()
     ledge_pocket = layout.tray_cut_polygon(layout.nano_strip_ledge_pocket())
     outer, _under_pocket, south_of_pocket = layout.nano_east_wall_boxes()
     return [
@@ -2830,6 +3048,12 @@ def nano_strip_figures():
         require_figure("both from y", west.y_range[0], DESIGN_NANO_STRIP_Y_MM[0], 4),
         require_figure("to", west.y_range[1], DESIGN_NANO_STRIP_Y_MM[1], 4),
         require_figure("top z", west.z_range[1], DESIGN_NANO_STRIP_TOP_Z_MM, 3),
+        require_figure("the insulators from z", west.z_range[0],
+                       DESIGN_NANO_STRIP_INSULATOR_BOTTOM_Z_MM, 2),
+        require_figure("past the board's south end", past_board,
+                       DESIGN_NANO_STRIP_PAST_BOARD_END_MM, 4),
+        require_figure("over the foot's top as printed", over_foot,
+                       DESIGN_NANO_INSULATOR_OVER_FOOT_PRINTED_MM, 2),
         require_figure("the ledge's pocket face x", min(x for x, _ in ledge_pocket),
                        DESIGN_NANO_STRIP_POCKET_X_MM[0], 3),
         require_figure("from y", min(y for _, y in ledge_pocket), DESIGN_NANO_STRIP_POCKET_Y_MM[0],
@@ -2847,9 +3071,11 @@ def check_nano_strips(right=False):
     them."""
     problems, tightest = nano_strip_clearances(right)
     under, keys = strips_under_sockets(right)
+    if nano_insulator_over_foot()[1] < TOLERANCE_MM:
+        problems.append("the strips' insulators come down on the clamp's foot as printed")
     figures = nano_strip_figures() + [
-        require_figure("clear of the tray as printed up to the PCB's underside by",
-                       tightest.value, DESIGN_NANO_STRIPS_CLEAR_PRINTED_MM, 3),
+        require_figure("clear of the tray as printed up to the PCB's underside, the board at its "
+                       "worst place, by", tightest.value, DESIGN_NANO_STRIPS_CLEAR_PRINTED_MM, 3),
         require_figure(f"under {', '.join(sorted(keys))}'s sockets by", under,
                        DESIGN_NANO_STRIPS_UNDER_SOCKETS_MM, 3),
     ]
@@ -2991,17 +3217,18 @@ def toothpick_point_over(corner, angle, bottom):
     return y + radius / math.sin(angle) + (z - bottom) / math.tan(angle)
 
 
-def pry_toothpick_pose(right, fits=layout.DEFAULT_MOUNT_FITS):
+def pry_toothpick_pose(right, fits=layout.DEFAULT_MOUNT_FITS, board_shift=0.0):
     """(the least angle in degrees, how far the point then gets under
     the board's south edge, the recess left north of it, the corner that
-    sets the angle), as printed. Where no angle brings the point under
-    the board, the reach is minus infinity at the steepest angle tried,
-    and the corner is the one that stops it there."""
+    sets the angle), as printed, the board moved board_shift north of
+    its modelled place. Where no angle brings the point under the board,
+    the reach is minus infinity at the steepest angle tried, and the
+    corner is the one that stops it there."""
     swelling = layout.PRINT_SWELLING_PER_SIDE_MM
     recess = layout.nano_pry_recess_box(fits)
     bottom = recess.z_range[0] + layout.PRINT_RISE_OF_UP_FACING_BOTTOMS_MM
     under_board = layout.nano_board_envelope(fits).z_range[0] - bottom
-    board_south = layout.nano_south_end_y(fits)
+    board_south = layout.nano_south_end_y(fits) + board_shift
     recess_end = recess.y_range[1] - swelling
     corners = pry_toothpick_corners(right, fits)
 
@@ -3026,6 +3253,14 @@ def pry_toothpick_pose(right, fits=layout.DEFAULT_MOUNT_FITS):
             low = middle
     point = farthest(high)
     return math.degrees(high), point - board_south, recess_end - point, setting(high)
+
+
+def pry_toothpick_worst_pose(right, fits=layout.DEFAULT_MOUNT_FITS):
+    """pry_toothpick_pose() with the board at whichever of its stops as
+    printed leaves the point the least far under it."""
+    shifts = sorted({dy for _, dy in nano_board_places(fits)})
+    return min((pry_toothpick_pose(right, fits, shift) for shift in shifts),
+               key=lambda pose: pose[1])
 
 
 def pry_recess_floor_under(fits=layout.DEFAULT_MOUNT_FITS):
@@ -3069,7 +3304,7 @@ def pry_slot_problems(right, fits=layout.DEFAULT_MOUNT_FITS):
         problems.append(f"the slot leaves the toothpick {high - low:.3f} beside the west row's "
                         "last tail as printed, less than its "
                         f"{layout.NANO_PRY_TOOTHPICK_DIAMETER_MM}")
-    angle, reach, _room, where = pry_toothpick_pose(right, fits)
+    angle, reach, _room, where = pry_toothpick_worst_pose(right, fits)
     if reach == -math.inf:
         problems.append(f"no angle up to {angle:.2f} degrees brings a toothpick's point under "
                         f"the board past the {where}")
@@ -3087,7 +3322,7 @@ def check_pry_slot(right=False):
     slot = layout.nano_pry_slot_box()
     recess = layout.nano_pry_recess_box()
     board = layout.NANO_BOARD
-    angle, reach, room, where = pry_toothpick_pose(right)
+    angle, reach, room, where = pry_toothpick_worst_pose(right)
     lane = pry_toothpick_lane()
     figures = [
         require_figure("slot from x", slot.x_range[0], DESIGN_PRY_SLOT_X_MM[0], 1),
@@ -3105,8 +3340,8 @@ def check_pry_slot(right=False):
         require_figure("down to z", recess.z_range[0], DESIGN_PRY_RECESS_BOTTOM_Z_MM, 1),
         require_figure("floor under it", pry_recess_floor_under(),
                        DESIGN_PRY_RECESS_FLOOR_UNDER_MM, 1),
-        require_figure("a 2.0 toothpick's least angle", angle, DESIGN_PRY_TOOTHPICK_ANGLE_DEGREES,
-                       1),
+        require_figure("a 2.0 toothpick's least angle, the board at its worst stop", angle,
+                       DESIGN_PRY_TOOTHPICK_ANGLE_DEGREES, 1),
         require_figure("its point under the board as printed", reach,
                        DESIGN_PRY_TOOTHPICK_REACH_PRINTED_MM, 2),
         require_figure("past the west row's last tail, from the board's end",

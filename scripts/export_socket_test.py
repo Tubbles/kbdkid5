@@ -838,16 +838,17 @@ def check_wire_rooms(kind, frame, stacked):
 
 
 def battery_figures():
+    """(the socket's bottom with the frame in the PCB's place, the pads'
+    room under it, the backing's underside as printed, its clearance
+    from the battery's top)."""
     socket_bottom = layout.PCB_UNDERSIDE_Z_MM - shape.socket_height()
     pads_room = shape.boss_end_depth() - shape.socket_height()
-    rise = layout.PRINT_RISE_OF_TOP_FACES_MM
-    bottom = socket_bottom - pads_room - shape.BACKING_THICKNESS_MM
-    clearance = bottom - rise - layout.BATTERY_TOP_Z_MM
-    return socket_bottom, pads_room, bottom, clearance
+    underside = shape.backing_underside_z_as_printed()
+    return socket_bottom, pads_room, underside, underside - layout.BATTERY_TOP_Z_MM
 
 
 def check_battery():
-    socket_bottom, pads_room, bottom, clearance = battery_figures()
+    socket_bottom, pads_room, underside, clearance = battery_figures()
     limit = shape.backing_thickness_limit()
     heads_bottom = shape.backing_screw_heads_bottom_z()
     heads_clearance = heads_bottom - layout.BATTERY_TOP_Z_MM
@@ -865,14 +866,14 @@ def check_battery():
     print(f"battery:    in the tray the frame in the PCB's place puts the socket's bottom at "
           f"z {socket_bottom:.3f} (under a PCB {layout.SOCKET_BOTTOM_Z_MM:.2f}); below it the "
           f"pads' room takes {pads_room:.3f} and the backing {shape.BACKING_THICKNESS_MM} (of "
-          f"{limit:.3f} the battery allows), its bottom at z {bottom:.3f}, {bottom - rise:.3f} "
-          f"as printed (its top face rises {rise}, measured), "
+          f"{limit:.3f} the battery allows), its bottom at z {underside + rise:.3f}, "
+          f"{underside:.3f} as printed (its top face rises {rise}, measured), "
           f"{clearance:.3f} over the battery's top {layout.BATTERY_TOP_Z_MM} as printed "
           f"(at least {layout.MINIMUM_BATTERY_TO_SOCKET_CLEARANCE_MM}), its screw heads "
           f"{shape.BACKING_SCREW_HEAD_HEIGHT_MM} tall to z {heads_bottom:.3f}, "
           f"{heads_clearance:.3f} over it")
     strips_top = max(strip.z_range[1] for strip in layout.nano_strip_envelopes())
-    print(f"strips:     the backing's underside {bottom - rise - strips_top:.3f} over the "
+    print(f"strips:     the backing's underside {underside - strips_top:.3f} over the "
           f"nice!nano's socket strips' top z {strips_top:.3f} as printed, its screw heads "
           f"{heads_bottom - strips_top:.3f}, so a frame's backing screws must keep off the "
           "strips in plan")

@@ -1,8 +1,8 @@
 """Export the nice!nano test bay (STL): one bay cut out of the left
 tray, its pocket at the default slip fit across the board, the user's
 choice to shorten the print, to settle the bay on a real board before
-printing whole trays (work items 006, 009 and 010). BAY_FITS can step
-the fit over several bays again, side by side in one strip.
+printing whole trays (work items 006, 009, 010 and 011). BAY_FITS can
+step the fit over several bays again, side by side in one strip.
 
 Each bay is build_tray()'s left tray (tray_shape.py) with the bay's
 layout.MountFits, cut by one box around the nice!nano's corner, so the

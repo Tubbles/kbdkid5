@@ -1868,16 +1868,19 @@ def nano_center_x(fits):
 # block's. The user calipered the first heavy duty test bay (work item
 # 010), whose end faces stood 33.8 apart as modelled, 33.4 by the print
 # model: "Board length 33.20, bay inside length 33.54" (2026-10-20). So
-# these two faces swelled (33.8 - 33.54) / 2 = 0.13 each, not the
-# print model's 0.2, while across the print model held (18.8 modelled,
-# 18.4 by the model, 18.41 to 18.46 calipered). Why is not known: they
-# are short faces, the reading is a caliper's on a printed part, or
-# both. The pocket is the board's slip fit along with that swelling,
-# so its end faces stand the board's length and the slip fit's 0.1
-# apart as printed, and every figure along it as printed counts them
-# swollen by that much. The north block stays where it stood, the print
-# model's slip fit gap north of the board's USB end, so the shell's
-# mouth stays put, and the foot's face follows the pocket's length.
+# these two faces swelled 33.8 - 33.54 = 0.26 together, not the print
+# model's 0.4, while across the print model held (18.8 modelled, 18.4 by
+# the model, 18.41 to 18.46 calipered). Only that sum was calipered: it
+# is taken as 0.13 on each face, and how it really splits is not known
+# (check_layout.py prints the shell with all of it on the foot). Why the
+# faces swell less is not known either: they are short faces, the
+# reading is a caliper's on a printed part, or both. The pocket is the
+# board's slip fit along with that swelling, so its end faces stand
+# the board's length and the slip fit's 0.1 apart as printed, and
+# every figure along it as printed counts them swollen by that much.
+# The north block stays where it stood, the print model's slip fit
+# gap north of the board's USB end, so the shell's mouth stays put,
+# and the foot's face follows the pocket's length.
 NANO_POCKET_END_FACE_SWELLING_MM = 0.13
 
 
@@ -2094,12 +2097,12 @@ def nano_north_block_boxes(fits=DEFAULT_MOUNT_FITS):
 # underside would be with the nose on the board's top, so tightening the
 # screw bends the tab's arm, from the head's edge to the nose's south
 # face, where the board pushes it up, up by the press, which is how hard
-# it holds the board down. The block's top and the floor's top face up
-# in the same print and rise together, and so do the plate's underside
-# and the nose's bottom, the tab printed top face down, so the press
-# prints as modelled. The tab is the same for every press, which the
-# block's top sets. Its plan is symmetric about the board's center line,
-# so the right half takes the same tab.
+# it holds the board down. The block's top and the seat's top, which the
+# board rests on, face up in the same print and rise together, and so do
+# the plate's underside and the nose's bottom, the tab printed top face
+# down, so the press prints as modelled. The tab is the same for every
+# press, which the block's top sets. Its plan is symmetric about the
+# board's center line, so the right half takes the same tab.
 NANO_CLAMP_TAB_WIDTH_MM = STANDOFF_DIAMETER_MM  # along x, the boss's it came with
 NANO_CLAMP_BLOCK_DEPTH_MM = STANDOFF_DIAMETER_MM  # along y, the boss's it replaces
 NANO_CLAMP_SCREW_FROM_BOARD_END_MM = 6.5
@@ -2376,19 +2379,25 @@ def nano_extra_pads_y_range():
 # to the B+ or B- pins", doc/components.md). Mill-Max's datasheet and
 # catalog page 65 (work/research/downloads/millmax-315-43-112-41-003000/):
 # the insulator is the pins times .100" long and .100" wide, centered on
-# the pins, the sleeves under it inside its plan, .095" (2.413) over the
-# board's top from their seating shoulders, the solder tails .030"
-# (0.762) across and .095" (2.413) long below the seating plane, the
-# board's top, so 0.813 below the underside of the 1.6 board. Its
-# tolerances: the length +-.005" (0.127), the insulator's width +-.005"
-# (0.13), the pins' length +-.005" (0.13), assembly +-.010" (0.25). A
-# strip's envelope, insulator and sleeves as one box, is its worst case
-# in plan: at either of the render's row insets, its length and width
-# tolerances split over both ends and sides, the assembly tolerance on
-# every side. Its height is the datasheet's. A tail's envelope is the
+# the pins, its top .095" (2.413) over the board's top and itself .071"
+# (1.803) tall, so it stands 0.61 clear of the board on the sleeves
+# under it (Fig. 4), the solder tails .030" (0.762) across and .095"
+# (2.413) long below the seating plane, the board's top, so 0.813 below
+# the underside of the 1.6 board. Its tolerances: the length +-.005"
+# (0.127), the insulator's width +-.005" (0.13), the pins' length
+# +-.005" (0.13), assembly +-.010" (0.25), and the insulator's height
+# +-.005" (0.13), which is not modelled: 0.13 taller under the same
+# top, it would stand 0.43 over the clamp's foot as printed, still
+# clear. A strip is two envelopes.
+# The insulator is its worst case in plan: at either of the render's
+# row insets, its length and width tolerances split over both ends and
+# sides, the assembly tolerance on every side. The sleeves stand on the
+# pins' pads at either inset, since the drawing gives no sleeve
+# diameter. Their heights are the datasheet's. A tail's envelope is the
 # row's tails at either inset, down to the longest pin's tip.
 NANO_STRIP_WIDTH_MM = 2.54
 NANO_STRIP_HEIGHT_MM = 2.413  # over the board's top
+NANO_STRIP_INSULATOR_HEIGHT_MM = 1.803
 NANO_STRIP_TAIL_DIAMETER_MM = 0.762
 NANO_STRIP_TAIL_LENGTH_MM = 2.413  # below the board's top
 NANO_STRIP_LENGTH_TOLERANCE_MM = 0.127
@@ -2410,14 +2419,38 @@ def nano_strip_x_range(fits, west):
     return grown_range(nano_row_axis_x_range(fits, west), half_width)
 
 
-def nano_strip_envelopes(fits=DEFAULT_MOUNT_FITS):
-    """The west and the east strip, on the board's top."""
-    top = nano_board_envelope(fits).z_range[1]
+def nano_strip_insulator_bottom_z(fits=DEFAULT_MOUNT_FITS):
+    return (nano_board_envelope(fits).z_range[1] + NANO_STRIP_HEIGHT_MM
+            - NANO_STRIP_INSULATOR_HEIGHT_MM)
+
+
+def nano_strip_insulators(fits=DEFAULT_MOUNT_FITS):
+    """The west and the east strip's insulator, over its sleeves."""
+    top = nano_board_envelope(fits).z_range[1] + NANO_STRIP_HEIGHT_MM
     return tuple(
-        Envelope("nice!nano", f"{side} socket strip", nano_strip_x_range(fits, side == "west"),
-                 nano_strip_y_range(), (top, top + NANO_STRIP_HEIGHT_MM), CAVITY)
+        Envelope("nice!nano", f"{side} socket strip's insulator",
+                 nano_strip_x_range(fits, side == "west"), nano_strip_y_range(),
+                 (nano_strip_insulator_bottom_z(fits), top), CAVITY)
         for side in ("west", "east")
     )
+
+
+def nano_strip_sleeves(fits=DEFAULT_MOUNT_FITS):
+    """The west and the east strip's sleeves, from the board's top up to
+    the insulator, on the pins' pads."""
+    top = nano_board_envelope(fits).z_range[1]
+    return tuple(
+        Envelope("nice!nano", f"{side} socket strip's sleeves",
+                 nano_row_x_range(fits, side == "west"),
+                 grown_range(nano_pins_y_range(), NANO_PIN_PAD_DIAMETER_MM / 2.0),
+                 (top, nano_strip_insulator_bottom_z(fits)), CAVITY)
+        for side in ("west", "east")
+    )
+
+
+def nano_strip_envelopes(fits=DEFAULT_MOUNT_FITS):
+    """The strips on the board's top, insulators and sleeves."""
+    return nano_strip_insulators(fits) + nano_strip_sleeves(fits)
 
 
 def nano_tail_tip_below_board():
@@ -2445,9 +2478,9 @@ def nano_tail_envelopes(fits=DEFAULT_MOUNT_FITS):
 # (check_layout.py reports how far they stay over the strips' tops).
 def nano_strip_rooms(fits=DEFAULT_MOUNT_FITS):
     return tuple(
-        Envelope("nice!nano", f"room over the {strip.piece}", strip.x_range, strip.y_range,
+        Envelope("nice!nano", f"room over the {side} socket strip", strip.x_range, strip.y_range,
                  (strip.z_range[1], PCB_UNDERSIDE_Z_MM), CAVITY)
-        for strip in nano_strip_envelopes(fits)
+        for side, strip in zip(("west", "east"), nano_strip_insulators(fits))
     )
 
 

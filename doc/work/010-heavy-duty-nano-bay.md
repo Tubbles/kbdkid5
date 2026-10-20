@@ -1,6 +1,6 @@
 # 010 Heavy duty nice!nano bay
 
-Status: implemented
+Status: verified (the user printed the test bay: "Ok the test bay works well, the idea flies"), the bay since raised onto a seat for socket strips by work item 011
 
 The user printed the 006/009 bay test strip: "It needs a lot of improvements." The floor grooves under the pin rows and the shell's tabs go: "Remove all those recesses, they're completely unneccesary since _the nano is absolutely flat on its underside_. There is nothing sticking out downwards." The side ribs "are just miniscule tabs. Make them tall, thick walls that really cover the nano", and in general "make the cradle more of a heavy duty pocket in an extrusion, rather than tiny lips that's not helping at all, they're just weak when being 3d printed", "Think simple, big features". The caliper: "The nano measures, with the usb connector included: 18.30 x 34.17". doc/log/2026-10-19.md has the whole exchange.
 
@@ -22,7 +22,6 @@ DESIGN.md (the nice!nano's bullets) has the figures.
 
 Open:
 
-- Print the test bay and find whether the slip fit seats the board: whether it goes in, and whether it is loose, snug or tight across.
-- Whether a USB-C cable goes in with the board held solidly by the foot and the tab.
-- Whether the toothpick lifts the board out as worked out, on the test bay and in a whole tray, where it has to come in over the rim.
+- Answered by the test bay's print: the board goes in, and the slip fit seats it. The user felt about a millimeter of play across and a third along, and calipered 18.41 to 18.46 across the pocket and 33.54 along it for a board 18.17 to 18.23 by 33.20 (doc/log/2026-10-20.md). Work item 011 sizes the bay for that board.
+- Whether a USB-C cable goes in with the board held solidly by the foot and the tab, and whether the toothpick lifts the board out as worked out, on the test bay and in a whole tray, where it has to come in over the rim. The report does not mention either, so both move to work item 011's raised bay.
 - The rest of the tray's mounts in the same spirit: the user said the heavy duty approach "probably goes for the rest of the details in the tray".
