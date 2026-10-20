@@ -1,7 +1,7 @@
 """Export the fused mock (STL): the PCB mock and the switch plate printed
 as one part, to mount switches in for a feel of the layout.
 
-The PCB layer is the PCB mock (pcb_shape.py, z 8.0 to 9.6 in the
+The PCB layer is the PCB mock (pcb_shape.py, z 9.5 to 11.1 in the
 layout's frame) with each key's two pin holes replaced by slits that
 grip the switch's pin blades, the way a hotswap socket's contacts do:
 slit_width across the blade, slit_length along it. pull_in sets their
@@ -14,7 +14,7 @@ does not grip, and it stays until the second strip
 plus pull_in per side plus layout.SLIT_LENGTH_CLEARANCE_MM, so only
 the width grips. Every other hole is the mock's, grown by pull_in.
 
-The plate on it is plate_shape.py's (z 9.6 to 11.8), plain, with its
+The plate on it is plate_shape.py's (z 11.1 to 13.3), plain, with its
 side shave but no pattern shift: kbdkid4's shift corrects its printed
 plates against its fabricated board, and here the plate and the PCB
 layer are one print, so a shift would only move each cutout off the

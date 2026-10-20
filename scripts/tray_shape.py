@@ -21,18 +21,21 @@ slant, the standoffs bored for M2 heat-set inserts, and the dowel pin
 bosses and the parking hole's boss, up to the PCB's underside, with the
 fills that close the crevices beside them. Then the cuts, all exactly as
 layout.py gives them: the ledge cut-aways layout.py declares for the
-parts in the tray, the sockets' notches, pockets and reliefs, and the
-standoffs' flats. Every cut but the pockets is clipped to the cavity so
-it never reaches the wall, and a cut that finds nothing left to remove
-(a tab's relief inside its notch) is skipped. Then the parts' mounts
+parts in the tray, the west socket strip's pocket in the west ledge,
+the sockets' notches, pockets and reliefs, and the standoffs' flats.
+Every cut but the sockets' wall pockets is clipped to the cavity so it
+never reaches the wall, and a cut that finds nothing left to remove (a
+tab's relief inside its notch) is skipped. Then the parts' mounts
 (work item 004), layout.py's boxes in its order: the power switch's
 cradle, the reset button's back wall, the battery header's pocket and
-the battery's corner ribs, then the nice!nano's north block, its screw
-clamp's block and foot (work items 009 and 010) and its east wall, no
-body filling a standoff's bore, then the USB shell's channel and the
-USB window, the lever slot and the reset pin hole through the north
-wall, the nice!nano's pry slot through the clamp's block and foot, its
-pry recess in the floor and the clamp block's insert bore. Then
+the battery's corner ribs, then the nice!nano's north block with the
+sill under its opening, its screw clamp's block and foot (work items
+009 and 010), its east wall, cut back over the board's top for the east
+socket strip, and the seat the board lies on, which leaves the pry
+recess free, no body filling a standoff's bore, then the USB shell's
+channel and the USB window, the lever slot and the reset pin hole
+through the north wall, the nice!nano's pry slot through the clamp's
+block and foot and the clamp block's insert bore. Then
 the magnet slots, open toward the cavity, with the wall cut back over
 them, the flat-topped teardrop pin holes (the half's fit and depth, the
 right half's with a lead-in at the mouth), the flat-topped teardrop
@@ -525,11 +528,13 @@ def edge_probe(cut, along, across, z):
 
 
 def check_ledge_cut(before, after, cut):
-    """A ledge cut opened the ledge and left the wall behind it wherever
-    the wall was (kbdkid4's probes)."""
+    """A ledge cut opened the ledge, in the middle of its part of the
+    ledge's width, and left the wall behind it wherever the wall was
+    (kbdkid4's probes)."""
     low, high = cut.along_range
     middle_z = sum(cut.z_range) / 2.0
-    in_ledge = (layout.TRAY_GAP_MM - layout.ledge_reach()) / 2.0
+    in_ledge = (max(cut.across_range[0], -layout.ledge_reach())
+                + min(cut.across_range[1], layout.TRAY_GAP_MM)) / 2.0
     if is_solid_at(after, edge_probe(cut, (low + high) / 2.0, in_ledge, middle_z)):
         raise SystemExit(f"error: the {cut.label} did not open the ledge")
     in_wall = layout.TRAY_GAP_MM + layout.TRAY_WALL_MM / 2.0
@@ -906,8 +911,8 @@ def check_floor_closed(tray, corner_radius):
 # reaches, so the standoff the nice!nano's clamp block, foot and east
 # wall take in keeps its bore. Each is checked against a volume worked
 # out from the layout alone where the tray around it is known (the
-# nice!nano's bodies, the voids in the wall, the clamp's block and foot
-# and the floor), and probed.
+# nice!nano's bodies, the voids in the wall, the clamp's block and
+# foot), and probed.
 
 
 def box_prism(box, extra_below=0.0, extra_above=0.0):
@@ -1025,25 +1030,43 @@ def require_solid_at(tray, point, want_solid, what):
         raise SystemExit(f"error: {what}")
 
 
+def body_probe_fractions(box):
+    """Where in a body's box, as fractions of its x and y ranges, to probe
+    its top: its middle, or failing that the middle of a tenth of the box
+    at one of its faces, the first clear of the standoffs, which stand
+    taller than the bodies that take one in."""
+    radius = layout.STANDOFF_DIAMETER_MM / 2.0
+    for fractions in ((0.5, 0.5), (0.5, 0.95), (0.5, 0.05), (0.95, 0.5), (0.05, 0.5)):
+        point = box_point(box, *fractions)
+        if all(math.hypot(point.x - x, point.y - y) > radius + 0.05
+               for x, y in layout.MOUNTING_DRILL_CENTERS_MM):
+            return fractions
+    raise SystemExit(f"error: no point in the {box.label} clear of the standoffs to probe")
+
+
 def check_nano_bodies(tray, fits):
     """The nice!nano's bodies stand this tall and no taller, the foot's
     north face is where the board's south end stops, and the standoff
     they take in keeps its bore open to the floor."""
     for box in layout.nano_bodies(fits):
         top = box.z_range[1]
-        require_solid_at(tray, box_point(box, z=top - 0.05), True,
+        fractions = body_probe_fractions(box)
+        require_solid_at(tray, box_point(box, *fractions, z=top - 0.05), True,
                          f"the {box.label} is not this tall")
-        require_solid_at(tray, box_point(box, z=top + 0.05), False, f"the {box.label} is taller")
+        require_solid_at(tray, box_point(box, *fractions, z=top + 0.05), False,
+                         f"the {box.label} is taller")
     foot = layout.nano_clamp_boxes(fits)[1]
     stop_y = foot.y_range[1]
     middle_x = sum(layout.nano_clamp_tab_x_range(fits)) / 2.0
+    # Over the seat, which runs on north from the stop.
+    over_seat = (layout.NANO_SEAT_HEIGHT_MM + foot.z_range[1]) / 2.0
     for y, want_solid, how in ((stop_y - 0.05, True, "ending at the stop"),
                                (stop_y + 0.05, False, "open in front of the stop")):
-        require_solid_at(tray, App.Vector(middle_x, y, foot.z_range[1] / 2.0), want_solid,
+        require_solid_at(tray, App.Vector(middle_x, y, over_seat), want_solid,
                          f"the clamp's foot is not {how}")
     x, y = layout.NANO_MERGED_STANDOFF_MM
     radius = layout.STANDOFF_BORE_DIAMETER_MM / 2.0
-    for z in (0.05, 1.0, layout.NANO_EAST_WALL_HEIGHT_MM - 0.05):
+    for z in (0.05, 1.0, layout.nano_east_wall_top_z() - 0.05):
         require_solid_at(tray, App.Vector(x, y, z), False,
                          f"the standoff at {(x, y)} lost its bore at z {z}")
         require_solid_at(tray, App.Vector(x + radius + 0.05, y, z), True,
@@ -1055,7 +1078,8 @@ def add_mounts(tray, fits):
     (tray, (label, added volume) of each). The nice!nano's bodies stand
     on the open floor, against the ledge's and the wall's faces, so each
     adds its box less what the bodies fused before it and the standoffs
-    took of it, no body fused before them meeting a standoff."""
+    took of it, no body fused before them meeting a standoff and no two
+    of them overlapping inside one."""
     bodies = layout.mount_bodies(fits)
     added_volumes = []
     for index, box in enumerate(bodies):
@@ -1152,22 +1176,24 @@ def rectangle_in_window_area(x_range, z_range, center, half_width, half_height, 
     return area
 
 
-def check_usb_window(tray, middle, half_width, half_height, radius, chamfer, thickness,
-                     window_from):
+def check_usb_window(tray, middle, half_width, half_height, radius, chamfer, thickness):
     """kbdkid4's probes of its rounded window, on the wall's outer face
     only: open inside its edges and solid just outside them in the wall,
     the chamfer open just outside the edges near the outer face but no
     wider than the chamfer, and the corners rounded. `middle` lies on
     the window's south face, the shell's mouth, the wall `thickness`
-    along +y from it, and the opening is the window's alone from
-    `window_from` along +y on, past the shell's channel."""
+    along +y from it. The wall is probed halfway to the chamfer, where
+    the shell's channel runs on past the mouth (into the chamfer's
+    depth, for the board's play north) but lies inside the window's
+    outline except at the corners, short of the corner probes' solid
+    points."""
     across = App.Vector(1.0, 0.0, 0.0)
     through = App.Vector(0.0, 1.0, 0.0)
 
     def solid(along, depth, height):
         return is_solid_at(tray, middle.add(across * along).add(through * depth).add(UP * height))
 
-    mid_wall = (window_from + thickness - chamfer) / 2.0
+    mid_wall = (thickness - chamfer) / 2.0
     near_face = thickness - chamfer / 4.0
     if solid(0.0, mid_wall, 0.0):
         raise SystemExit("error: the USB window did not open the wall")
@@ -1287,9 +1313,7 @@ def cut_usb_window(tray, fits):
     expected = area * (outer - mouth) + chamfer_volume(perimeter, chamfer) - in_channel
     require_volume("the USB window", tray.Volume - result.Volume, expected, 2e-3)
     middle = App.Vector(center_x, mouth, center_z)
-    check_usb_window(
-        result, middle, half_width, half_height, radius, chamfer, outer - mouth, channel_past
-    )
+    check_usb_window(result, middle, half_width, half_height, radius, chamfer, outer - mouth)
     check_bar_to_mouth(result, fits)
     return result
 
@@ -1377,25 +1401,6 @@ def cut_nano_pry_slot(tray, fits):
     return result
 
 
-def cut_floor_void(tray, box, earlier):
-    """Cut a recess in the floor, its cutter run on into the open cavity
-    above the floor's top. It removes its box less what the earlier
-    voids took from it, and leaves the floor under it."""
-    cutter = box_prism(box, 0.0, 0.5)
-    result = tray.cut(cutter)
-    require_one_valid_solid(result, f"the {box.label}")
-    taken = sum(box_overlap_volume(box, other) for other in earlier)
-    require_volume(f"the {box.label}", tray.Volume - result.Volume, box_volume(box) - taken, 1e-6)
-    bottom = box.z_range[0]
-    for point, want_solid, what in (
-        (box_point(box, z=bottom + 0.05), False, "open to its bottom"),
-        (box_point(box, z=bottom - 0.05), True, "this shallow"),
-    ):
-        if is_solid_at(result, point) != want_solid:
-            raise SystemExit(f"error: the {box.label} is not {what}")
-    return result
-
-
 def cut_nano_clamp_bore(tray, fits):
     """Bore the clamp's block for its insert from its top down to the
     floor's top, like a standoff, its cutter run on above the top: it
@@ -1423,17 +1428,12 @@ def cut_nano_clamp_bore(tray, fits):
 def cut_mount_voids(tray, fits):
     """Cut every mount void layout.py gives, in its order: the shell's
     channel and the window, the lever slot and the pin hole through the
-    north wall, the pry slot through the clamp's block and foot, then
-    the pry recess in the floor, whose cutter runs on up into the slot,
-    and bore the clamp's block."""
+    north wall, the pry slot through the clamp's block and foot, and
+    bore the clamp's block."""
     tray = cut_usb_window(tray, fits)
     tray = cut_lever_slot(tray)
     tray = cut_reset_pin_hole(tray)
     tray = cut_nano_pry_slot(tray, fits)
-    earlier = []
-    for box in layout.floor_voids(fits):
-        tray = cut_floor_void(tray, box, earlier)
-        earlier.append(box)
     return cut_nano_clamp_bore(tray, fits)
 
 
@@ -1467,6 +1467,7 @@ def build_tray(right=False, pin_hole_diameter=None, fits=None):
     cuts = []
     skipped = []
     tray_cuts = [layout.ledge_cutaway_cut(cutaway) for cutaway in layout.ledge_cutaways(fits)]
+    tray_cuts.append(layout.nano_strip_ledge_pocket(fits))
     tray_cuts.extend(layout.all_socket_tray_cuts(right))
     for cut in tray_cuts:
         tray, removed = apply_tray_cut(tray, cut, cavity)

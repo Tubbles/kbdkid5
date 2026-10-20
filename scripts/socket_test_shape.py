@@ -197,6 +197,12 @@ BOSS_EDGE_MARGIN_MM = 0.5
 # backing stays. The user wants the pads smaller in plan, not a perfect
 # fit (doc/log/2026-10-18.md).
 BACKING_THICKNESS_MM = 0.8
+# The backing's M2 screws go up through it into the frame's inserts, so
+# their heads hang below its underside (the user, 2026-10-20: "Also we
+# need to take the backing screws sticking out below the backing piece
+# into the calculation"), as tall as the user's pan heads ("The M2 pan
+# head screws I have today have roughly 1.5 mm high heads btw").
+BACKING_SCREW_HEAD_HEIGHT_MM = 1.5
 SCREW_CLEARANCE_HOLE_DIAMETER_MM = layout.printed_fit(
     layout.MOUNTING_DRILL_DIAMETER_MM, layout.SNUG_FIT_MM
 )
@@ -379,8 +385,8 @@ def backing_thickness_limit(socket_bottom_z=None):
     the socket's bottom with the frame in the PCB's place, less the
     pads' room (from the socket's bottom to the backing's top), the
     backing's own rise as printed (its top face rises
-    PRINT_RISE_OF_TOP_FACES_MM, so its bottom lies that much lower) and
-    the clearance to the battery."""
+    PRINT_RISE_OF_TOP_FACES_MM, so its bottom lies that much lower), the
+    screw heads under it and the clearance to the battery."""
     if socket_bottom_z is None:
         socket_bottom_z = layout.PCB_UNDERSIDE_Z_MM - socket_height()
     pads_room = boss_end_depth() - socket_height()
@@ -388,9 +394,28 @@ def backing_thickness_limit(socket_bottom_z=None):
         socket_bottom_z
         - pads_room
         - layout.PRINT_RISE_OF_TOP_FACES_MM
+        - BACKING_SCREW_HEAD_HEIGHT_MM
         - layout.MINIMUM_BATTERY_TO_SOCKET_CLEARANCE_MM
         - layout.BATTERY_TOP_Z_MM
     )
+
+
+def backing_underside_z_as_printed(socket_bottom_z=None):
+    """The backing's underside in the real tray, the frame in the PCB's
+    place: the socket's bottom less the pads' room and the backing's
+    thickness, and lower by the backing's own rise as printed, its top
+    face resting on the bosses' ends."""
+    if socket_bottom_z is None:
+        socket_bottom_z = layout.PCB_UNDERSIDE_Z_MM - socket_height()
+    pads_room = boss_end_depth() - socket_height()
+    return (socket_bottom_z - pads_room - BACKING_THICKNESS_MM
+            - layout.PRINT_RISE_OF_TOP_FACES_MM)
+
+
+def backing_screw_heads_bottom_z(socket_bottom_z=None):
+    """Where the backing's screw heads end below it in the real tray, as
+    printed."""
+    return backing_underside_z_as_printed(socket_bottom_z) - BACKING_SCREW_HEAD_HEIGHT_MM
 
 
 # The socket and its pocket in plan.

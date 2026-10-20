@@ -8,9 +8,11 @@ Each bay is build_tray()'s left tray (tray_shape.py) with the bay's
 layout.MountFits, cut by one box around the nice!nano's corner, so the
 bay is the tray's geometry and not a copy of it. The box reaches past
 the tray's west and north faces, so it holds the floor, the west and
-north walls at full height with the ledge, the USB window, the north
-block, the screw clamp's block and foot with the standoff at (18.574,
-37.782) they take in, the east wall, the pry slot and the pry recess.
+north walls at full height with the ledge and the west socket strip's
+pocket in it, the USB window, the north block, the screw clamp's block
+and foot with the standoff at (18.574, 37.782) they take in, the east
+wall with the east strip's pocket, the seat the board lies on, the pry
+slot and the pry recess the seat leaves free.
 Its east face (BAY_EAST_X_MM) cuts the floor and the north wall and
 ledge east of the battery's northwest rib, its south face
 (BAY_SOUTH_Y_MM) the floor and the west wall and ledge south of the
@@ -38,10 +40,10 @@ words nano_length and nano_width size the board for every bay.
 Every bay passes the mount checks the default tray passes:
 check_layout.py's problem functions with the bay's fits (the mounts
 inside the tray and clear of the parts, the sockets, the standoffs and
-the joint, the clamp's tab within its strain and under the PCB, the
-floor's voids short of its underside, the openings around the shell
-and the lever, the board going in past the foot, the pry slot, the
-wire rooms), on top of
+the joint, the clamp's tab within its strain and under the PCB, no
+void below the floor's top, the openings around the shell and the
+lever, the board going in past the foot, the seat, the socket strips
+clear of the tray, the pry slot, the wire rooms), on top of
 build_tray()'s own probes of what it built, its closed floor among
 them. Any problem stops the export.
 
@@ -174,6 +176,8 @@ def mount_problems(fits):
         + check_layout.clamp_problems(fits)
         + check_layout.opening_problems(fits)
         + check_layout.insertion_problems(fits)
+        + check_layout.nano_seat_problems(fits)
+        + check_layout.nano_strip_clearances(right, fits)[0]
         + check_layout.pry_slot_problems(right, fits)
         + check_layout.wire_room_problems(right, fits)[0]
     )
@@ -237,13 +241,14 @@ def standoff_square(center):
 def bay_features(fits):
     """(label, convex plan polygon, must lie inside) of every feature of
     the left tray but the walls, the ledge and the floor: the mounts'
-    boxes (the nice!nano's must lie inside), the ledge cut-aways and the
-    sockets' cuts, the standoffs (their flats lie on them) and the
-    joint."""
+    boxes (the nice!nano's must lie inside), the ledge cut-aways, the
+    west socket strip's pocket and the sockets' cuts, the standoffs
+    (their flats lie on them) and the joint."""
     boxes = layout.mount_bodies(fits) + layout.mount_voids(fits)
     mounts = [(check_layout.describe_mount(box), check_layout.box_polygon(box),
                box.part == "nice!nano") for box in boxes]
     cuts = [layout.ledge_cutaway_cut(cutaway) for cutaway in layout.ledge_cutaways(fits)]
+    cuts.append(layout.nano_strip_ledge_pocket(fits))
     cuts.extend(layout.all_socket_tray_cuts())
     tray_cuts = [(cut.label, layout.tray_cut_polygon(cut), False) for cut in cuts]
     standoffs = [(f"standoff at {center}", standoff_square(center), False)

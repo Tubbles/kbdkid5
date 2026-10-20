@@ -16,7 +16,7 @@ invocation):
 
 The mock's x and y are the layout's, its bottom face on z = 0, while
 in the layout's frame z = 0 is the tray floor's top (the PCB's
-underside sits at z 8.0 there): a print lies on the bed. The word
+underside sits at z 9.5 there): a print lies on the bed. The word
 "right" makes the right half like the fused mock's PCB layer: the
 outline and the drills mirrored across the layout's right-half mirror
 line, each key's footprint holes the left half's at the mirrored key

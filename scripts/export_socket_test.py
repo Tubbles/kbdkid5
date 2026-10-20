@@ -44,7 +44,11 @@ socket's bottom and its place under the socket's outline, the screw
 holes, and stacked under the pocket strip: nothing overlapping, the
 backing touching only the bosses' ends, the pads' distance to the
 walls, clear of them as printed, every bore over its screw hole, the
-tabs' wire rooms clear, and the battery clearance in the real tray.
+tabs' wire rooms clear, and the battery clearance in the real tray,
+the backing's and its screw heads'. It also prints where the backing
+and the heads stand over the nice!nano's socket strips, which only
+states a constraint on a real frame: the heads come below the strips'
+tops, so its backing screws must keep off the strips in plan.
 Every strip's mesh must have its lowest point on z = 0, the bed.
 """
 
@@ -79,7 +83,8 @@ DESIGN_TAB_SLOT_WIDTH_MM = 3.18
 DESIGN_BOSS_HEIGHT_MM = 3.87
 DESIGN_LONGEST_INSERT_MM = 3.067
 DESIGN_BACKING_THICKNESS_MM = 0.80
-DESIGN_BATTERY_CLEARANCE_AS_PRINTED_MM = 0.77
+DESIGN_BATTERY_CLEARANCE_AS_PRINTED_MM = 2.27
+DESIGN_SCREW_HEADS_OVER_BATTERY_PRINTED_MM = 0.77  # the backing's, 1.5 tall
 DESIGN_STRIP_MARK_XS_MM = {shape.POCKET: (19.05, 38.10, 57.15, 76.20, 95.25),
                            shape.HOLES: (19.05, 57.15, 95.25)}
 DESIGN_FIGURE_DECIMALS = 2
@@ -844,12 +849,18 @@ def battery_figures():
 def check_battery():
     socket_bottom, pads_room, bottom, clearance = battery_figures()
     limit = shape.backing_thickness_limit()
+    heads_bottom = shape.backing_screw_heads_bottom_z()
+    heads_clearance = heads_bottom - layout.BATTERY_TOP_Z_MM
     require_clearance("the backing from the battery as printed", clearance,
+                      layout.MINIMUM_BATTERY_TO_SOCKET_CLEARANCE_MM)
+    require_clearance("the backing's screw heads from the battery as printed", heads_clearance,
                       layout.MINIMUM_BATTERY_TO_SOCKET_CLEARANCE_MM)
     require_design("the backing's thickness", shape.BACKING_THICKNESS_MM,
                    DESIGN_BACKING_THICKNESS_MM)
     require_design("the battery clearance as printed", clearance,
                    DESIGN_BATTERY_CLEARANCE_AS_PRINTED_MM)
+    require_design("the screw heads' battery clearance as printed", heads_clearance,
+                   DESIGN_SCREW_HEADS_OVER_BATTERY_PRINTED_MM)
     rise = layout.PRINT_RISE_OF_TOP_FACES_MM
     print(f"battery:    in the tray the frame in the PCB's place puts the socket's bottom at "
           f"z {socket_bottom:.3f} (under a PCB {layout.SOCKET_BOTTOM_Z_MM:.2f}); below it the "
@@ -857,7 +868,14 @@ def check_battery():
           f"{limit:.3f} the battery allows), its bottom at z {bottom:.3f}, {bottom - rise:.3f} "
           f"as printed (its top face rises {rise}, measured), "
           f"{clearance:.3f} over the battery's top {layout.BATTERY_TOP_Z_MM} as printed "
-          f"(at least {layout.MINIMUM_BATTERY_TO_SOCKET_CLEARANCE_MM})")
+          f"(at least {layout.MINIMUM_BATTERY_TO_SOCKET_CLEARANCE_MM}), its screw heads "
+          f"{shape.BACKING_SCREW_HEAD_HEIGHT_MM} tall to z {heads_bottom:.3f}, "
+          f"{heads_clearance:.3f} over it")
+    strips_top = max(strip.z_range[1] for strip in layout.nano_strip_envelopes())
+    print(f"strips:     the backing's underside {bottom - rise - strips_top:.3f} over the "
+          f"nice!nano's socket strips' top z {strips_top:.3f} as printed, its screw heads "
+          f"{heads_bottom - strips_top:.3f}, so a frame's backing screws must keep off the "
+          "strips in plan")
 
 
 def export_backing(arguments):
