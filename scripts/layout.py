@@ -1870,18 +1870,21 @@ def nano_center_x(fits):
 # model: "Board length 33.20, bay inside length 33.54" (2026-10-20). So
 # these two faces swelled 33.8 - 33.54 = 0.26 together, not the print
 # model's 0.4, while across the print model held (18.8 modelled, 18.4 by
-# the model, 18.41 to 18.46 calipered). Only that sum was calipered: it
-# is taken as 0.13 on each face, and how it really splits is not known
-# (check_layout.py prints the shell with all of it on the foot). Why the
-# faces swell less is not known either: they are short faces, the
-# reading is a caliper's on a printed part, or both. The pocket is the
-# board's slip fit along with that swelling, so its end faces stand
-# the board's length and the slip fit's 0.1 apart as printed, and
-# every figure along it as printed counts them swollen by that much.
-# The north block stays where it stood, the print model's slip fit
-# gap north of the board's USB end, so the shell's mouth stays put,
-# and the foot's face follows the pocket's length.
-NANO_POCKET_END_FACE_SWELLING_MM = 0.13
+# the model, 18.41 to 18.46 calipered). Only that sum was calipered
+# (NANO_POCKET_END_FACES_SWELLING_MM). The pocket is sized for 0.13 on
+# each face, but how the sum really splits is not known, so the stops
+# as printed take the north block's share of it, and check_layout.py
+# takes every figure that depends on the split at its worst, all of
+# the sum on either face. Why the faces swell less is not known
+# either: they are short faces, the reading is a caliper's on a
+# printed part, or both. The pocket is the board's slip fit along with
+# that swelling, so its end faces stand the board's length and the
+# slip fit's 0.1 apart as printed however the sum splits. The north
+# block stays where it stood, the print model's slip fit gap north of
+# the board's USB end, so the shell's mouth stays put, and the foot's
+# face follows the pocket's length.
+NANO_POCKET_END_FACES_SWELLING_MM = 0.26
+NANO_POCKET_END_FACE_SWELLING_MM = NANO_POCKET_END_FACES_SWELLING_MM / 2.0
 
 
 def nano_north_end_gap(fits):
@@ -1896,14 +1899,19 @@ def nano_pocket_length(fits=DEFAULT_MOUNT_FITS):
     return fits.nano_length + 2.0 * NANO_POCKET_END_FACE_SWELLING_MM + SLIP_FIT_MM
 
 
-def nano_north_stop_y_as_printed(fits=DEFAULT_MOUNT_FITS):
-    """The north block's face as printed, the board's north stop."""
-    return nano_north_block_south_y(fits) - NANO_POCKET_END_FACE_SWELLING_MM
+def nano_north_stop_y_as_printed(fits=DEFAULT_MOUNT_FITS,
+                                 block_swelling=NANO_POCKET_END_FACE_SWELLING_MM):
+    """The north block's face as printed, the board's north stop, the
+    face swollen by block_swelling, its share of the end faces' sum."""
+    return nano_north_block_south_y(fits) - block_swelling
 
 
-def nano_south_stop_y_as_printed(fits=DEFAULT_MOUNT_FITS):
-    """The foot's face as printed, the board's south stop."""
-    return nano_clamp_stop_y(fits) + NANO_POCKET_END_FACE_SWELLING_MM
+def nano_south_stop_y_as_printed(fits=DEFAULT_MOUNT_FITS,
+                                 block_swelling=NANO_POCKET_END_FACE_SWELLING_MM):
+    """The foot's face as printed, the board's south stop, the face
+    swollen by what the north block's share, block_swelling, leaves of
+    the end faces' sum."""
+    return nano_clamp_stop_y(fits) + NANO_POCKET_END_FACES_SWELLING_MM - block_swelling
 
 
 def nano_board_envelope(fits=DEFAULT_MOUNT_FITS):
@@ -2495,8 +2503,18 @@ def nano_strip_rooms(fits=DEFAULT_MOUNT_FITS):
 # millimeter lengthwise"). Below the board's top the faces still locate
 # its edges. The west pocket is a TrayCut out of the ledge
 # (nano_strip_ledge_pocket()), the east one splits the east wall
-# (nano_east_wall_boxes()).
+# (nano_east_wall_boxes()). Both run NANO_STRIP_POCKET_NORTH_EXTENSION_MM
+# further north for the board going in tilted (check_layout.py's tilt
+# figures): its top rises toward its south end, so the strips lean
+# north and the west strip's north top corner comes toward the ledge
+# north of its pocket. With all of the end faces' swelling on the foot,
+# the north block's face standing as modelled, the corner reached
+# 0.069 into the ledge there as printed. The extension, the
+# least in 0.01 steps, keeps it 0.1 clear at that split. The east
+# pocket's north end lies north of the east wall's, so only the ledge
+# changes.
 NANO_BOARD_PLAY_ALLOWANCE_MM = 0.3
+NANO_STRIP_POCKET_NORTH_EXTENSION_MM = 0.17
 
 
 def nano_strip_pocket_margin():
@@ -2510,7 +2528,8 @@ def nano_strip_pocket_x_range(fits=DEFAULT_MOUNT_FITS):
 
 
 def nano_strip_pocket_y_range():
-    return grown_range(nano_strip_y_range(), nano_strip_pocket_margin())
+    south, north = grown_range(nano_strip_y_range(), nano_strip_pocket_margin())
+    return (south, north + NANO_STRIP_POCKET_NORTH_EXTENSION_MM)
 
 
 def west_outline_edge_index():

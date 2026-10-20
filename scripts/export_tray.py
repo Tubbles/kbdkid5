@@ -164,7 +164,7 @@ DESIGN_NANO_EAST_WALL_NORTH_Y_MM = 65.3
 # end.
 DESIGN_NANO_SEAT_INSIDE_EDGES_MM = 2.905
 DESIGN_NANO_STRIP_POCKETS_OUTSIDE_EDGES_MM = 0.775
-DESIGN_NANO_STRIP_POCKETS_FROM_USB_END_MM = (1.8265, 33.9335)  # north end, south end
+DESIGN_NANO_STRIP_POCKETS_FROM_USB_END_MM = (1.6565, 33.9335)  # north end, south end
 # The screw clamp at the board's south end (work items 009 and 010), at
 # the default press: the foot across the pocket, the block from the west
 # ledge's face to the east wall's outer face, its bore on the board's
